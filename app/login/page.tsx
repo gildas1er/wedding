@@ -118,7 +118,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6 md:p-12 lg:p-20">
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-[440px]">
           <div className="mb-10">
-            <h1 className="text-3xl font-black text-slate-900 mb-2" style={{ fontFamily: '"Playfair Display", serif' }}>Connexion</h1>
+            <h1 className="text-3xl font-black text-slate-900 mb-2" style={{ fontFamily: '"Playfair Display", serif' }}>Connexions</h1>
             <p className="text-slate-500 font-medium">Entrez vos identifiants pour accéder à votre espace.</p>
           </div>
 
