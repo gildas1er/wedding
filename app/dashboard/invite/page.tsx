@@ -450,7 +450,11 @@ export default function GuestPage() {
                   <td className="px-8 py-5">
                     <div className="flex flex-col">
                       <div className="font-bold text-slate-800 flex items-center gap-2">
-                        {guest.is_vip && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" title="VIP" />}
+                        {guest.is_vip && (
+  <span title="VIP">
+    <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
+  </span>
+)}
                         <span className={guest.is_vip ? "text-amber-900 font-extrabold" : ""}>{guest.name}</span>
                         <span className={`text-[9px] px-2 py-0.5 rounded-md border ${
                           guest.side === 'partenaire_2' 
