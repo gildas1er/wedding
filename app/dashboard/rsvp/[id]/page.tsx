@@ -48,12 +48,12 @@ function RSVPContent() {
     const fetchData = async () => {
       if (!id) { setLoading(false); return; }
       try {
-        // 1. Récupérer les infos du mariage
+        // 1. Récupérer les infos du mariage (avec la méthode sécurisée maybeSingle)
         const { data: mData } = await supabase
           .from('marriages')
           .select('*')
           .eq('id', id)
-          .single();
+          .maybeSingle();
         if (mData) setMarriage(mData);
 
         // 2. Récupérer les infos de l'invité spécifique
@@ -62,7 +62,7 @@ function RSVPContent() {
             .from('invite')
             .select('name, status, guests_count')
             .eq('id', guestId)
-            .single();
+            .maybeSingle();
           
           if (gData) {
             setGuestName(gData.name);
@@ -119,7 +119,9 @@ function RSVPContent() {
   const m = marriage || {
     partner_1_name: "Sarah", partner_2_name: "Marc",
     primary_color: "#f43f5e", invitation_text: "VOUS ÊTES INVITÉS",
-    wedding_date: new Date(), mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
+    wedding_date: new Date(), 
+    mairie_date: "", mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
+    religious_date: "", religious_hour: "", religious_location: "",
     reception_hour: "19:00", reception_location: "Domaine de la Rose"
   };
 
@@ -146,7 +148,7 @@ function RSVPContent() {
           >
             <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-1 text-slate-400">Enregistrez la date</p>
             <h3 className="text-xl font-black text-slate-800">
-              {new Date(m.wedding_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {m.wedding_date ? new Date(m.wedding_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date à venir'}
             </h3>
           </motion.div>
 
@@ -170,12 +172,25 @@ function RSVPContent() {
           <div className="space-y-4 mb-10">
             <ProgramItem 
                 icon={Church} 
-                title="La Cérémonie" 
-                time={m.mairie_hour} 
+                title="La Cérémonie Civile" 
+                time={m.mairie_date ? `${m.mairie_date} à ${m.mairie_hour || ''}` : m.mairie_hour} 
                 loc={m.mairie_location} 
                 color="rose"
                 maps={m.mairie_maps_url}
             />
+
+            {/* Conditionnel : Si l'heure ou la date religieuse est renseignée, on l'affiche */}
+            {(m.religious_hour || m.religious_date) && (
+              <ProgramItem 
+                  icon={Cross} 
+                  title="La Cérémonie Religieuse" 
+                  time={m.religious_date ? `${m.religious_date} à ${m.religious_hour || ''}` : m.religious_hour} 
+                  loc={m.religious_location} 
+                  color="blue"
+                  maps={m.religious_maps_url}
+              />
+            )}
+
             <ProgramItem 
                 icon={GlassWater} 
                 title="Le Cocktail & Dîner" 
@@ -296,6 +311,7 @@ function RSVPContent() {
 function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
     const colors: any = {
         rose: "text-rose-500 bg-rose-50",
+        blue: "text-blue-600 bg-blue-50",
         amber: "text-amber-600 bg-amber-50"
     };
 
@@ -306,7 +322,7 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
                     <Icon size={20} />
                 </div>
                 <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{time}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{time || '--:--'}</p>
                     <h4 className="font-bold text-slate-800 text-sm leading-tight">{title}</h4>
                     <p className="text-[11px] font-medium text-slate-500 truncate max-w-[150px]">{loc}</p>
                 </div>
