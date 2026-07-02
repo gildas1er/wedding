@@ -24,9 +24,11 @@ export default function InvitationStudio() {
     primary_color: '#f43f5e',
     invitation_text: 'On se marie !',
     bg_image_url: '',
+    mairie_date: '', // NOUVEAU
     mairie_hour: '',
     mairie_location: '',
     mairie_maps_url: '',
+    religious_date: '', // NOUVEAU
     religious_hour: '',
     religious_location: '',
     religious_maps_url: '',
@@ -54,9 +56,11 @@ export default function InvitationStudio() {
           primary_color: data.primary_color || '#f43f5e',
           invitation_text: data.invitation_text || 'On se marie !',
           bg_image_url: data.bg_image_url || '',
+          mairie_date: data.mairie_date || '', // NOUVEAU
           mairie_hour: data.mairie_hour || '',
           mairie_location: data.mairie_location || '',
           mairie_maps_url: data.mairie_maps_url || '',
+          religious_date: data.religious_date || '', // NOUVEAU
           religious_hour: data.religious_hour || '',
           religious_location: data.religious_location || '',
           religious_maps_url: data.religious_maps_url || '',
@@ -78,9 +82,11 @@ export default function InvitationStudio() {
       primary_color: config.primary_color,
       invitation_text: config.invitation_text,
       bg_image_url: config.bg_image_url,
+      mairie_date: config.mairie_date, // NOUVEAU
       mairie_hour: config.mairie_hour,
       mairie_location: config.mairie_location,
       mairie_maps_url: config.mairie_maps_url,
+      religious_date: config.religious_date, // NOUVEAU
       religious_hour: config.religious_hour,
       religious_location: config.religious_location,
       religious_maps_url: config.religious_maps_url,
@@ -225,6 +231,11 @@ export default function InvitationStudio() {
                   Cérémonie Civile
                 </div>
                 <div className="space-y-3">
+                  {/* MODIFICATION : Ajout du champ Date Civile */}
+                  <div className="relative">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" />
+                    <input type="text" placeholder="Date de la mairie (ex: Vendredi 12 Juin)" value={config.mairie_date} onChange={(e) => setConfig({...config, mairie_date: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-rose-200 shadow-inner" />
+                  </div>
                   <div className="relative">
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" />
                     <input type="text" placeholder="Heure (ex: 14h30)" value={config.mairie_hour} onChange={(e) => setConfig({...config, mairie_hour: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-rose-200 shadow-inner" />
@@ -247,6 +258,11 @@ export default function InvitationStudio() {
                   Cérémonie Religieuse
                 </div>
                 <div className="space-y-3">
+                  {/* MODIFICATION : Ajout du champ Date Religieuse */}
+                  <div className="relative">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
+                    <input type="text" placeholder="Date église (ex: Samedi 13 Juin)" value={config.religious_date} onChange={(e) => setConfig({...config, religious_date: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-blue-200 shadow-inner" />
+                  </div>
                   <div className="relative">
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
                     <input type="text" placeholder="Heure" value={config.religious_hour} onChange={(e) => setConfig({...config, religious_hour: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-blue-200 shadow-inner" />
@@ -346,7 +362,8 @@ export default function InvitationStudio() {
                     <div className="flex justify-around items-center text-[8px] font-black border-t border-slate-50 pt-4 gap-2">
                       <div className="flex-1 flex flex-col gap-0.5">
                         <span className="text-rose-400 uppercase tracking-widest">Mairie</span>
-                        <span className="text-slate-900">{config.mairie_hour || '--:--'}</span>
+                        {/* MODIFICATION : Affiche la date custom si elle existe, sinon l'heure d'origine */}
+                        <span className="text-slate-900 truncate max-w-[70px]">{config.mairie_date || config.mairie_hour || '--:--'}</span>
                       </div>
                       
                       {config.religious_hour && (
@@ -354,7 +371,8 @@ export default function InvitationStudio() {
                           <div className="w-px h-5 bg-slate-100" />
                           <div className="flex-1 flex flex-col gap-0.5">
                             <span className="text-blue-500 uppercase tracking-widest">Église</span>
-                            <span className="text-slate-900">{config.religious_hour}</span>
+                            {/* MODIFICATION : Affiche la date custom religieuse si elle existe, sinon l'heure */}
+                            <span className="text-slate-900 truncate max-w-[70px]">{config.religious_date || config.religious_hour}</span>
                           </div>
                         </>
                       )}
