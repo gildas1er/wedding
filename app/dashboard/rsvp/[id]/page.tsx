@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Calendar, MapPin, GlassWater, 
   CheckCircle2, Clock, Users, Loader2, Sparkles,
-  Church, Cross, Compass, MessageCircle, XCircle 
+  Church, Landmark, Cross, Compass, MessageCircle, XCircle 
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase'; // Utilisation de ton client existant
 
@@ -171,7 +171,7 @@ function RSVPContent() {
           {/* PROGRAMME */}
           <div className="space-y-4 mb-10">
             <ProgramItem 
-                icon={Church} 
+                icon={Landmark} 
                 title="La Cérémonie Civile" 
                 time={m.mairie_date ? `${m.mairie_date} à ${m.mairie_hour || ''}` : m.mairie_hour} 
                 loc={m.mairie_location} 
@@ -308,6 +308,9 @@ function RSVPContent() {
 }
 
 // Composant Interne pour les items du programme
+
+
+// Remplacer l'ancien composant ProgramItem par cette version plus intuitive
 function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
     const colors: any = {
         rose: "text-rose-500 bg-rose-50",
@@ -316,24 +319,27 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
     };
 
     return (
-        <div className="flex items-center justify-between p-4 bg-white rounded-3xl border border-slate-100 shadow-sm group">
-            <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-2xl ${colors[color]}`}>
+        <div className="flex items-center justify-between p-4 bg-white rounded-3xl border border-slate-100 shadow-sm group transition-all duration-300 hover:border-slate-200">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className={`p-3 rounded-2xl shrink-0 ${colors[color]}`}>
                     <Icon size={20} />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{time || '--:--'}</p>
-                    <h4 className="font-bold text-slate-800 text-sm leading-tight">{title}</h4>
-                    <p className="text-[11px] font-medium text-slate-500 truncate max-w-[150px]">{loc}</p>
+                    <h4 className="font-bold text-slate-800 text-sm leading-tight truncate">{title}</h4>
+                    <p className="text-[11px] font-medium text-slate-500 truncate pr-2">{loc}</p>
                 </div>
             </div>
+            
             {maps && (
                 <a 
                   href={maps} 
                   target="_blank" 
-                  className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-950 text-slate-600 hover:text-white rounded-xl transition-all duration-300 border border-slate-100 shrink-0 shadow-sm active:scale-95"
                 >
-                    <Compass size={18} />
+                    <MapPin size={13} className="shrink-0" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Plan</span>
                 </a>
             )}
         </div>

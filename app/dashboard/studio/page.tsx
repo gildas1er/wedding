@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Save, Palette, Image as ImageIcon, 
   Upload, Loader2, Clock, MapPin, Calendar, 
-  ArrowLeft, Check, Church, PartyPopper, 
+  ArrowLeft, Check, Landmark, Church, PartyPopper, 
   Link as LinkIcon, Cross, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase'; // Utilisation de ton client existant
@@ -227,7 +227,7 @@ export default function InvitationStudio() {
               {/* Mairie */}
               <div className="bg-rose-50/30 p-6 rounded-[2rem] border-2 border-rose-100 space-y-4">
                 <div className="flex items-center gap-3 text-rose-600 font-black text-[13px] uppercase tracking-wider">
-                  <div className="p-2 bg-white rounded-lg shadow-sm"><Church className="w-4 h-4" /></div>
+                  <div className="p-2 bg-white rounded-lg shadow-sm"><Landmark className="w-4 h-4" /></div>
                   Cérémonie Civile
                 </div>
                 <div className="space-y-3">
