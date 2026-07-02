@@ -5,13 +5,14 @@ import {
   UploadCloud, Image as ImageIcon, Camera, 
   CheckCircle2, Loader2, X, Heart, Sparkles 
 } from 'lucide-react';
+import imageCompression from 'browser-image-compression'; // Import de la bibliothèque de compression
 import { supabase } from '../lib/supabase'; // Ajuste le chemin selon ton projet
 
 export default function PhotosUploadPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState<{ [key: string]: number }>({});
+  const [uploadMessage, setUploadMessage] = useState('Envoi des souvenirs en cours...');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   
@@ -27,7 +28,6 @@ export default function PhotosUploadPage() {
       const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
       setPreviews(prev => [...prev, ...newPreviews]);
       
-      // Réinitialiser le statut si l'utilisateur rajoute des photos
       if (status === 'success') setStatus('idle');
     }
   };
@@ -39,7 +39,7 @@ export default function PhotosUploadPage() {
     setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Envoyer les photos vers Supabase Storage
+  // Envoyer les photos après compression
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0) return;
@@ -47,40 +47,55 @@ export default function PhotosUploadPage() {
     setUploading(true);
     setStatus('idle');
     
+    // Configuration de la compression (Max 2 Mo, redimensionnement intelligent si trop grand)
+    const compressionOptions = {
+      maxSizeMB: 2,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true
+    };
+
     try {
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        // Création d'un nom unique : dossier "invites" / timestamp - nom_fichier
+        let file = files[i];
+        
+        // Mettre à jour le message pour informer de la compression
+        setUploadMessage(`Optimisation de la photo ${i + 1}/${files.length}...`);
+
+        // Si c'est une image et qu'elle dépasse 2 Mo, on la compresse
+        if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
+          try {
+            file = await imageCompression(file, compressionOptions);
+          } catch (compressionError) {
+            console.error("Échec de la compression, envoi du fichier original", compressionError);
+          }
+        }
+
+        setUploadMessage(`Envoi de la photo ${i + 1}/${files.length}...`);
+
         const fileExt = file.name.split('.').pop();
         const fileName = `invites/${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
-        // Initialiser la progression de ce fichier à 10%
-        setProgress(prev => ({ ...prev, [file.name]: 10 }));
-
         const { error } = await supabase.storage
-          .from('wedding-photos') // Doit correspondre exactement au nom de ton bucket Supabase
+          .from('wedding-photos')
           .upload(fileName, file, {
             cacheControl: '3600',
             upsert: false
           });
 
         if (error) throw error;
-
-        // Fichier envoyé avec succès
-        setProgress(prev => ({ ...prev, [file.name]: 100 }));
       }
 
-      // Tout s'est bien passé
+      // Succès
       setStatus('success');
       setFiles([]);
       setPreviews([]);
-      setProgress({});
     } catch (err: any) {
       console.error(err);
       setStatus('error');
       setErrorMessage(err.message || "Une erreur est survenue lors du transfert.");
     } finally {
       setUploading(false);
+      setUploadMessage('Envoi des souvenirs en cours...');
     }
   };
 
@@ -169,7 +184,7 @@ export default function PhotosUploadPage() {
             )}
           </AnimatePresence>
 
-          {/* PROGRESSION DU CHARGEMENT */}
+          {/* PROGRESSION ET CHARGEMENT */}
           <AnimatePresence>
             {uploading && (
               <motion.div 
@@ -180,26 +195,25 @@ export default function PhotosUploadPage() {
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-5 h-5 animate-spin text-rose-400" />
                   <div>
-                    <h4 className="font-bold text-sm">Envoi des souvenirs en cours...</h4>
+                    <h4 className="font-bold text-sm">{uploadMessage}</h4>
                     <p className="text-[10px] text-slate-400">Ne fermez pas cette page</p>
                   </div>
                 </div>
                 
-                {/* Barre globale simplifiée */}
                 <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                   <motion.div 
                     className="bg-rose-500 h-full rounded-full"
                     layoutId="progressBar"
                     initial={{ width: "5%" }}
                     animate={{ width: "95%" }}
-                    transition={{ duration: 10 }}
+                    transition={{ duration: 8 }}
                   />
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ÉCRANS DE RÉSULTAT (SUCCÈS / ERREUR) */}
+          {/* ÉCRANS DE RÉSULTAT */}
           <AnimatePresence>
             {status === 'success' && (
               <motion.div 
