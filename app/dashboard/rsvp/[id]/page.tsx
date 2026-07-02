@@ -25,7 +25,11 @@ function RSVPContent() {
   const params = useParams();
   const id = params?.id; // ID du mariage
   const searchParams = useSearchParams();
-  const guestId = searchParams.get('guest'); // ID de l'invité
+  
+
+  // SÉCURITÉ & NETTOYAGE : Élimine les guillemets (" ou ') qui font planter le type UUID de PostgreSQL
+  const rawGuestId = searchParams.get('guest');
+  const guestId = rawGuestId ? rawGuestId.replace(/['"]+/g, '') : null;
   
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
