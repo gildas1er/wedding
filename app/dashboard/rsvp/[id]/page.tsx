@@ -87,7 +87,7 @@ function RSVPContent() {
     setSending(true);
 
     // Si décliné, le compte retombe à 0 (ou 1 par défaut selon ta logique métier)
-    const finalCount = form.status === 'décliné' ? 0 : form.guests_count;
+    const finalCount = form.status === 'décliné' ? 1 : form.guests_count;
 
     const { error } = await supabase
       .from('invite')
