@@ -259,7 +259,7 @@ export default function DepotPhotosPage() {
           {isSuccess && !isUploading && (
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 text-emerald-800">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              <p className="text-xs font-bold">Album mis à jour ! Merci pour vos clichés ❤️</p>
+              <p className="text-xs font-bold">Vos photos et votre message ont été transmis ! Merci ❤️</p>
             </div>
           )}
 

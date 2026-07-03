@@ -59,6 +59,7 @@ export default function GaleriePage() {
       const { data: dbData, error: dbError } = await supabase
         .from('photos_metadata')
         .select('*')
+        .eq('is_approved', true)
         .order('created_at', { ascending: false });
 
       if (dbError) throw dbError;
