@@ -1,273 +1,216 @@
 "use client";
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  UploadCloud, Image as ImageIcon, Camera, 
-  CheckCircle2, Loader2, X, Heart, Sparkles 
-} from 'lucide-react';
-import imageCompression from 'browser-image-compression'; // Import de la bibliothèque de compression
+import React, { useState } from 'react';
+import { Camera, Upload, CheckCircle2, Loader2, Sparkles, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabase'; // Ajuste le chemin selon ton projet
+import imageCompression from 'browser-image-compression';
 
-export default function PhotosUploadPage() {
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState('Envoi des souvenirs en cours...');
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+export default function DepotPhotosPage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [message, setMessage] = useState('');
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Gérer la sélection des fichiers
+  // Gérer la sélection de l'image et générer l'aperçu
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...selectedFiles]);
-
-      // Générer les aperçus visuels
-      const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
-      setPreviews(prev => [...prev, ...newPreviews]);
-      
-      if (status === 'success') setStatus('idle');
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
+      setIsSuccess(false);
+      setErrorMsg(null);
     }
   };
 
-  // Supprimer une photo de la liste avant l'envoi
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-    URL.revokeObjectURL(previews[index]);
-    setPreviews(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Envoyer les photos après compression
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length === 0) return;
+    if (!file) return;
 
-    setUploading(true);
-    setStatus('idle');
-    
-    // Configuration de la compression (Max 2 Mo, redimensionnement intelligent si trop grand)
-    const compressionOptions = {
-      maxSizeMB: 2,
-      maxWidthOrHeight: 1920,
-      useWebWorker: true
-    };
+    setIsUploading(true);
+    setErrorMsg(null);
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        let file = files[i];
-        
-        // Mettre à jour le message pour informer de la compression
-        setUploadMessage(`Optimisation de la photo ${i + 1}/${files.length}...`);
+      // 1. Compression intelligente de l'image (Cible ~1.5 Mo pour fluidifier l'envoi en 4G)
+      const options = {
+        maxSizeMB: 1.5,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, options);
 
-        // Si c'est une image et qu'elle dépasse 2 Mo, on la compresse
-        if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
-          try {
-            file = await imageCompression(file, compressionOptions);
-          } catch (compressionError) {
-            console.error("Échec de la compression, envoi du fichier original", compressionError);
+      // 2. Générer un nom de fichier unique et propre
+      const fileExt = file.name.split('.').pop();
+      const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = `invites/${cleanFileName}`;
+
+      // 3. Envoyer le fichier dans Supabase Storage
+      const { error: storageError } = await supabase.storage
+        .from('wedding-photos')
+        .upload(filePath, compressedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (storageError) throw storageError;
+
+      // 4. Envoyer le prénom et le petit mot dans la table photos_metadata
+      const { error: dbError } = await supabase
+        .from('photos_metadata')
+        .insert([
+          {
+            file_name: filePath, // On garde le chemin exact pour faire la liaison
+            guest_name: guestName.trim() || "Invité anonyme",
+            message: message.trim() || null
           }
-        }
+        ]);
 
-        setUploadMessage(`Envoi de la photo ${i + 1}/${files.length}...`);
+      if (dbError) throw dbError;
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `invites/${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-
-        const { error } = await supabase.storage
-          .from('wedding-photos')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (error) throw error;
-      }
-
-      // Succès
-      setStatus('success');
-      setFiles([]);
-      setPreviews([]);
+      // 5. Réinitialisation en cas de succès
+      setIsSuccess(true);
+      setFile(null);
+      setPreviewUrl(null);
+      setGuestName('');
+      setMessage('');
     } catch (err: any) {
       console.error(err);
-      setStatus('error');
-      setErrorMessage(err.message || "Une erreur est survenue lors du transfert.");
+      setErrorMsg("Une erreur est survenue lors de l'envoi. Réessayez.");
     } finally {
-      setUploading(false);
-      setUploadMessage('Envoi des souvenirs en cours...');
+      setIsUploading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex justify-center">
-      <div className="w-full max-w-[450px] bg-white shadow-2xl relative min-h-screen pb-12 overflow-x-hidden flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+      <div className="w-full max-w-[450px] bg-white rounded-[2.5rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden">
         
-        <div className="px-6 pt-12">
-          {/* EN-TÊTE DE LA PAGE */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Album Photo Partagé</p>
-              <Sparkles className="w-4 h-4 text-amber-400" />
-            </div>
-            <h1 className="text-3xl font-black text-slate-900 leading-tight">
-              Partagez vos <br/>
-              <span className="text-rose-500 italic font-serif">plus beaux souvenirs</span>
-            </h1>
-            <p className="text-xs font-medium text-slate-500 mt-3 max-w-[280px] mx-auto leading-relaxed">
-              Pas besoin d'application ! Prenez une photo en direct ou choisissez vos meilleurs clichés depuis votre galerie.
-            </p>
+        {/* Petit effet visuel décoratif en haut */}
+        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-rose-300 via-amber-200 to-rose-300" />
+
+        {/* EN-TÊTE */}
+        <div className="text-center mt-4 mb-6">
+          <div className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
+            <Sparkles className="w-3 h-3" /> Live Album
           </div>
-
-          {/* ZONE DE DÉPÔT / BOUTON APPAREIL */}
-          {status !== 'success' && (
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 rounded-[2.5rem] p-8 text-center cursor-pointer transition-all duration-300 group active:scale-98 relative overflow-hidden"
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*" 
-                multiple 
-                className="hidden" 
-              />
-              
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm mb-4 border border-slate-100 group-hover:scale-105 transition-transform">
-                <UploadCloud className="w-8 h-8 text-rose-500" />
-              </div>
-              
-              <p className="text-sm font-bold text-slate-800">Cliquez ici pour ajouter</p>
-              <p className="text-[11px] font-medium text-slate-400 mt-1">Photos ou vidéos depuis votre téléphone</p>
-              
-              <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-slate-100 text-slate-500">
-                <div className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider">
-                  <Camera size={14} className="text-slate-400" /> Appareil
-                </div>
-                <div className="h-3 w-[1px] bg-slate-200" />
-                <div className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider">
-                  <ImageIcon size={14} className="text-slate-400" /> Galerie
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* LISTE ET APERÇU DES SÉLECTIONS */}
-          <AnimatePresence>
-            {previews.length > 0 && !uploading && (
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 15 }}
-                className="mt-6 bg-slate-50 p-4 rounded-[2rem] border border-slate-100"
-              >
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 px-1">
-                  Sélection ({previews.length})
-                </p>
-                <div className="grid grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                  {previews.map((src, index) => (
-                    <div key={src} className="aspect-square relative rounded-xl overflow-hidden bg-slate-200 shadow-inner group">
-                      <img src={src} alt="Aperçu" className="w-full h-full object-cover" />
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); removeFile(index); }}
-                        className="absolute top-1 right-1 bg-black/60 hover:bg-black text-white p-1 rounded-full backdrop-blur-sm transition-all"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* PROGRESSION ET CHARGEMENT */}
-          <AnimatePresence>
-            {uploading && (
-              <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }}
-                className="mt-6 bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl space-y-4"
-              >
-                <div className="flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 animate-spin text-rose-400" />
-                  <div>
-                    <h4 className="font-bold text-sm">{uploadMessage}</h4>
-                    <p className="text-[10px] text-slate-400">Ne fermez pas cette page</p>
-                  </div>
-                </div>
-                
-                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                  <motion.div 
-                    className="bg-rose-500 h-full rounded-full"
-                    layoutId="progressBar"
-                    initial={{ width: "5%" }}
-                    animate={{ width: "95%" }}
-                    transition={{ duration: 8 }}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* ÉCRANS DE RÉSULTAT */}
-          <AnimatePresence>
-            {status === 'success' && (
-              <motion.div 
-                initial={{ scale: 0.95, opacity: 0 }} 
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-center py-8 px-4 bg-emerald-50 border border-emerald-100 rounded-[2.5rem] mt-6 space-y-4"
-              >
-                <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-md shadow-emerald-200">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900">Merci beaucoup !</h3>
-                  <p className="text-slate-600 font-medium text-xs mt-1 px-4 leading-relaxed">
-                    Vos photos ont bien été ajoutées à l'album du mariage. Elles feront chaud au cœur aux mariés !
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setStatus('idle')}
-                  className="px-5 py-2.5 bg-white text-emerald-700 border border-emerald-200 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-emerald-100/50 transition-all shadow-sm"
-                >
-                  Envoyer d'autres photos
-                </button>
-              </motion.div>
-            )}
-
-            {status === 'error' && (
-              <div className="p-4 bg-rose-50 text-rose-700 rounded-2xl text-xs font-bold text-center mt-6 border border-rose-100">
-                {errorMessage}
-              </div>
-            )}
-          </AnimatePresence>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Partagez vos souvenirs</h1>
+          <p className="text-xs text-slate-400 mt-1 px-4">
+            Envoyez vos photos en direct. Elles s'ajouteront instantanément à l'album des mariés.
+          </p>
         </div>
 
-        {/* ACTIONS & FOOTER */}
-        <div className="px-6 mt-8">
-          {files.length > 0 && !uploading && (
-            <motion.button 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={handleUpload}
-              className="w-full py-5 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-black uppercase tracking-[0.2em] text-[11px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
-            >
-              <UploadCloud className="w-4 h-4" />
-              Envoyer les {files.length} photo(s)
-            </motion.button>
+        {/* FORMULAIRE */}
+        <form onSubmit={handleUpload} className="space-y-4 flex-1 flex flex-col">
+          
+          {/* ZONE DE DÉPÔT / CAPTURE PHOTO */}
+          <label className="relative aspect-[4/3] w-full bg-slate-50 hover:bg-slate-100/70 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center p-4 cursor-pointer transition-all overflow-hidden group">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+              className="hidden" 
+              disabled={isUploading}
+            />
+            
+            {previewUrl ? (
+              <>
+                <img src={previewUrl} alt="Aperçu" className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="text-white w-8 h-8" />
+                </div>
+              </>
+            ) : (
+              <div className="text-center space-y-2 text-slate-400">
+                <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto text-slate-600 group-hover:scale-105 transition-transform">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">Prendre ou choisir une photo</p>
+                <p className="text-[10px] text-slate-400">JPEG, PNG jusqu'à 10 Mo</p>
+              </div>
+            )}
+          </label>
+
+          {/* NOUVEAUX CHAMPS : IDENTIFICATION ET TEXTE */}
+          {previewUrl && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1 ml-1">
+                  Votre Prénom & Nom
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Jean Dupont"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  maxLength={50}
+                  className="w-full px-4 py-3 bg-slate-50 focus:bg-white rounded-2xl text-sm font-medium border border-slate-100 focus:border-rose-200 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1 ml-1">
+                  Un petit mot pour les mariés (Optionnel)
+                </label>
+                <textarea
+                  placeholder="Laissez un message attentionné ou une anecdote de la soirée..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  maxLength={200}
+                  rows={2}
+                  className="w-full px-4 py-3 bg-slate-50 focus:bg-white rounded-2xl text-sm font-medium border border-slate-100 focus:border-rose-200 outline-none transition-all resize-none"
+                />
+              </div>
+            </div>
           )}
 
-          <div className="text-center pt-8">
-            <Heart className="w-4 h-4 text-rose-200 mx-auto mb-2 fill-rose-200" />
-            <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-relaxed">
-              Album partagé sécurisé <br/> Merci pour votre participation !
+          {/* ÉTATS ET ERREURS */}
+          {isSuccess && (
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 text-emerald-800 animate-in zoom-in-95">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+              <p className="text-xs font-bold">Photo et message envoyés avec succès ! Merci ❤️</p>
+            </div>
+          )}
+
+          {errorMsg && (
+            <p className="text-xs font-bold text-rose-500 text-center bg-rose-50 py-3 rounded-2xl border border-rose-100">
+              {errorMsg}
             </p>
-          </div>
+          )}
+
+          {/* BOUTON D'ENVOI DYNAMIQUE */}
+          <button
+            type="submit"
+            disabled={!file || isUploading}
+            className={`w-full py-4 rounded-full font-black uppercase tracking-widest text-[11px] transition-all flex items-center justify-center gap-2 shadow-md ${
+              file && !isUploading
+                ? 'bg-slate-950 hover:bg-slate-800 text-white active:scale-98 cursor-pointer'
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+            }`}
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Envoi en cours...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4" />
+                Envoyer aux mariés
+              </>
+            )
+          }
+        </button>
+        </form>
+
+        {/* PIED DE PAGE */}
+        <div className="text-center pt-6 mt-6 border-t border-slate-50">
+          <Heart className="w-4 h-4 text-rose-200 mx-auto mb-1 fill-rose-200" />
+          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+            Gildas & Mariette • 2026
+          </p>
         </div>
 
       </div>
