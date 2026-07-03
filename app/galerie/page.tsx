@@ -156,9 +156,9 @@ export default function GaleriePage() {
           <div>
             <div className="flex items-center gap-1 text-amber-500">
               <Sparkles className="w-3 h-3" />
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Livre d'or dynamique</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Album Souvenirs & Mots doux</p>
             </div>
-            <h1 className="text-2xl font-black text-slate-900">Les Publications</h1>
+            <h1 className="text-2xl font-black text-slate-900">Le Livre d'Or</h1>
           </div>
           <button 
             onClick={fetchPhotosAndMetadata} disabled={loading}
