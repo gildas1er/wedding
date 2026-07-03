@@ -32,41 +32,47 @@ export default function PlanDeTablePage() {
   }, [searchQuery]);
 
   const searchGuests = async (query: string) => {
-    setLoading(true);
-    setHasSearched(true);
-    try {
-      // Jointure exacte avec ta table 'invite' et récupération du nom de la table rattachée
-      const { data, error } = await supabase
-        .from('invite')
-        .select(`
-          id,
-          name,
-          guests_count,
-          tables (
-            name
-          )
-        `)
-        .ilike('name', `%${query}%`)
-        .limit(5);
+  setLoading(true);
+  setHasSearched(true);
+  try {
+    // Jointure exacte avec ta table 'invite'
+    const { data, error } = await supabase
+      .from('invite')
+      .select(`
+        id,
+        name,
+        guests_count,
+        tables (
+          name
+        )
+      `)
+      .ilike('name', `%${query}%`)
+      .limit(5);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Formatage des données reçues pour correspondre à notre interface
-      const formattedResults = (data || []).map((invite: any) => ({
-        id: invite.id,
-        name: invite.name,
-        guests_count: invite.guests_count || 1,
-        // Gestion du cas où aucune table n'est encore assignée en BDD
-        table_name: invite.tables?.name || 'Table non assignée'
-      }));
+    // Utilisation d'un Map pour filtrer les doublons sur l'ID de l'invité
+    const uniqueInvitesMap = new Map();
 
-      setSearchResults(formattedResults);
-    } catch (err) {
-      console.error("Erreur lors de la recherche du plan de table:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    (data || []).forEach((invite: any) => {
+      if (!uniqueInvitesMap.has(invite.id)) {
+        uniqueInvitesMap.set(invite.id, {
+          id: invite.id,
+          name: invite.name,
+          guests_count: invite.guests_count || 1,
+          table_name: invite.tables?.name || 'Table non assignée'
+        });
+      }
+    });
+
+    // On transforme le Map en tableau propre pour l'état
+    setSearchResults(Array.from(uniqueInvitesMap.values()));
+  } catch (err) {
+    console.error("Erreur lors de la recherche du plan de table:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
