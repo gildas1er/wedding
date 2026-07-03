@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Utensils, Users, Sparkles, Heart, Loader2, HelpCircle } from 'lucide-react';
-import { supabase } from '../../../lib/supabase'; // Ajuste le chemin selon ton dossier
+import { supabase } from '../../../lib/supabase';
 
 interface InviteRow {
   id: string;
@@ -11,9 +11,8 @@ interface InviteRow {
   table_name: string;
 }
 
-// Next.js injecte automatiquement 'params' de manière asynchrone
 export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id: string }> }) {
-  // On déballe les paramètres de l'URL de manière sûre
+  // 1. On résout proprement les paramètres avec React.use()
   const resolvedParams = React.use(params);
   const marriageId = resolvedParams.id;
 
@@ -23,7 +22,8 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
   const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
-    if (searchQuery.trim().length < 2) {
+    // Sécurité : Si l'identifiant du mariage n'est pas encore chargé, on attend.
+    if (!marriageId || searchQuery.trim().length < 2) {
       setSearchResults([]);
       setHasSearched(false);
       return;
@@ -34,14 +34,16 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+    // On ajoute marriageId dans les dépendances pour re-déclencher la recherche si nécessaire
+  }, [searchQuery, marriageId]);
 
   const searchGuests = async (query: string) => {
+    if (!marriageId) return;
+    
     setLoading(true);
     setHasSearched(true);
     try {
-      // Requête ultra-précise et sécurisée :
-      // On cherche uniquement dans les invités DU mariage spécifié par l'URL
+      // Jointure exacte avec gestion flexible si tables renvoie un objet ou un tableau
       const { data, error } = await supabase
         .from('invite')
         .select(`
@@ -52,21 +54,29 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
             name
           )
         `)
-        .eq('marriage_id', marriageId) // 👈 Sécurité maximale basée sur l'URL
+        .eq('marriage_id', marriageId)
         .ilike('name', `%${query}%`)
         .limit(5);
 
       if (error) throw error;
 
-      // Filtrage des doublons
       const uniqueInvitesMap = new Map();
       (data || []).forEach((invite: any) => {
         if (!uniqueInvitesMap.has(invite.id)) {
+          
+          // Sécurité sur le format de retour de la jointure
+          let extractedTableName = 'Table non assignée';
+          if (invite.tables) {
+            extractedTableName = Array.isArray(invite.tables)
+              ? (invite.tables[0]?.name || 'Table non assignée')
+              : (invite.tables.name || 'Table non assignée');
+          }
+
           uniqueInvitesMap.set(invite.id, {
             id: invite.id,
             name: invite.name,
             guests_count: invite.guests_count || 1,
-            table_name: invite.tables?.name || 'Table non assignée'
+            table_name: extractedTableName
           });
         }
       });
