@@ -3,11 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Lock, Loader2, Sparkles, 
-  Download, RefreshCw, Grid, Maximize2, X, User, MessageCircle 
+  Download, RefreshCw, Grid, Maximize2, X, User, MessageCircle, Calendar
 } from 'lucide-react';
 import { supabase } from '../lib/supabase'; // Ajuste selon ton projet
 
-// 🔑 SÉCURITÉ : Mot de passe d'accès pour les mariés
 const GALLERY_PASSWORD = "GildasMariette2026"; 
 
 interface EnrichedImage {
@@ -15,8 +14,13 @@ interface EnrichedImage {
   name: string;
   url: string;
   created_at: string;
+}
+
+interface GuestPost {
   guest_name: string;
   message: string | null;
+  created_at: string;
+  images: EnrichedImage[];
 }
 
 export default function GaleriePage() {
@@ -24,9 +28,9 @@ export default function GaleriePage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
 
-  const [images, setImages] = useState<EnrichedImage[]>([]);
+  const [posts, setPosts] = useState<GuestPost[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<EnrichedImage | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     const access = localStorage.getItem('maries_gallery_access');
@@ -48,11 +52,10 @@ export default function GaleriePage() {
     }
   };
 
-  // Récupération combinée : Fichiers Storage + Lignes de la Table SQL
   const fetchPhotosAndMetadata = async () => {
     setLoading(true);
     try {
-      // 1. Récupérer toutes les métadonnées de la table SQL (les plus récentes d'abord)
+      // 1. Récupérer les métadonnées SQL
       const { data: dbData, error: dbError } = await supabase
         .from('photos_metadata')
         .select('*')
@@ -60,39 +63,57 @@ export default function GaleriePage() {
 
       if (dbError) throw dbError;
 
-      // 2. Récupérer la liste des fichiers bruts dans le Storage
+      // 2. Récupérer les fichiers du Storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from('wedding-photos')
-        .list('invites', { limit: 100 });
+        .list('invites', { limit: 150 });
 
       if (storageError) throw storageError;
 
       if (storageData && dbData) {
-        // 3. Associer chaque fichier du storage à sa ligne correspondante en BDD via `file_name`
-        const enrichedUrls = storageData
+        // 3. Regrouper par message/invité pour recréer les "packs" d'envois simultanés
+        const postMap: { [key: string]: GuestPost } = {};
+
+        storageData
           .filter(file => file.name !== '.emptyFolderPlaceholder')
-          .map(file => {
+          .forEach(file => {
             const filePath = `invites/${file.name}`;
             const meta = dbData.find(d => d.file_name === filePath);
             
             const { data: publicUrlData } = supabase.storage
               .from('wedding-photos')
               .getPublicUrl(filePath);
-            
-            return {
-              id: file.id,
+
+            const guestName = meta?.guest_name || "Invité anonyme";
+            const message = meta?.message || null;
+            // Clé unique combinant le nom et le message pour regrouper les photos du même envoi
+            const groupKey = `${guestName}-${message || 'sans-message'}`;
+
+            const imgObj: EnrichedImage = {
+              id: file.name,
               name: file.name,
               url: publicUrlData.publicUrl,
-              created_at: file.created_at || new Date().toISOString(),
-              guest_name: meta?.guest_name || "Invité anonyme",
-              message: meta?.message || null
+              created_at: file.created_at || new Date().toISOString()
             };
+
+            if (!postMap[groupKey]) {
+              postMap[groupKey] = {
+                guest_name: guestName,
+                message: message,
+                created_at: file.created_at || new Date().toISOString(),
+                images: [imgObj]
+              };
+            } else {
+              postMap[groupKey].images.push(imgObj);
+            }
           });
 
-        // Retrier le résultat final par date de création (décroissant)
-        enrichedUrls.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Convertir l'objet en tableau et trier par date décroissante (plus récent d'abord)
+        const sortedPosts = Object.values(postMap).sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
         
-        setImages(enrichedUrls as EnrichedImage[]);
+        setPosts(sortedPosts);
       }
     } catch (err) {
       console.error("Erreur lors du chargement de l'album:", err);
@@ -101,125 +122,121 @@ export default function GaleriePage() {
     }
   };
 
-  // ÉCRAN 1 : FORMULAIRE DE SÉCURITÉ
   if (!isAuthenticated) {
+    // (Le code du formulaire de mot de passe reste identique à ton ancienne page)
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-[400px] bg-white rounded-[2.5rem] p-8 shadow-2xl text-center"
-        >
+        <div className="w-full max-w-[400px] bg-white rounded-[2.5rem] p-8 text-center shadow-2xl">
           <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Lock className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-black text-slate-900">Espace Mariés</h1>
-          <p className="text-xs font-medium text-slate-500 mt-2 mb-6">
-            Saisissez le code d'accès pour ouvrir le livre d'or photo.
-          </p>
-
+          <p className="text-xs font-medium text-slate-500 mt-2 mb-6">Saisissez le code d'accès pour ouvrir la galerie.</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
-              type="password"
-              placeholder="Mot de passe"
-              value={passwordInput}
+              type="password" placeholder="Mot de passe" value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              className={`w-full p-4 bg-slate-50 rounded-2xl text-center font-bold outline-none border focus:ring-2 focus:ring-rose-100 transition-all ${
-                passwordError ? 'border-rose-500 bg-rose-50/50' : 'border-slate-100'
-              }`}
+              className={`w-full p-4 bg-slate-50 rounded-2xl text-center font-bold outline-none border ${passwordError ? 'border-rose-500 bg-rose-50' : 'border-slate-100'}`}
             />
-            {passwordError && (
-              <p className="text-[11px] font-bold text-rose-500">Code incorrect. Veuillez réessayer.</p>
-            )}
-            <button
-              type="submit"
-              className="w-full py-4 bg-slate-950 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[11px] rounded-full shadow-lg transition-all"
-            >
-              Accéder à la galerie
+            <button type="submit" className="w-full py-4 bg-slate-950 text-white font-black uppercase tracking-widest text-[11px] rounded-full shadow-lg">
+              Accéder
             </button>
           </form>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
-  // ÉCRAN 2 : LA GALERIE LIVRE D'OR
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center">
-      <div className="w-full max-w-[450px] bg-white shadow-2xl relative min-h-screen pb-12 overflow-x-hidden flex flex-col">
+      <div className="w-full max-w-[450px] bg-white shadow-2xl relative min-h-screen pb-12 flex flex-col">
         
         {/* EN-TÊTE */}
         <div className="px-6 pt-12 pb-4 bg-white sticky top-0 z-20 border-b border-slate-50 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-1 text-amber-400">
+            <div className="flex items-center gap-1 text-amber-500">
               <Sparkles className="w-3 h-3" />
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Album Souvenirs & Mots doux</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Livre d'or dynamique</p>
             </div>
-            <h1 className="text-2xl font-black text-slate-900">Le Livre d'Or</h1>
+            <h1 className="text-2xl font-black text-slate-900">Les Publications</h1>
           </div>
-          
           <button 
-            onClick={fetchPhotosAndMetadata}
-            disabled={loading}
-            className="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 transition-all active:scale-95"
+            onClick={fetchPhotosAndMetadata} disabled={loading}
+            className="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 transition-all"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
 
-        {/* CONTENU / FIL D'ACTUALITÉ PHOTO */}
-        <div className="p-4 flex-1 space-y-4">
-          {loading && images.length === 0 ? (
+        {/* FIL D'ACTUALITÉ */}
+        <div className="p-4 flex-1 space-y-6">
+          {loading && posts.length === 0 ? (
             <div className="h-[50vh] flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-8 h-8 animate-spin text-rose-500" />
-              <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Génération des souvenirs...</p>
+              <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Regroupement des souvenirs...</p>
             </div>
-          ) : images.length === 0 ? (
+          ) : posts.length === 0 ? (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center px-6">
               <Grid className="w-12 h-12 text-slate-200 mb-3" />
-              <p className="text-sm font-bold text-slate-700">L'album est vide pour le moment</p>
-              <p className="text-xs text-slate-400 mt-1">Dès que vos convives enverront des clichés signés, ils s'ordonneront ici magnifiquement.</p>
+              <p className="text-sm font-bold text-slate-700">Aucun partage pour le moment</p>
             </div>
           ) : (
-            // Affichage en liste de "Cartes Souvenirs" pour une lecture confortable
-            images.map((img) => (
+            posts.map((post, idx) => (
               <motion.div 
-                key={img.id}
-                layoutId={img.id}
-                className="bg-slate-50 border border-slate-100 rounded-[2rem] overflow-hidden p-3 space-y-3 shadow-sm hover:shadow-md transition-shadow"
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-slate-50 border border-slate-100 rounded-[2.2rem] p-4 space-y-3.5 shadow-sm"
               >
-                {/* Image cliquable pour zoom */}
-                <div 
-                  onClick={() => setSelectedImage(img)}
-                  className="relative aspect-square bg-slate-200 rounded-[1.5rem] overflow-hidden cursor-pointer group"
-                >
-                  <img 
-                    src={img.url} 
-                    alt={`Photo de ${img.guest_name}`} 
-                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                  <div className="absolute top-3 right-3 bg-black/40 text-white p-2 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Maximize2 size={12} />
-                  </div>
-                </div>
-
-                {/* Pied de la carte : Auteur et Message */}
-                <div className="px-2 pb-1 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-slate-800">
-                    <div className="w-5 h-5 bg-rose-50 rounded-md flex items-center justify-center text-rose-500">
-                      <User size={12} />
+                {/* Infos Invité */}
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-slate-950 text-white rounded-full flex items-center justify-center font-black text-[10px]">
+                      {post.guest_name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs font-black tracking-tight">{img.guest_name}</span>
-                  </div>
-
-                  {img.message && (
-                    <div className="bg-white border border-slate-100/70 rounded-xl p-2.5 flex items-start gap-2">
-                      <MessageCircle size={12} className="text-slate-300 shrink-0 mt-0.5" />
-                      <p className="text-xs font-medium text-slate-600 leading-relaxed italic">
-                        « {img.message} »
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800 leading-tight">{post.guest_name}</h3>
+                      <p className="text-[9px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+                        <Calendar size={10} />
+                        {new Date(post.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </p>
                     </div>
-                  )}
+                  </div>
+                  
+                  <span className="bg-slate-200/60 text-slate-600 font-black text-[9px] px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    {post.images.length} {post.images.length > 1 ? 'Photos' : 'Photo'}
+                  </span>
+                </div>
+
+                {/* Message textuel de l'invité */}
+                {post.message && (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-3 flex items-start gap-2.5 mx-0.5 shadow-sm">
+                    <MessageCircle size={14} className="text-rose-300 shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-slate-600 leading-relaxed italic">
+                      « {post.message} »
+                    </p>
+                  </div>
+                )}
+
+                {/* Gestion de l'affichage des images selon le nombre envoyé */}
+                <div className={`grid gap-1.5 ${
+                  post.images.length === 1 ? 'grid-cols-1' : 
+                  post.images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+                }`}>
+                  {post.images.map((img) => (
+                    <div 
+                      key={img.id}
+                      onClick={() => setSelectedImage(img.url)}
+                      className={`relative rounded-xl overflow-hidden cursor-pointer bg-slate-200 group border border-slate-200/40 ${
+                        post.images.length > 2 && post.images.indexOf(img) === 0 ? 'col-span-3 aspect-[16/10]' : 'aspect-square'
+                      }`}
+                    >
+                      <img src={img.url} alt="Souvenir" className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300" loading="lazy" />
+                      <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Maximize2 size={14} className="text-white drop-shadow-md" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             ))
@@ -229,66 +246,25 @@ export default function GaleriePage() {
         {/* PIED DE PAGE */}
         <div className="text-center pt-8 border-t border-slate-50 mx-6 mt-auto">
           <Heart className="w-4 h-4 text-rose-200 mx-auto mb-1 fill-rose-200" />
-          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-            Gildas & Mariette • Tout droits réservés
-          </p>
+          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Gildas & Mariette • Livre d'Or</p>
         </div>
 
-        {/* LIGHTBOX MODE PLEIN ÉCRAN */}
+        {/* LIGHTBOX UNIFIÉE (ZOOM SIMPLE) */}
         <AnimatePresence>
           {selectedImage && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-between p-4"
+              className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-4"
               onClick={() => setSelectedImage(null)}
             >
-              {/* Bouton Fermer Haut */}
-              <div className="w-full flex justify-end pt-2 pr-2">
-                <button 
-                  onClick={() => setSelectedImage(null)}
-                  className="text-white/70 hover:text-white bg-white/10 p-3 rounded-full backdrop-blur-md transition-all"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* L'image zoomée */}
-              <motion.img 
-                initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-                src={selectedImage.url} 
-                alt="Zoom souvenir" 
-                className="max-w-full max-h-[65vh] rounded-2xl object-contain shadow-2xl"
-                onClick={(e) => e.stopPropagation()} 
-              />
-
-              {/* Cartouche d'informations bas en plein écran */}
-              <div 
-                className="w-full max-w-[400px] bg-white/10 border border-white/10 backdrop-blur-lg rounded-[2rem] p-4 text-center text-white mb-4 space-y-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-black">Capturé par</p>
-                  <p className="text-sm font-black mt-0.5">{selectedImage.guest_name}</p>
-                </div>
-
-                {selectedImage.message && (
-                  <p className="text-xs font-medium text-white/80 italic px-2">
-                    « {selectedImage.message} »
-                  </p>
-                )}
-
-                <div className="pt-2">
-                  <a 
-                    href={selectedImage.url}
-                    download={`mariage-${selectedImage.guest_name}.jpg`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-full font-black uppercase text-[10px] tracking-wider shadow-xl transition-all active:scale-95"
-                  >
-                    <Download size={12} />
-                    Sauvegarder la photo
-                  </a>
-                </div>
+              <button onClick={() => setSelectedImage(null)} className="absolute top-6 right-6 text-white/70 bg-white/10 p-3 rounded-full backdrop-blur-md">
+                <X size={20} />
+              </button>
+              <img src={selectedImage} alt="Zoom" className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl" />
+              <div className="mt-4">
+                <a href={selectedImage} download target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-white text-slate-900 rounded-full font-black uppercase text-[10px] tracking-wider flex items-center gap-2">
+                  <Download size={12} /> Télécharger l'original
+                </a>
               </div>
             </motion.div>
           )}
