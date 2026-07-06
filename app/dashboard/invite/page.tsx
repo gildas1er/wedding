@@ -125,7 +125,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
       if (error.code === '23505') {
         setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité. ✨");
       } else {
-        setErrorMessage("Oups ! Une petite erreur technique s'est glissée.");
+        setErrorMessage("Oups ! Une petite erreur technique s'est glised.");
       }
     } finally {
       setIsSubmitting(false);
@@ -458,10 +458,32 @@ export default function GuestPage() {
             <div className="text-xs font-black uppercase text-rose-500 tracking-[0.2em] flex items-center gap-2"><UsersIcon size={14}/> Communauté du Bonheur</div>
             <h1 className="text-4xl font-black tracking-tighter">Liste des <span className="text-rose-500 italic">Invités Précieux</span></h1>
           </div>
-          <button onClick={() => { setSelectedGuest(null); setIsModalOpen(true); }} className="flex items-center gap-3 bg-slate-900 text-white pl-8 pr-2 py-2 rounded-full hover:bg-rose-500 transition-all shadow-xl">
-            <span className="font-bold text-sm">Ajouter un proche</span>
-            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><Plus size={20} strokeWidth={3} /></div>
-          </button>
+          
+          {/* BLOC D'ACTIONS PRINCIPALES REPOSITIONNÉ & CLAIR */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            {/* Input CSV caché */}
+            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
+            
+            {/* Bouton d'importation explicite */}
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center justify-center gap-2 bg-white border-2 border-slate-200 text-slate-700 px-6 py-3 rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all font-bold text-sm shadow-sm disabled:opacity-50"
+            >
+              {importing ? (
+                <Loader2 size={16} className="animate-spin text-emerald-500" />
+              ) : (
+                <FileSpreadsheet size={16} className="text-emerald-600" />
+              )}
+              <span>{importing ? "Importation..." : "Importer un CSV"}</span>
+            </button>
+
+            {/* Bouton Ajouter un proche */}
+            <button onClick={() => { setSelectedGuest(null); setIsModalOpen(true); }} className="flex items-center justify-between gap-4 bg-slate-900 text-white pl-6 pr-2 py-2 rounded-full hover:bg-rose-500 transition-all shadow-xl">
+              <span className="font-bold text-sm">Ajouter un proche</span>
+              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><Plus size={20} strokeWidth={3} /></div>
+            </button>
+          </div>
         </header>
 
         <div className="bento-cards grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -485,14 +507,14 @@ export default function GuestPage() {
           )}
         </AnimatePresence>
 
-        {/* BARRE DE RECHERCHE ET ACTIONS OPTIMISÉE AVEC IMPORT CSV */}
-        <div className="search-container flex flex-col md:flex-row gap-4 mb-8 max-w-4xl items-stretch">
+        {/* BARRE DE RECHERCHE ET FILTRES RESTE SIMPLE ET PROPRE */}
+        <div className="search-container flex flex-col md:flex-row gap-4 mb-8 max-w-3xl items-stretch">
           <div className="relative flex-1">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={22} />
             <input type="text" placeholder="Rechercher..." className="w-full pl-16 pr-8 py-5 bg-white border-2 border-slate-100 rounded-[2rem] outline-none font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           
-          <div className="flex items-center gap-3 bg-white border-2 border-slate-100 rounded-[2rem] px-4 py-2">
+          <div className="flex items-center gap-2 bg-white border-2 border-slate-100 rounded-[2rem] px-4 py-2">
             <select className="bg-transparent font-bold text-sm outline-none text-slate-600 px-2 cursor-pointer" value={printFilter} onChange={(e) => setPrintFilter(e.target.value)}>
               <option value="all">Toute la liste</option>
               <option value="parents">Catégorie: Parents</option>
@@ -500,19 +522,6 @@ export default function GuestPage() {
               <option value="collègues">Catégorie: Collègues</option>
               <option value="accompanied">Personnes accompagnées</option>
             </select>
-            
-            {/* Input CSV caché */}
-            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
-            
-            {/* Bouton d'importation groupée */}
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
-              title="Importer un fichier CSV d'invités"
-            >
-              {importing ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
-            </button>
             
             <button onClick={handlePrint} className="p-3 bg-slate-900 text-white rounded-2xl hover:bg-rose-500 transition-all shadow-md flex items-center justify-center" title="Lancer l'impression">
               <Printer size={18} />
