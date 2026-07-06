@@ -301,6 +301,7 @@ export default function GuestPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   // NOUVEAU : Fonction de traitement du fichier CSV importé
+  // Traitement du fichier CSV importé avec insertion progressive (Batching)
   const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !marriage?.id) return;
@@ -319,11 +320,11 @@ export default function GuestPage() {
           return;
         }
 
-        // Nettoyage et formatage des données selon tes colonnes
-        const guestsToInsert = rows.map((row: any) => ({
+        // Nettoyage et formatage initial de toutes les lignes
+        const allGuests = rows.map((row: any) => ({
           marriage_id: marriage.id,
           name: row.name?.trim(),
-          phone: row.phone?.trim()?.replace(/\s+/g, ''), // Supprime les espaces du numéro
+          phone: row.phone?.trim()?.replace(/\s+/g, ''),
           side: ['partenaire_1', 'partenaire_2', 'commun'].includes(row.side) ? row.side : 'commun',
           category: ['parents', 'amis', 'collègues'].includes(row.category) ? row.category : 'amis',
           guests_count: parseInt(row.guests_count) || 1,
@@ -331,29 +332,56 @@ export default function GuestPage() {
           status: 'en_attente'
         }));
 
-        // Validation rapide des champs indispensables
-        const invalid = guestsToInsert.some(g => !g.name || !g.phone);
+        // Validation rapide
+        const invalid = allGuests.some(g => !g.name || !g.phone);
         if (invalid) {
           setImportNotice({ type: 'error', message: "Certaines lignes n'ont pas de nom ou de numéro de téléphone." });
           setImporting(false);
           return;
         }
 
+        // --- INSERTION PROGRESSIVE (Par paquets de 5 pour la stabilité) ---
+        const batchSize = 5;
+        let insertedCount = 0;
+        let hasDuplicateError = false;
+
         try {
-          const { error } = await supabase.from('invite').insert(guestsToInsert);
-          
-          if (error) {
-            if (error.code === '23505') throw new Error("Un ou plusieurs numéros WhatsApp existent déjà !");
-            throw error;
+          for (let i = 0; i < allGuests.length; i += batchSize) {
+            const batch = allGuests.slice(i, i + batchSize);
+            
+            const { error } = await supabase.from('invite').insert(batch);
+            
+            if (error) {
+              if (error.code === '23505') {
+                hasDuplicateError = true;
+                // On continue quand même le reste de l'import malgré un doublon
+                continue; 
+              }
+              throw error; // Pour les autres erreurs techniques, on stoppe
+            }
+            
+            insertedCount += batch.length;
           }
 
-          setImportNotice({ type: 'success', message: `${guestsToInsert.length} proches ajoutés avec succès ! ✨` });
+          // Message de fin adapté
+          if (hasDuplicateError) {
+            setImportNotice({ 
+              type: 'success', 
+              message: `Importation partielle : ${insertedCount} proches ajoutés. Certains numéros en doublon ont été ignorés ! ✨` 
+            });
+          } else {
+            setImportNotice({ 
+              type: 'success', 
+              message: `${insertedCount} proches ajoutés avec succès ! ✨` 
+            });
+          }
+          
           loadData();
         } catch (err: any) {
-          setImportNotice({ type: 'error', message: err.message || "Erreur technique d'insertion." });
+          setImportNotice({ type: 'error', message: err.message || "Erreur lors de l'intégration progressive." });
         } finally {
           setImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input file
+          if (fileInputRef.current) fileInputRef.current.value = ''; // Reset de l'input
         }
       },
       error: () => {
