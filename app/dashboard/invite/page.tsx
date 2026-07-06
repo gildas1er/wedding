@@ -36,19 +36,36 @@ function BentoStatCard({ label, value, emoji, color }: any) {
   );
 }
 
-function StatusPill({ status }: { status: string }) {
+function StatusPill({ status, invitationSent }: { status: string; invitationSent: boolean }) {
   const configs: any = {
-    confirmé: { label: 'Confirmé Présent', icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-600' },
-    en_attente: { label: 'En attente', icon: Clock, bg: 'bg-amber-50', text: 'text-amber-600' },
-    décliné: { label: 'Absent/Décliné', icon: XCircle, bg: 'bg-rose-50', text: 'text-rose-600' },
+    confirmé: { label: 'Confirmé', icon: CheckCircle2, bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700' },
+    en_attente: { label: 'En attente', icon: Clock, bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700' },
+    décliné: { label: 'Décliné', icon: XCircle, bg: 'bg-rose-50 border-rose-100', text: 'text-rose-700' },
   };
+  
   const config = configs[status] || configs.en_attente;
   const Icon = config.icon;
+
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${config.bg} ${config.text}`}>
-      <Icon size={12} strokeWidth={3} />
-      {config.label}
-    </span>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+      {/* Pastille de Statut principal */}
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border ${config.bg} ${config.text}`}>
+        <Icon size={12} strokeWidth={3} />
+        {config.label}
+      </span>
+
+      {/* Indicateur de transmission WhatsApp */}
+      {invitationSent ? (
+        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50/50 px-2 py-0.5 rounded-md border border-emerald-100/50 w-fit">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Envoyé
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/60 w-fit">
+          Non envoyé
+        </span>
+      )}
+    </div>
   );
 }
 
