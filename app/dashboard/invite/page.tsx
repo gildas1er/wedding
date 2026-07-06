@@ -36,38 +36,22 @@ function BentoStatCard({ label, value, emoji, color }: any) {
   );
 }
 
-function StatusPill({ status, invitationSent }: { status: string; invitationSent: boolean }) {
+function StatusPill({ status }: { status: string }) {
   const configs: any = {
-    confirmé: { label: 'Confirmé', icon: CheckCircle2, bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700' },
-    en_attente: { label: 'En attente', icon: Clock, bg: 'bg-amber-50 border-amber-100', text: 'text-amber-700' },
-    décliné: { label: 'Décliné', icon: XCircle, bg: 'bg-rose-50 border-rose-100', text: 'text-rose-700' },
+    confirmé: { label: 'Confirmé Présent', icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    en_attente: { label: 'En attente', icon: Clock, bg: 'bg-amber-50', text: 'text-amber-600' },
+    décliné: { label: 'Absent/Décliné', icon: XCircle, bg: 'bg-rose-50', text: 'text-rose-600' },
   };
-  
   const config = configs[status] || configs.en_attente;
   const Icon = config.icon;
-
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-      {/* Pastille de Statut principal */}
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border ${config.bg} ${config.text}`}>
-        <Icon size={12} strokeWidth={3} />
-        {config.label}
-      </span>
-
-      {/* Indicateur de transmission WhatsApp */}
-      {invitationSent ? (
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50/50 px-2 py-0.5 rounded-md border border-emerald-100/50 w-fit">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Envoyé
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/60 w-fit">
-          Non envoyé
-        </span>
-      )}
-    </div>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${config.bg} ${config.text}`}>
+      <Icon size={12} strokeWidth={3} />
+      {config.label}
+    </span>
   );
 }
+
 
 
 // --- 2. MODAL D'AJOUT AVEC GESTION D'ERREUR ---
@@ -416,27 +400,36 @@ export default function GuestPage() {
     }
   };
 
+// Génération du lien WhatsApp personnalisé avec mise en forme et emojis
   const sendWhatsAppInvitation = async (guest: any) => {
-    if (!marriage?.id) return;
-
-    const baseUrl = window.location.origin;
-    const rsvpLink = `${baseUrl}/dashboard/rsvp/${marriage.id}?guest=${guest.id}`;
+    const rsvpUrl = `${window.location.origin}/rsvp/${guest.id}`;
     
-    const message = `Bonjour ${guest.name} ! ✨\n\n` +
-      `Nous sommes heureux de vous inviter à notre mariage. \n` +
-      `Vous trouverez tous les détails et pourrez confirmer votre présence ici : \n\n` +
-      `${rsvpLink}\n\n` +
-      `On a hâte de vous voir ! ❤️`;
+    // Construction du message avec sauts de ligne (\n) et mise en forme WhatsApp (* pour le gras)
+    const message = 
+`👑 *INVITATION OFFICIELLE* 👑
 
-    const cleanPhone = guest.phone.replace(/\D/g, '');
+Bonjour *${guest.name}* ! 👋✨
 
-    try {
-      await supabase.from('invite').update({ invitation_sent: true }).eq('id', guest.id);
-    } catch (e) {
-      console.log("Champ invitation_sent manquant ou erreur réseau");
-    }
+Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍
 
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+📍 *Pour confirmer votre présence (RSVP) :*
+Merci de cliquer sur le lien magique ci-dessous pour valider votre venue et le nombre de vos couverts :
+👉 ${rsvpUrl}
+
+Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉
+
+_Gildas & Mariette_`;
+    
+    // Ouverture de WhatsApp
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${guest.phone}&text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+
+    // Mise à jour immédiate dans la base de données
+    await supabase
+      .from('invite')
+      .update({ invitation_sent: true })
+      .eq('id', guest.id);
+    
     loadData();
   };
 
