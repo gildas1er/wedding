@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
+import Papa from 'papaparse'; // 👈 Importation de PapaParse
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
   Users as UsersIcon, X, Heart, LayoutDashboard,
   MessageSquare, Settings, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
-  MessageCircle, Crown, Home, Briefcase, Smile, Printer
+  MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet, Upload
 } from 'lucide-react';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
@@ -245,30 +246,29 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
 
 export default function GuestPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null); // 👈 Ref pour le bouton d'import caché
+
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false); // 👈 État de chargement de l'import
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [marriage, setMarriage] = useState<any>(null);
   const [guests, setGuests] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
-
-  // NOUVEAU : État pour le filtre ciblé de la liste d'impression
   const [printFilter, setPrintFilter] = useState("all");
 
-  // États pour la pagination
+  // Notification d'import éphémère
+  const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Filtrage combiné pour l'affichage écran ET la gestion d'impression
   const filteredGuests = guests.filter(g => {
     const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || g.phone.includes(searchTerm);
-    
-    // Application de la logique des filtres d'impression demandés
     if (printFilter === "parents") return matchesSearch && g.category === "parents";
     if (printFilter === "amis") return matchesSearch && g.category === "amis";
     if (printFilter === "collègues") return matchesSearch && g.category === "collègues";
     if (printFilter === "accompanied") return matchesSearch && (g.guests_count > 1);
-    
     return matchesSearch;
   });
 
@@ -276,7 +276,6 @@ export default function GuestPage() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   
-  // NOUVEAU : En mode impression, on outrepasse la pagination pour imprimer TOUTE la liste filtrée
   const currentGuests = typeof window !== 'undefined' && window.matchMedia('print').matches 
     ? filteredGuests 
     : filteredGuests.slice(indexOfFirstItem, indexOfLastItem);
@@ -300,6 +299,69 @@ export default function GuestPage() {
   }, [router]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // NOUVEAU : Fonction de traitement du fichier CSV importé
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !marriage?.id) return;
+
+    setImporting(true);
+    setImportNotice(null);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data;
+        if (rows.length === 0) {
+          setImportNotice({ type: 'error', message: "Le fichier CSV est vide." });
+          setImporting(false);
+          return;
+        }
+
+        // Nettoyage et formatage des données selon tes colonnes
+        const guestsToInsert = rows.map((row: any) => ({
+          marriage_id: marriage.id,
+          name: row.name?.trim(),
+          phone: row.phone?.trim()?.replace(/\s+/g, ''), // Supprime les espaces du numéro
+          side: ['partenaire_1', 'partenaire_2', 'commun'].includes(row.side) ? row.side : 'commun',
+          category: ['parents', 'amis', 'collègues'].includes(row.category) ? row.category : 'amis',
+          guests_count: parseInt(row.guests_count) || 1,
+          is_vip: row.is_vip?.toLowerCase() === 'true' || row.is_vip === '1',
+          status: 'en_attente'
+        }));
+
+        // Validation rapide des champs indispensables
+        const invalid = guestsToInsert.some(g => !g.name || !g.phone);
+        if (invalid) {
+          setImportNotice({ type: 'error', message: "Certaines lignes n'ont pas de nom ou de numéro de téléphone." });
+          setImporting(false);
+          return;
+        }
+
+        try {
+          const { error } = await supabase.from('invite').insert(guestsToInsert);
+          
+          if (error) {
+            if (error.code === '23505') throw new Error("Un ou plusieurs numéros WhatsApp existent déjà !");
+            throw error;
+          }
+
+          setImportNotice({ type: 'success', message: `${guestsToInsert.length} proches ajoutés avec succès ! ✨` });
+          loadData();
+        } catch (err: any) {
+          setImportNotice({ type: 'error', message: err.message || "Erreur technique d'insertion." });
+        } finally {
+          setImporting(false);
+          if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input file
+        }
+      },
+      error: () => {
+        setImportNotice({ type: 'error', message: "Impossible de lire ce fichier CSV." });
+        setImporting(false);
+      }
+    });
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm("Voulez-vous retirer cet invité précieux ? ✨")) {
@@ -341,7 +403,6 @@ export default function GuestPage() {
     }
   };
 
-  // NOUVEAU : Déclencheur natif d'impression
   const handlePrint = () => {
     window.print();
   };
@@ -356,7 +417,6 @@ export default function GuestPage() {
   return (
     <div className="min-h-screen bg-[#FDFBFD] flex text-[#1E293B]" style={{ fontFamily: '"DM Sans", sans-serif' }}>
       
-      {/* STYLE INJECTÉ UNIQUE POUR LA FEUILLE D'IMPRESSION (PAS DE MODIFICATION DE L'INTERFACE LIVE) */}
       <style jsx global>{`
         @media print {
           body { background: white !important; color: black !important; }
@@ -411,14 +471,28 @@ export default function GuestPage() {
           <BentoStatCard label="Invités VIP" value={guests.filter(g => g.is_vip).length} emoji="⭐" color="text-amber-600" />
         </div>
 
-        {/* NOUVEAU : Conteneur regroupant recherche globale et options d'impression filtrées */}
-        <div className="search-container flex flex-col md:flex-row gap-4 mb-8 max-w-3xl items-stretch">
+        {/* NOUVELLE ALERTE NOTIFICATION POUR L'IMPORTATION */}
+        <AnimatePresence>
+          {importNotice && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6">
+              <div className={`p-4 rounded-2xl border flex items-center gap-3 text-sm font-bold ${
+                importNotice.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'
+              }`}>
+                {importNotice.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                <span>{importNotice.message}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* BARRE DE RECHERCHE ET ACTIONS OPTIMISÉE AVEC IMPORT CSV */}
+        <div className="search-container flex flex-col md:flex-row gap-4 mb-8 max-w-4xl items-stretch">
           <div className="relative flex-1">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={22} />
             <input type="text" placeholder="Rechercher..." className="w-full pl-16 pr-8 py-5 bg-white border-2 border-slate-100 rounded-[2rem] outline-none font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           
-          <div className="flex items-center gap-2 bg-white border-2 border-slate-100 rounded-[2rem] px-4 py-2">
+          <div className="flex items-center gap-3 bg-white border-2 border-slate-100 rounded-[2rem] px-4 py-2">
             <select className="bg-transparent font-bold text-sm outline-none text-slate-600 px-2 cursor-pointer" value={printFilter} onChange={(e) => setPrintFilter(e.target.value)}>
               <option value="all">Toute la liste</option>
               <option value="parents">Catégorie: Parents</option>
@@ -427,12 +501,26 @@ export default function GuestPage() {
               <option value="accompanied">Personnes accompagnées</option>
             </select>
             
+            {/* Input CSV caché */}
+            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
+            
+            {/* Bouton d'importation groupée */}
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
+              title="Importer un fichier CSV d'invités"
+            >
+              {importing ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
+            </button>
+            
             <button onClick={handlePrint} className="p-3 bg-slate-900 text-white rounded-2xl hover:bg-rose-500 transition-all shadow-md flex items-center justify-center" title="Lancer l'impression">
               <Printer size={18} />
             </button>
           </div>
         </div>
 
+        {/* TABLEAU DES INVITÉS */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left border-separate border-tools-0">
             <thead className="bg-slate-50/80 border-b border-slate-200">
@@ -451,10 +539,10 @@ export default function GuestPage() {
                     <div className="flex flex-col">
                       <div className="font-bold text-slate-800 flex items-center gap-2">
                         {guest.is_vip && (
-  <span title="VIP">
-    <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
-  </span>
-)}
+                          <span title="VIP">
+                            <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
+                          </span>
+                        )}
                         <span className={guest.is_vip ? "text-amber-900 font-extrabold" : ""}>{guest.name}</span>
                         <span className={`text-[9px] px-2 py-0.5 rounded-md border ${
                           guest.side === 'partenaire_2' 
