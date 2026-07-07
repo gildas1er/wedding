@@ -567,6 +567,47 @@ _Gildas & Mariette_`;
           </div>
         </div>
 
+        {/* SECTION : TABLEAU DE BORD DE SUIVI DES ENVOIS WHATSAPP */}
+<div className="bg-white p-6 border border-slate-100 rounded-3xl shadow-sm space-y-4">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div>
+      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Progression des invitations WhatsApp</h3>
+      <p className="text-sm font-black text-slate-900 mt-0.5">
+        {guests.filter(g => g.invitation_sent).length} sur {guests.length} proches contactés
+      </p>
+    </div>
+    <div className="text-right">
+      <span className="text-lg font-black text-slate-900">
+        {guests.length > 0 ? Math.round((guests.filter(g => g.invitation_sent).length / guests.length) * 100) : 0}%
+      </span>
+    </div>
+  </div>
+
+  {/* Jauge visuelle de progression */}
+  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+    <div 
+      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500 ease-out shadow-inner"
+      style={{ width: `${guests.length > 0 ? (guests.filter(g => g.invitation_sent).length / guests.length) * 100 : 0}%` }}
+    />
+  </div>
+
+  {/* Mini-indicateurs contextuels */}
+  <div className="grid grid-cols-2 gap-4 pt-2 text-center border-t border-slate-50">
+    <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100/30">
+      <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Restants à envoyer</div>
+      <div className="text-base font-black text-amber-700 mt-0.5">
+        {guests.filter(g => !g.invitation_sent).length} fiches ✉️
+      </div>
+    </div>
+    <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/30">
+      <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Invitations délivrées</div>
+      <div className="text-base font-black text-emerald-700 mt-0.5">
+        {guests.filter(g => g.invitation_sent).length} envoyées ✅
+      </div>
+    </div>
+  </div>
+</div>
+
         {/* TABLEAU DES INVITÉS */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left border-separate border-tools-0">
