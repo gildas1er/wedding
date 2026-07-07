@@ -402,7 +402,7 @@ export default function GuestPage() {
 
 // Génération du lien WhatsApp personnalisé avec mise en forme et emojis
   const sendWhatsAppInvitation = async (guest: any) => {
-    const rsvpUrl = `${window.location.origin}/rsvp/${guest.id}`;
+    const rsvpUrl = `${window.location.origin}/dashboard/rsvp/${marriage.id}?guest=${guest.id}`;
     
     // Construction du message avec sauts de ligne (\n) et mise en forme WhatsApp (* pour le gras)
     const message = 
