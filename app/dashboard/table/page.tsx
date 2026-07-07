@@ -101,6 +101,94 @@ export default function SeatingPlannerV21() {
     }
   };
 
+  // Algorithme de répartition et génération automatique des tables
+  const generateAutomaticLayout = async (capacityPerTable: number) => {
+    const unassignedGuests = guests.filter(g => !g.table_id);
+    
+    if (unassignedGuests.length === 0) {
+      setError("Tous vos invités confirmés sont déjà placés sur des tables ! ✨");
+      return;
+    }
+
+    const totalCouverts = unassignedGuests.reduce((sum, g) => sum + (parseInt(g.guests_count) || 1), 0);
+
+    if (!confirm(`Cette action va distribuer automatiquement ${unassignedGuests.length} fiches d'invités (${totalCouverts} couverts) sur de nouvelles tables de ${capacityPerTable} personnes. Continuer ?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Trier par taille de groupe décroissante pour maximiser le remplissage des tables
+      const sortedGuests = [...unassignedGuests].sort((a, b) => {
+        const sizeA = parseInt(a.guests_count) || 1;
+        const sizeB = parseInt(b.guests_count) || 1;
+        return sizeB - sizeA;
+      });
+
+      let currentTables = [...tables];
+      let updatedGuests = [...guests];
+      
+      let nextX = 200;
+      let nextY = currentTables.length > 0 ? Math.max(...currentTables.map(t => t.position_y)) + 350 : 200;
+      let tableCounter = currentTables.filter(t => t.name.startsWith("Table Auto")).length + 1;
+
+      let activeTable: any = null;
+      let activeTableOccupancy = 0;
+
+      for (const guest of sortedGuests) {
+        const groupSize = parseInt(guest.guests_count) || 1;
+
+        if (groupSize > capacityPerTable) {
+          setError(`Le groupe "${guest.name || guest.nom}" (${groupSize}p) dépasse la capacité maximale d'une table (${capacityPerTable}p).`);
+          continue; 
+        }
+
+        if (!activeTable || (activeTableOccupancy + groupSize > capacityPerTable)) {
+          const tableName = `Table Auto ${tableCounter++}`;
+          
+          const { data: newTable, error: tableErr } = await supabase
+            .from('tables')
+            .insert([{
+              marriage_id: marriage.id,
+              name: tableName,
+              capacity: capacityPerTable,
+              shape: 'circle',
+              position_x: nextX,
+              position_y: nextY
+            }])
+            .select()
+            .single();
+
+          if (tableErr || !newTable) throw new Error("Erreur lors de la création d'une table automatique");
+
+          nextX += 350;
+          if (nextX > 1500) {
+            nextX = 200;
+            nextY += 350;
+          }
+
+          activeTable = newTable;
+          activeTableOccupancy = 0;
+          currentTables.push(newTable);
+        }
+
+        await supabase.from('invite').update({ table_id: activeTable.id }).eq('id', guest.id);
+        updatedGuests = updatedGuests.map(g => g.id === guest.id ? { ...g, table_id: activeTable.id } : g);
+        activeTableOccupancy += groupSize;
+      }
+
+      setTables(currentTables);
+      setGuests(updatedGuests);
+
+    } catch (err) {
+      console.error(err);
+      setError("Une erreur est survenue lors de la génération automatique.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getSideLabel = (side: string) => {
     if (side === 'partenaire_1') return 'Marié';
     if (side === 'partenaire_2') return 'Mariée';
@@ -113,7 +201,6 @@ export default function SeatingPlannerV21() {
     return 'bg-purple-50 text-purple-700 border-purple-100';
   };
 
-  // ÉCRAN DE CHARGEMENT ÉLÉGANT (Fini le carré blanc vide)
   if (loading) {
     return (
       <div className="h-screen w-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4">
@@ -226,14 +313,34 @@ export default function SeatingPlannerV21() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* BOUTONS GENERATEURS AUTOMATIQUES */}
+            <div className="flex items-center bg-amber-50/50 rounded-full p-1 border border-amber-100 shadow-sm gap-1 no-print">
+              <button 
+                onClick={() => generateAutomaticLayout(8)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white text-amber-800 hover:bg-amber-100 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
+              >
+                <Sparkles size={12} className="text-amber-500" /> Générer (8p / Table)
+              </button>
+              <button 
+                onClick={() => generateAutomaticLayout(10)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white hover:bg-amber-700 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
+              >
+                <Sparkles size={12} /> Générer (10p / Table)
+              </button>
+            </div>
+
+            {/* BOUTON IMPRIMER */}
             <button onClick={() => window.print()} className="flex items-center gap-2 px-5 py-3 bg-white border border-amber-200 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-all shadow-sm">
               <Printer size={14} /> Imprimer
             </button>
+            
+            {/* PANNEAU ZOOM */}
             <div className="flex items-center bg-white rounded-full p-1 border border-amber-100 shadow-sm">
               <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-2 text-slate-400 hover:text-amber-600"><ZoomOut size={18}/></button>
               <span className="text-[10px] font-black w-12 text-center text-slate-600">{Math.round(zoom * 100)}%</span>
               <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-2 text-slate-400 hover:text-amber-600"><ZoomIn size={18}/></button>
             </div>
+            
             <div className="flex gap-2">
               <button onClick={() => { setNewTableData({ name: '', capacity: 10 }); setShowAddModal({show: true, shape: 'circle'}); }} className="bg-white border border-amber-200 text-amber-700 px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-amber-50 transition-colors">+ Ronde</button>
               <button onClick={() => { setNewTableData({ name: '', capacity: 10 }); setShowAddModal({show: true, shape: 'rectangle'}); }} className="bg-slate-900 text-white px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-colors">+ Rectangulaire</button>
@@ -241,7 +348,7 @@ export default function SeatingPlannerV21() {
           </div>
         </header>
 
-        {/* CANEVAS */}
+        {/* CANEVAS INTERACTIF */}
         <div 
           ref={containerRef}
           className={`flex-1 relative overflow-hidden bg-[#FDFBF7] ${isPanning ? 'cursor-grabbing' : 'cursor-default'}`}
@@ -278,7 +385,6 @@ export default function SeatingPlannerV21() {
                       </button>
                       <input className="text-center font-luxury text-lg text-slate-800 bg-transparent border-none w-full" defaultValue={table.name} onBlur={(e) => supabase.from('tables').update({ name: e.target.value }).eq('id', table.id)} />
                       
-                      {/* Compteur d'occupation réelle */}
                       <span className={`text-[9px] font-black uppercase tracking-widest mb-4 ${currentOccupancy > table.capacity ? 'text-red-600' : 'text-amber-600'}`}>
                         {currentOccupancy} / {table.capacity} PLACES
                       </span>
@@ -303,7 +409,7 @@ export default function SeatingPlannerV21() {
         </div>
       </main>
 
-      {/* MODAL AJOUT (Logique d'input nettoyée) */}
+      {/* MODAL AJOUT */}
       <AnimatePresence>
         {showAddModal.show && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print">
