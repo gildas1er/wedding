@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Trash2, Search, Calendar, 
+  Plus, Trash2, Search, Calendar, Loader2,
   Circle, Square, ZoomIn, ZoomOut, Sparkles, Move, 
   AlertCircle, X, ArrowLeft, Printer, Users
 } from 'lucide-react';
@@ -42,8 +42,13 @@ export default function SeatingPlannerV21() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
       const { data: mData } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+      
       if (mData) {
         setMarriage(mData);
         const [tRes, gRes] = await Promise.all([
@@ -56,7 +61,11 @@ export default function SeatingPlannerV21() {
         setTables(tRes.data || []);
         setGuests(gRes.data || []);
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   // Calcule l'occupation réelle d'une table en sommant les guests_count
@@ -104,7 +113,17 @@ export default function SeatingPlannerV21() {
     return 'bg-purple-50 text-purple-700 border-purple-100';
   };
 
-  if (loading) return null;
+  // ÉCRAN DE CHARGEMENT ÉLÉGANT (Fini le carré blanc vide)
+  if (loading) {
+    return (
+      <div className="h-screen w-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-amber-600" size={40} />
+        <p className="font-luxury italic text-xl text-slate-800 tracking-wide animate-pulse">
+          Chargement du plan de table...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-[#FDFBF7] flex overflow-hidden font-ui">
@@ -216,8 +235,8 @@ export default function SeatingPlannerV21() {
               <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-2 text-slate-400 hover:text-amber-600"><ZoomIn size={18}/></button>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowAddModal({show: true, shape: 'circle'})} className="bg-white border border-amber-200 text-amber-700 px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-amber-50 transition-colors">+ Ronde</button>
-              <button onClick={() => setShowAddModal({show: true, shape: 'rectangle'})} className="bg-slate-900 text-white px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-colors">+ Rectangulaire</button>
+              <button onClick={() => { setNewTableData({ name: '', capacity: 10 }); setShowAddModal({show: true, shape: 'circle'}); }} className="bg-white border border-amber-200 text-amber-700 px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-amber-50 transition-colors">+ Ronde</button>
+              <button onClick={() => { setNewTableData({ name: '', capacity: 10 }); setShowAddModal({show: true, shape: 'rectangle'}); }} className="bg-slate-900 text-white px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-colors">+ Rectangulaire</button>
             </div>
           </div>
         </header>
@@ -284,7 +303,7 @@ export default function SeatingPlannerV21() {
         </div>
       </main>
 
-      {/* MODAL AJOUT */}
+      {/* MODAL AJOUT (Logique d'input nettoyée) */}
       <AnimatePresence>
         {showAddModal.show && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print">
@@ -296,10 +315,10 @@ export default function SeatingPlannerV21() {
                 <input 
                     type="number" 
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-sm outline-none focus:ring-1 focus:ring-amber-300 transition-all" 
-                    placeholder="Capacité" 
-                    value={isNaN(newTableData.capacity) ? '' : newTableData.capacity} 
+                    placeholder="Capacité (ex: 10)" 
+                    value={newTableData.capacity || ''} 
                     onChange={(e) => {
-                        const val = e.target.value === '' ? NaN : parseInt(e.target.value);
+                        const val = e.target.value === '' ? 0 : parseInt(e.target.value);
                         setNewTableData({...newTableData, capacity: val});
                     }} 
                 />
@@ -307,8 +326,8 @@ export default function SeatingPlannerV21() {
                 <div className="flex gap-4 pt-4">
                   <button onClick={() => setShowAddModal({show: false, shape: 'circle'})} className="flex-1 font-bold text-slate-400 text-[11px] uppercase tracking-widest hover:text-slate-600 transition-colors">Annuler</button>
                   <button onClick={async () => {
-                     const capacityToSend = isNaN(newTableData.capacity) ? 10 : newTableData.capacity;
-                     const { data } = await supabase.from('tables').insert([{ marriage_id: marriage.id, name: newTableData.name, capacity: capacityToSend, shape: showAddModal.shape, position_x: 200, position_y: 200 }]).select().single();
+                     const capacityToSend = newTableData.capacity <= 0 ? 10 : newTableData.capacity;
+                     const { data } = await supabase.from('tables').insert([{ marriage_id: marriage.id, name: newTableData.name || `Table ${tables.length + 1}`, capacity: capacityToSend, shape: showAddModal.shape, position_x: 200, position_y: 200 }]).select().single();
                      if (data) { setTables([...tables, data]); setShowAddModal({ show: false, shape: 'circle' }); }
                   }} className="flex-1 bg-amber-500 text-white py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-lg hover:bg-amber-600 transition-colors">Créer</button>
                 </div>

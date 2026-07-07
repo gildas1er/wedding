@@ -608,6 +608,7 @@ _Gildas & Mariette_`;
   </div>
 </div>
 
+
         {/* TABLEAU DES INVITÉS */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left border-separate border-tools-0">
