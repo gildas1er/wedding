@@ -429,6 +429,11 @@ _Gildas & Mariette_`;
       .from('invite')
       .update({ invitation_sent: true })
       .eq('id', guest.id);
+
+    // Mise à jour instantanée du state React local
+    setGuests(prevGuests => 
+      prevGuests.map(g => g.id === guest.id ? { ...g, invitation_sent: true } : g)
+    );
     
     loadData();
   };
