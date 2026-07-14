@@ -126,7 +126,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
       if (error.code === '23505') {
         setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité. ✨");
       } else {
-        setErrorMessage("Oups ! Une petite erreur technique s'est glised.");
+        setErrorMessage("Oups ! Une petite erreur technique s'est glissée.");
       }
     } finally {
       setIsSubmitting(false);
@@ -400,25 +400,20 @@ export default function GuestPage() {
     }
   };
 
-// Génération du lien WhatsApp personnalisé avec mise en forme et emojis
+  // Génération du lien WhatsApp personnalisé sans caractères spéciaux problématiques
   const sendWhatsAppInvitation = async (guest: any) => {
     const rsvpUrl = `${window.location.origin}/dashboard/rsvp/${marriage.id}?guest=${guest.id}`;
     
-    // Construction du message avec sauts de ligne (\n) et mise en forme WhatsApp (* pour le gras)
+    // Construction du message robuste (unicode pur) pour éviter les caractères brisés sur les téléphones
     const message = 
-`👑 *INVITATION OFFICIELLE* 👑
-
-Bonjour *${guest.name}* ! 👋✨
-
-Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍
-
-📍 *Pour confirmer votre présence (RSVP) :*
-Merci de cliquer sur le lien magique ci-dessous pour valider votre venue et le nombre de vos couverts :
-👉 ${rsvpUrl}
-
-Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉
-
-_Gildas & Mariette_`;
+`👑 *INVITATION OFFICIELLE* 👑\n\n` +
+`Bonjour *${guest.name}* ! 👋✨\n\n` +
+`Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
+`📍 *Pour confirmer votre présence (RSVP) :*\n` +
+`Merci de cliquer sur le lien ci-dessous pour valider votre venue :\n` +
+`👉 ${rsvpUrl}\n\n` +
+`Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
+`_Gildas & Mariette_`;
     
     // Ouverture de WhatsApp
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${guest.phone}&text=${encodeURIComponent(message)}`;
@@ -430,12 +425,10 @@ _Gildas & Mariette_`;
       .update({ invitation_sent: true })
       .eq('id', guest.id);
 
-    // Mise à jour instantanée du state React local
+    // Mise à jour instantanée du state React local pour éviter tout temps de latence
     setGuests(prevGuests => 
       prevGuests.map(g => g.id === guest.id ? { ...g, invitation_sent: true } : g)
     );
-    
-    loadData();
   };
 
   const getCategoryIcon = (category: string) => {
@@ -573,45 +566,45 @@ _Gildas & Mariette_`;
         </div>
 
         {/* SECTION : TABLEAU DE BORD DE SUIVI DES ENVOIS WHATSAPP */}
-<div className="bg-white p-6 border border-slate-100 rounded-3xl shadow-sm space-y-4">
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-    <div>
-      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Progression des invitations WhatsApp</h3>
-      <p className="text-sm font-black text-slate-900 mt-0.5">
-        {guests.filter(g => g.invitation_sent).length} sur {guests.length} proches contactés
-      </p>
-    </div>
-    <div className="text-right">
-      <span className="text-lg font-black text-slate-900">
-        {guests.length > 0 ? Math.round((guests.filter(g => g.invitation_sent).length / guests.length) * 100) : 0}%
-      </span>
-    </div>
-  </div>
+        <div className="bg-white p-6 border border-slate-100 rounded-3xl shadow-sm space-y-4 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Progression des invitations WhatsApp</h3>
+              <p className="text-sm font-black text-slate-900 mt-0.5">
+                {guests.filter(g => g.invitation_sent).length} sur {guests.length} proches contactés
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-lg font-black text-slate-900">
+                {guests.length > 0 ? Math.round((guests.filter(g => g.invitation_sent).length / guests.length) * 100) : 0}%
+              </span>
+            </div>
+          </div>
 
-  {/* Jauge visuelle de progression */}
-  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
-    <div 
-      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500 ease-out shadow-inner"
-      style={{ width: `${guests.length > 0 ? (guests.filter(g => g.invitation_sent).length / guests.length) * 100 : 0}%` }}
-    />
-  </div>
+          {/* Jauge visuelle de progression */}
+          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500 ease-out shadow-inner"
+              style={{ width: `${guests.length > 0 ? (guests.filter(g => g.invitation_sent).length / guests.length) * 100 : 0}%` }}
+            />
+          </div>
 
-  {/* Mini-indicateurs contextuels */}
-  <div className="grid grid-cols-2 gap-4 pt-2 text-center border-t border-slate-50">
-    <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100/30">
-      <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Restants à envoyer</div>
-      <div className="text-base font-black text-amber-700 mt-0.5">
-        {guests.filter(g => !g.invitation_sent).length} fiches ✉️
-      </div>
-    </div>
-    <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/30">
-      <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Invitations délivrées</div>
-      <div className="text-base font-black text-emerald-700 mt-0.5">
-        {guests.filter(g => g.invitation_sent).length} envoyées ✅
-      </div>
-    </div>
-  </div>
-</div>
+          {/* Mini-indicateurs contextuels */}
+          <div className="grid grid-cols-2 gap-4 pt-2 text-center border-t border-slate-50">
+            <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100/30">
+              <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Restants à envoyer</div>
+              <div className="text-base font-black text-amber-700 mt-0.5">
+                {guests.filter(g => !g.invitation_sent).length} fiches ✉️
+              </div>
+            </div>
+            <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/30">
+              <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Invitations délivrées</div>
+              <div className="text-base font-black text-emerald-700 mt-0.5">
+                {guests.filter(g => g.invitation_sent).length} envoyées ✅
+              </div>
+            </div>
+          </div>
+        </div>
 
 
         {/* TABLEAU DES INVITÉS */}
@@ -628,16 +621,24 @@ _Gildas & Mariette_`;
             </thead>
             <tbody className="divide-y divide-slate-100">
               {currentGuests.map((guest) => (
-                <tr key={guest.id} className="hover:bg-slate-50/50 transition-colors group">
+                <tr 
+                  key={guest.id} 
+                  className={`transition-colors group ${
+                    guest.invitation_sent 
+                      ? 'bg-emerald-50/15 hover:bg-emerald-50/25' // Légère teinte émeraude si l'invitation est envoyée
+                      : 'hover:bg-slate-50/50'
+                  }`}
+                >
                   <td className="px-8 py-5">
                     <div className="flex flex-col">
-                      <div className="font-bold text-slate-800 flex items-center gap-2">
+                      <div className="font-bold text-slate-800 flex flex-wrap items-center gap-2">
                         {guest.is_vip && (
                           <span title="VIP">
                             <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
                           </span>
                         )}
                         <span className={guest.is_vip ? "text-amber-900 font-extrabold" : ""}>{guest.name}</span>
+                        
                         <span className={`text-[9px] px-2 py-0.5 rounded-md border ${
                           guest.side === 'partenaire_2' 
                             ? 'bg-rose-50 border-rose-100 text-rose-500' 
@@ -647,6 +648,17 @@ _Gildas & Mariette_`;
                         }`}>
                           {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
                         </span>
+
+                        {/* ✨ NOUVEAU : Indicateur de statut WhatsApp direct */}
+                        {guest.invitation_sent ? (
+                          <span className="bg-emerald-100/70 text-emerald-800 border-emerald-200/50 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border">
+                            ✉️ Envoyé
+                          </span>
+                        ) : (
+                          <span className="bg-amber-50 text-amber-600 border-amber-200/60 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border italic">
+                            ⏳ À envoyer
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
                         <Phone size={10} className="text-slate-300"/> {guest.phone}
@@ -671,8 +683,12 @@ _Gildas & Mariette_`;
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                       <button 
                         onClick={() => sendWhatsAppInvitation(guest)} 
-                        className={`p-2.5 rounded-xl transition-all shadow-sm ${guest.invitation_sent ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'}`}
-                        title="Inviter via WhatsApp"
+                        className={`p-2.5 rounded-xl transition-all shadow-sm ${
+                          guest.invitation_sent 
+                            ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' 
+                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'
+                        }`}
+                        title={guest.invitation_sent ? "Renvoyer l'invitation" : "Inviter via WhatsApp"}
                       >
                         <MessageCircle size={16}/>
                       </button>
