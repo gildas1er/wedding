@@ -180,7 +180,20 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
 
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📞 Numéro WhatsApp</label>
-                <input required type="tel" placeholder="+225..." className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                <input 
+                  required 
+                  type="text" 
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  placeholder="Ex: 2250102030405" 
+                  className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} 
+                  value={formData.phone} 
+                  onChange={(e) => {
+                    // Supprime instantanément tout caractère qui n'est pas un chiffre (0-9)
+                    const onlyNums = e.target.value.replace(/[^0-9]/g, '');
+                    setFormData({...formData, phone: onlyNums});
+                  }} 
+                />
               </div>
 
               <div className="space-y-2">
