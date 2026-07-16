@@ -6,10 +6,9 @@ import { supabase } from '../lib/supabase';
 import { useSearchParams } from 'next/navigation';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User } from 'lucide-react';
 
-// 1. On sépare la logique qui utilise useSearchParams dans un sous-composant
+// 1. Sous-composant gérant le contenu du Livre d'or
 function GuestbookContent() {
   const searchParams = useSearchParams();
-  // On récupère l'ID du mariage dans l'URL (ex: /guestbook?id=ID_DU_MARIAGE)
   const marriageId = searchParams.get('id');
 
   const [messages, setMessages] = useState<any[]>([]);
@@ -38,7 +37,7 @@ function GuestbookContent() {
 
     fetchMessages();
 
-    // S'abonner aux nouveaux messages en temps réel
+    // S'abonner aux nouveaux messages en temps réel (pour les autres appareils dans la salle)
     const subscription = supabase
       .channel('realtime-guestbook')
       .on('postgres_changes', { 
@@ -47,7 +46,11 @@ function GuestbookContent() {
         table: 'guestbook', 
         filter: `marriage_id=eq.${marriageId}` 
       }, (payload) => {
-        setMessages((prev) => [payload.new, ...prev]);
+        // On évite les doublons si l'auteur est celui qui vient d'envoyer le message
+        setMessages((prev) => {
+          if (prev.some(msg => msg.id === payload.new.id)) return prev;
+          return [payload.new, ...prev];
+        });
       })
       .subscribe();
 
@@ -62,7 +65,7 @@ function GuestbookContent() {
 
     setSubmitting(true);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('guestbook')
       .insert([
         {
@@ -70,9 +73,13 @@ function GuestbookContent() {
           author_name: name.trim(),
           message: text.trim()
         }
-      ]);
+      ])
+      .select(); // 👈 On demande à Supabase de renvoyer le message inséré (avec son ID et sa date de création)
 
-    if (!error) {
+    if (!error && data && data[0]) {
+      // 🚀 AJOUT IMMÉDIAT du nouveau message en haut de la liste locale
+      setMessages((prev) => [data[0], ...prev]);
+      
       setText('');
       setSuccess(true);
       setTimeout(() => setSuccess(false), 4000);
@@ -200,7 +207,7 @@ function GuestbookContent() {
   );
 }
 
-// 2. Le composant par défaut englobe le contenu dans un Suspense
+// 2. Composant enveloppe avec Suspense
 export default function PublicGuestbook() {
   return (
     <div className="min-h-screen bg-[#FCF9FC] text-[#1E293B] pb-16" style={{ fontFamily: '"DM Sans", sans-serif' }}>
