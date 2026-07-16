@@ -144,7 +144,7 @@ export default function PublicGuestbook() {
             >
               {submitting ? "Envoi en cours..." : "Envoyer mon message"} <Send size={16} />
             </button>
-          </form>
+          </form> 
 
           {/* Toast de succès éphémère */}
           <AnimatePresence>
