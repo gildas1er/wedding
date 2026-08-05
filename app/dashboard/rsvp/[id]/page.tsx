@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Calendar, MapPin, GlassWater, 
   CheckCircle2, Clock, Users, Loader2, Sparkles,
-  Church, Landmark, Cross, Compass, MessageCircle, XCircle 
+  Landmark, Cross, Check, MessageSquare
 } from 'lucide-react';
-import { supabase } from '../../../lib/supabase'; // Utilisation de ton client existant
+import { supabase } from '../../../lib/supabase';
 
 export default function PublicRSVP() {
   return (
@@ -26,8 +26,7 @@ function RSVPContent() {
   const id = params?.id; // ID du mariage
   const searchParams = useSearchParams();
   
-
-  // SÉCURITÉ & NETTOYAGE : Élimine les guillemets (" ou ') qui font planter le type UUID de PostgreSQL
+  // Sécurité & nettoyage UUID
   const rawGuestId = searchParams.get('guest');
   const guestId = rawGuestId ? rawGuestId.replace(/['"]+/g, '') : null;
   
@@ -37,18 +36,22 @@ function RSVPContent() {
   const [marriage, setMarriage] = useState<any>(null);
   const [guestName, setGuestName] = useState('');
   
-  const [hasPlusOne, setHasPlusOne] = useState<boolean | null>(null);
+  // Nouveaux états pour le RSVP multi-événements
+  const [allEventsSelected, setAllEventsSelected] = useState(true);
   const [form, setForm] = useState({
     status: 'en_attente',
     guests_count: 1,
-    notes: ''
+    notes: '',
+    attending_civil: true,
+    attending_church: true,
+    attending_reception: true
   });
 
   useEffect(() => {
     const fetchData = async () => {
       if (!id) { setLoading(false); return; }
       try {
-        // 1. Récupérer les infos du mariage (avec la méthode sécurisée maybeSingle)
+        // 1. Récupérer les infos du mariage
         const { data: mData } = await supabase
           .from('marriages')
           .select('*')
@@ -56,21 +59,34 @@ function RSVPContent() {
           .maybeSingle();
         if (mData) setMarriage(mData);
 
-        // 2. Récupérer les infos de l'invité spécifique
+        // 2. Récupérer les infos de l'invité
         if (guestId) {
           const { data: gData } = await supabase
             .from('invite')
-            .select('name, status, guests_count')
+            .select('name, status, guests_count, attending_civil, attending_church, attending_reception, notes')
             .eq('id', guestId)
             .maybeSingle();
           
           if (gData) {
             setGuestName(gData.name);
+            const isCivil = gData.attending_civil ?? true;
+            const isChurch = gData.attending_church ?? true;
+            const isReception = gData.attending_reception ?? true;
+
             setForm(prev => ({ 
               ...prev, 
               status: gData.status || 'en_attente',
-              guests_count: gData.guests_count || 1 
+              guests_count: gData.guests_count || 1,
+              notes: gData.notes || '',
+              attending_civil: isCivil,
+              attending_church: isChurch,
+              attending_reception: isReception
             }));
+
+            // Vérifier si toutes les options sont cochées
+            if (!isCivil || !isChurch || !isReception) {
+              setAllEventsSelected(false);
+            }
           }
         }
       } catch (e) { 
@@ -81,20 +97,48 @@ function RSVPContent() {
     fetchData();
   }, [id, guestId]);
 
+  // Gestion du basculement "Présent à tout"
+  const handleToggleAll = (selectAll: boolean) => {
+    setAllEventsSelected(selectAll);
+    if (selectAll) {
+      setForm(prev => ({
+        ...prev,
+        attending_civil: true,
+        attending_church: true,
+        attending_reception: true
+      }));
+    }
+  };
+
+  // Toggle individuel d'un événement
+  const handleToggleEvent = (key: 'attending_civil' | 'attending_church' | 'attending_reception') => {
+    const newValue = !form[key];
+    const updatedForm = { ...form, [key]: newValue };
+    setForm(updatedForm);
+
+    // Si tout est coché à nouveau, réactiver le bouton "Tous les événements"
+    const hasChurch = Boolean(marriage?.religious_hour || marriage?.religious_date);
+    const isAllChecked = updatedForm.attending_civil && updatedForm.attending_reception && (!hasChurch || updatedForm.attending_church);
+    setAllEventsSelected(isAllChecked);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestId) return;
     setSending(true);
 
-    // Si décliné, le compte retombe à 0 (ou 1 par défaut selon ta logique métier)
-    const finalCount = form.status === 'décliné' ? 1 : form.guests_count;
+    const isDeclined = form.status === 'décliné';
+    const finalCount = isDeclined ? 1 : form.guests_count;
 
     const { error } = await supabase
       .from('invite')
       .update({
         status: form.status,
         guests_count: finalCount,
-        // notes: form.notes // Assure-toi d'avoir une colonne 'notes' dans ta table invite
+        notes: form.notes,
+        attending_civil: isDeclined ? false : form.attending_civil,
+        attending_church: isDeclined ? false : form.attending_church,
+        attending_reception: isDeclined ? false : form.attending_reception
       })
       .eq('id', guestId);
 
@@ -115,7 +159,6 @@ function RSVPContent() {
     </div>
   );
 
-  // Valeurs par défaut si le mariage n'est pas encore chargé ou inexistant
   const m = marriage || {
     partner_1_name: "Sarah", partner_2_name: "Marc",
     primary_color: "#f43f5e", invitation_text: "VOUS ÊTES INVITÉS",
@@ -124,6 +167,8 @@ function RSVPContent() {
     religious_date: "", religious_hour: "", religious_location: "",
     reception_hour: "19:00", reception_location: "Domaine de la Rose"
   };
+
+  const hasChurchEvent = Boolean(m.religious_hour || m.religious_date);
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center">
@@ -179,8 +224,7 @@ function RSVPContent() {
                 maps={m.mairie_maps_url}
             />
 
-            {/* Conditionnel : Si l'heure ou la date religieuse est renseignée, on l'affiche */}
-            {(m.religious_hour || m.religious_date) && (
+            {hasChurchEvent && (
               <ProgramItem 
                   icon={Cross} 
                   title="La Cérémonie Religieuse" 
@@ -240,8 +284,72 @@ function RSVPContent() {
                     <motion.div 
                         initial={{ opacity: 0, y: -10 }} 
                         animate={{ opacity: 1, y: 0 }} 
-                        className="space-y-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm"
+                        className="space-y-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm"
                     >
+                      {/* OPTION RAPIDE OU ÉVÉNEMENTS PERSONNALISÉS */}
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                          À quels moments serez-vous présent(e) ?
+                        </label>
+
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAll(true)}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                              allEventsSelected 
+                                ? 'bg-white text-slate-900 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                          >
+                            Tous les moments
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAll(false)}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                              !allEventsSelected 
+                                ? 'bg-white text-slate-900 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                          >
+                            Sur-mesure
+                          </button>
+                        </div>
+
+                        {/* LISTE DES ÉVÉNEMENTS À COCHER */}
+                        <div className="space-y-2 pt-1">
+                          {/* Mairie */}
+                          <EventCheckbox 
+                            icon={Landmark}
+                            title="Mairie"
+                            checked={form.attending_civil}
+                            onChange={() => handleToggleEvent('attending_civil')}
+                          />
+
+                          {/* Église (Conditionnelle) */}
+                          {hasChurchEvent && (
+                            <EventCheckbox 
+                              icon={Cross}
+                              title="Église"
+                              checked={form.attending_church}
+                              onChange={() => handleToggleEvent('attending_church')}
+                            />
+                          )}
+
+                          {/* Réception */}
+                          <EventCheckbox 
+                            icon={GlassWater}
+                            title="Réception & Dîner"
+                            checked={form.attending_reception}
+                            onChange={() => handleToggleEvent('attending_reception')}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="h-[1px] bg-slate-100 w-full" />
+
+                      {/* NOMBRE DE PERSONNES */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-slate-400" />
@@ -256,8 +364,7 @@ function RSVPContent() {
                         </select>
                       </div>
                       
-                      <div className="h-[1px] bg-slate-100 w-full" />
-                      
+                      {/* NOTES */}
                       <textarea 
                         placeholder="Un petit mot pour nous ? (Allergies, musique...)" 
                         className="w-full p-4 bg-slate-50 rounded-2xl text-sm font-medium outline-none h-24 resize-none focus:ring-1 focus:ring-rose-200 transition-all"
@@ -307,10 +414,32 @@ function RSVPContent() {
   );
 }
 
+// Composant pour les cases à cocher des événements
+function EventCheckbox({ icon: Icon, title, checked, onChange }: { icon: any, title: string, checked: boolean, onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className={`w-full p-3.5 rounded-2xl flex items-center justify-between border-2 transition-all ${
+        checked 
+          ? 'bg-rose-50/50 border-rose-400 text-slate-900' 
+          : 'bg-slate-50 border-slate-100 text-slate-400'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={18} className={checked ? 'text-rose-500' : 'text-slate-400'} />
+        <span className="font-bold text-xs">{title}</span>
+      </div>
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+        checked ? 'bg-rose-500 text-white' : 'border-2 border-slate-200 bg-white'
+      }`}>
+        {checked && <Check size={14} strokeWidth={3} />}
+      </div>
+    </button>
+  );
+}
+
 // Composant Interne pour les items du programme
-
-
-// Remplacer l'ancien composant ProgramItem par cette version plus intuitive
 function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
     const colors: any = {
         rose: "text-rose-500 bg-rose-50",
