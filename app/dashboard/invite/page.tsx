@@ -4,13 +4,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import Papa from 'papaparse'; // 👈 Importation de PapaParse
+import Papa from 'papaparse';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
   Users as UsersIcon, X, Heart, LayoutDashboard,
   MessageSquare, Settings, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
-  MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet, Upload
+  MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet, Upload,
+  Landmark, Cross, GlassWater
 } from 'lucide-react';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
@@ -36,23 +37,57 @@ function BentoStatCard({ label, value, emoji, color }: any) {
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const configs: any = {
-    confirmé: { label: 'Confirmé Présent', icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-600' },
-    en_attente: { label: 'En attente', icon: Clock, bg: 'bg-amber-50', text: 'text-amber-600' },
-    décliné: { label: 'Absent/Décliné', icon: XCircle, bg: 'bg-rose-50', text: 'text-rose-600' },
-  };
-  const config = configs[status] || configs.en_attente;
-  const Icon = config.icon;
+function StatusPill({ guest }: { guest: any }) {
+  const status = guest.status;
+
+  if (status === 'confirmé') {
+    return (
+      <div className="flex flex-col items-start gap-1.5">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-emerald-50 text-emerald-600 border border-emerald-100">
+          <CheckCircle2 size={12} strokeWidth={3} />
+          CONFIRMÉ PRÉSENT
+        </span>
+
+        {/* Détails visuels des choix de l'invité */}
+        <div className="flex items-center gap-1 flex-wrap mt-0.5">
+          {guest.attending_civil && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-100/60" title="Présent à la Mairie">
+              <Landmark size={11} /> Mairie
+            </span>
+          )}
+
+          {guest.attending_church && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100/60" title="Présent à l'Église">
+              <Cross size={11} /> Église
+            </span>
+          )}
+
+          {guest.attending_reception && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100/60" title="Présent au Dîner/Réception">
+              <GlassWater size={11} /> Dîner
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'décliné') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-rose-50 text-rose-600 border border-rose-100">
+        <XCircle size={12} strokeWidth={3} />
+        Absent/Décliné
+      </span>
+    );
+  }
+
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${config.bg} ${config.text}`}>
-      <Icon size={12} strokeWidth={3} />
-      {config.label}
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-amber-50 text-amber-600 border border-amber-100">
+      <Clock size={12} strokeWidth={3} />
+      En attente
     </span>
   );
 }
-
-
 
 // --- 2. MODAL D'AJOUT AVEC GESTION D'ERREUR ---
 
@@ -189,7 +224,6 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                   className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} 
                   value={formData.phone} 
                   onChange={(e) => {
-                    // Supprime instantanément tout caractère qui n'est pas un chiffre (0-9)
                     const onlyNums = e.target.value.replace(/[^0-9]/g, '');
                     setFormData({...formData, phone: onlyNums});
                   }} 
@@ -260,10 +294,10 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
 
 export default function GuestPage() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null); // 👈 Ref pour le bouton d'import caché
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false); // 👈 État de chargement de l'import
+  const [importing, setImporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [marriage, setMarriage] = useState<any>(null);
   const [guests, setGuests] = useState<any[]>([]);
@@ -271,7 +305,6 @@ export default function GuestPage() {
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [printFilter, setPrintFilter] = useState("all");
 
-  // Notification d'import éphémère
   const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -314,8 +347,6 @@ export default function GuestPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // NOUVEAU : Fonction de traitement du fichier CSV importé
-  // Traitement du fichier CSV importé avec insertion progressive (Batching)
   const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !marriage?.id) return;
@@ -334,7 +365,6 @@ export default function GuestPage() {
           return;
         }
 
-        // Nettoyage et formatage initial de toutes les lignes
         const allGuests = rows.map((row: any) => ({
           marriage_id: marriage.id,
           name: row.name?.trim(),
@@ -346,7 +376,6 @@ export default function GuestPage() {
           status: 'en_attente'
         }));
 
-        // Validation rapide
         const invalid = allGuests.some(g => !g.name || !g.phone);
         if (invalid) {
           setImportNotice({ type: 'error', message: "Certaines lignes n'ont pas de nom ou de numéro de téléphone." });
@@ -354,7 +383,6 @@ export default function GuestPage() {
           return;
         }
 
-        // --- INSERTION PROGRESSIVE (Par paquets de 5 pour la stabilité) ---
         const batchSize = 5;
         let insertedCount = 0;
         let hasDuplicateError = false;
@@ -368,16 +396,14 @@ export default function GuestPage() {
             if (error) {
               if (error.code === '23505') {
                 hasDuplicateError = true;
-                // On continue quand même le reste de l'import malgré un doublon
                 continue; 
               }
-              throw error; // Pour les autres erreurs techniques, on stoppe
+              throw error;
             }
             
             insertedCount += batch.length;
           }
 
-          // Message de fin adapté
           if (hasDuplicateError) {
             setImportNotice({ 
               type: 'success', 
@@ -395,7 +421,7 @@ export default function GuestPage() {
           setImportNotice({ type: 'error', message: err.message || "Erreur lors de l'intégration progressive." });
         } finally {
           setImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = ''; // Reset de l'input
+          if (fileInputRef.current) fileInputRef.current.value = '';
         }
       },
       error: () => {
@@ -413,11 +439,9 @@ export default function GuestPage() {
     }
   };
 
-  // Génération du lien WhatsApp personnalisé sans caractères spéciaux problématiques
   const sendWhatsAppInvitation = async (guest: any) => {
     const rsvpUrl = `${window.location.origin}/dashboard/rsvp/${marriage.id}?guest=${guest.id}`;
     
-    // Construction du message robuste (unicode pur) pour éviter les caractères brisés sur les téléphones
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
 `Bonjour *${guest.name}* ! 👋✨\n\n` +
@@ -428,17 +452,14 @@ export default function GuestPage() {
 `Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
 `_Gildas & Mariette_`;
     
-    // Ouverture de WhatsApp
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${guest.phone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
 
-    // Mise à jour immédiate dans la base de données
     await supabase
       .from('invite')
       .update({ invitation_sent: true })
       .eq('id', guest.id);
 
-    // Mise à jour instantanée du state React local pour éviter tout temps de latence
     setGuests(prevGuests => 
       prevGuests.map(g => g.id === guest.id ? { ...g, invitation_sent: true } : g)
     );
@@ -508,12 +529,9 @@ export default function GuestPage() {
             <h1 className="text-4xl font-black tracking-tighter">Liste des <span className="text-rose-500 italic">Invités Précieux</span></h1>
           </div>
           
-          {/* BLOC D'ACTIONS PRINCIPALES REPOSITIONNÉ & CLAIR */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-            {/* Input CSV caché */}
             <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
             
-            {/* Bouton d'importation explicite */}
             <button 
               onClick={() => fileInputRef.current?.click()}
               disabled={importing}
@@ -527,7 +545,6 @@ export default function GuestPage() {
               <span>{importing ? "Importation..." : "Importer un CSV"}</span>
             </button>
 
-            {/* Bouton Ajouter un proche */}
             <button onClick={() => { setSelectedGuest(null); setIsModalOpen(true); }} className="flex items-center justify-between gap-4 bg-slate-900 text-white pl-6 pr-2 py-2 rounded-full hover:bg-rose-500 transition-all shadow-xl">
               <span className="font-bold text-sm">Ajouter un proche</span>
               <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><Plus size={20} strokeWidth={3} /></div>
@@ -542,7 +559,6 @@ export default function GuestPage() {
           <BentoStatCard label="Invités VIP" value={guests.filter(g => g.is_vip).length} emoji="⭐" color="text-amber-600" />
         </div>
 
-        {/* NOUVELLE ALERTE NOTIFICATION POUR L'IMPORTATION */}
         <AnimatePresence>
           {importNotice && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6">
@@ -556,7 +572,6 @@ export default function GuestPage() {
           )}
         </AnimatePresence>
 
-        {/* BARRE DE RECHERCHE ET FILTRES RESTE SIMPLE ET PROPRE */}
         <div className="search-container flex flex-col md:flex-row gap-4 mb-8 max-w-3xl items-stretch">
           <div className="relative flex-1">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={22} />
@@ -578,7 +593,6 @@ export default function GuestPage() {
           </div>
         </div>
 
-        {/* SECTION : TABLEAU DE BORD DE SUIVI DES ENVOIS WHATSAPP */}
         <div className="bg-white p-6 border border-slate-100 rounded-3xl shadow-sm space-y-4 mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
@@ -594,7 +608,6 @@ export default function GuestPage() {
             </div>
           </div>
 
-          {/* Jauge visuelle de progression */}
           <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
             <div 
               className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500 ease-out shadow-inner"
@@ -602,7 +615,6 @@ export default function GuestPage() {
             />
           </div>
 
-          {/* Mini-indicateurs contextuels */}
           <div className="grid grid-cols-2 gap-4 pt-2 text-center border-t border-slate-50">
             <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100/30">
               <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Restants à envoyer</div>
@@ -618,7 +630,6 @@ export default function GuestPage() {
             </div>
           </div>
         </div>
-
 
         {/* TABLEAU DES INVITÉS */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
@@ -638,7 +649,7 @@ export default function GuestPage() {
                   key={guest.id} 
                   className={`transition-colors group ${
                     guest.invitation_sent 
-                      ? 'bg-emerald-50/15 hover:bg-emerald-50/25' // Légère teinte émeraude si l'invitation est envoyée
+                      ? 'bg-emerald-50/15 hover:bg-emerald-50/25' 
                       : 'hover:bg-slate-50/50'
                   }`}
                 >
@@ -662,7 +673,6 @@ export default function GuestPage() {
                           {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
                         </span>
 
-                        {/* ✨ NOUVEAU : Indicateur de statut WhatsApp direct */}
                         {guest.invitation_sent ? (
                           <span className="bg-emerald-100/70 text-emerald-800 border-emerald-200/50 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border">
                             ✉️ Envoyé
@@ -690,7 +700,7 @@ export default function GuestPage() {
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <StatusPill status={guest.status} />
+                    <StatusPill guest={guest} />
                   </td>
                   <td className="px-8 py-5 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
@@ -718,7 +728,6 @@ export default function GuestPage() {
             </tbody>
           </table>
 
-          {/* LOGIQUE DE PAGINATION */}
           <div className="pagination-container px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Page {currentPage} sur {totalPages || 1}
