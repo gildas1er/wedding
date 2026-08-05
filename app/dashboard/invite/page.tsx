@@ -444,7 +444,7 @@ export default function GuestPage() {
     
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
-`> NB : Cette invitation est strictement personnelle.` +
+`> NB : Cette invitation est strictement personnelle.\n\n` +
 `Bonjour *${guest.name}* ! 👋✨\n\n` +
 `Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
 `📍 *Pour confirmer votre présence (RSVP) :*\n` +
