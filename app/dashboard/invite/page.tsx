@@ -7,10 +7,10 @@ import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
-  Users as UsersIcon, X, Heart, LayoutDashboard,
-  MessageSquare, Settings, CheckCircle2, Clock, XCircle, Banknote, 
+  Users as UsersIcon, X, LayoutDashboard,
+  MessageSquare, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
-  MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet, Upload,
+  MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet,
   Landmark, Cross, GlassWater, Filter, MessageSquareQuote
 } from 'lucide-react';
 
@@ -48,7 +48,6 @@ function StatusPill({ guest }: { guest: any }) {
           CONFIRMÉ PRÉSENT
         </span>
 
-        {/* Détails visuels des choix de l'invité */}
         <div className="flex items-center gap-1 flex-wrap mt-0.5">
           {guest.attending_civil && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-100/60" title="Présent à la Mairie">
@@ -97,8 +96,17 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    name: '', phone: '', guests_count: 1, side: 'partenaire_1', status: 'en_attente',
-    category: 'amis', is_vip: false, message: ''
+    name: '',
+    phone: '',
+    guests_count: 1,
+    side: 'partenaire_1',
+    status: 'en_attente',
+    category: 'amis',
+    is_vip: false,
+    notes: '',
+    attending_civil: true,
+    attending_church: true,
+    attending_reception: true
   });
 
   useEffect(() => {
@@ -113,13 +121,25 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
           status: guestToEdit.status || 'en_attente',
           category: guestToEdit.category || 'amis',
           is_vip: guestToEdit.is_vip || false,
-          message: guestToEdit.message || ''
+          notes: guestToEdit.notes || '',
+          attending_civil: guestToEdit.attending_civil ?? true,
+          attending_church: guestToEdit.attending_church ?? true,
+          attending_reception: guestToEdit.attending_reception ?? true
         });
-        setHasAccompanist(guestToEdit.guests_count > 1);
+        setHasAccompanist((guestToEdit.guests_count || 1) > 1);
       } else {
         setFormData({ 
-          name: '', phone: '', guests_count: 1, side: 'commun', status: 'en_attente',
-          category: 'amis', is_vip: false, message: '' 
+          name: '',
+          phone: '',
+          guests_count: 1,
+          side: 'commun',
+          status: 'en_attente',
+          category: 'amis',
+          is_vip: false,
+          notes: '',
+          attending_civil: true,
+          attending_church: true,
+          attending_reception: true
         });
         setHasAccompanist(false);
       }
@@ -145,7 +165,10 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
         status: formData.status,
         category: formData.category,
         is_vip: formData.is_vip,
-        message: formData.message
+        notes: formData.notes,
+        attending_civil: formData.attending_civil,
+        attending_church: formData.attending_church,
+        attending_reception: formData.attending_reception
       };
 
       if (guestToEdit) {
@@ -176,16 +199,15 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
           <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-            <div className="p-10 bg-[#161B2E] text-white flex justify-between items-center">
+            <div className="p-8 bg-[#161B2E] text-white flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-black">{guestToEdit ? "Modifier" : "Ajouter"} Invité 🥂</h3>
-                <p className="text-slate-400 font-medium text-xs uppercase tracking-widest mt-1">Liste d'honneur</p>
+                <p className="text-slate-400 font-medium text-xs uppercase tracking-widest mt-1">Registre des invités</p>
               </div>
               <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-2xl transition-colors"><X size={24} /></button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-10 space-y-6 max-h-[70vh] overflow-y-auto">
-              
+            <form onSubmit={handleSubmit} className="p-8 space-y-5 max-h-[75vh] overflow-y-auto">
               <AnimatePresence>
                 {errorMessage && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center gap-3 text-rose-600 text-sm font-bold">
@@ -210,12 +232,12 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                 </label>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">👤 Nom de l'invité</label>
-                <input required type="text" placeholder="Ex: Jean Dupont" className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-bold" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                <input required type="text" placeholder="Ex: Jean Dupont" className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-bold" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📞 Numéro WhatsApp</label>
                 <input 
                   required 
@@ -223,7 +245,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                   pattern="[0-9]*"
                   inputMode="numeric"
                   placeholder="Ex: 2250102030405" 
-                  className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} 
+                  className={`w-full px-5 py-3.5 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} 
                   value={formData.phone} 
                   onChange={(e) => {
                     const onlyNums = e.target.value.replace(/[^0-9]/g, '');
@@ -232,38 +254,40 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">🏷️ Catégorie / Relation</label>
-                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
-                  <option value="amis">Amis ✨</option>
-                  <option value="parents">Parents 🏠</option>
-                  <option value="collègues">Collègues 💼</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">🏷️ Catégorie</label>
+                  <select className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-sm" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                    <option value="amis">Amis ✨</option>
+                    <option value="parents">Parents 🏠</option>
+                    <option value="collègues">Collègues 💼</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📢 Statut RSVP</label>
+                  <select className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-sm" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                    <option value="en_attente">En attente</option>
+                    <option value="confirmé">Confirmé</option>
+                    <option value="décliné">Décliné</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">👥 Accompagné ?</label>
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <button type="button" onClick={() => setHasAccompanist(false)} className={`flex-1 py-3 rounded-xl font-black text-xs border-2 transition-all ${!hasAccompanist ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>NON</button>
                   <button type="button" onClick={() => setHasAccompanist(true)} className={`flex-1 py-3 rounded-xl font-black text-xs border-2 transition-all ${hasAccompanist ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>OUI</button>
                 </div>
                 {hasAccompanist && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                    <input type="number" min="2" className="w-full mt-2 px-6 py-4 bg-rose-50 border border-rose-100 rounded-2xl outline-none font-black text-rose-600" value={formData.guests_count} onChange={(e) => setFormData({...formData, guests_count: parseInt(e.target.value)})} />
+                  <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+                    <input type="number" min="2" placeholder="Nombre de personnes" className="w-full mt-2 px-5 py-3 bg-rose-50 border border-rose-100 rounded-2xl outline-none font-black text-rose-600" value={formData.guests_count} onChange={(e) => setFormData({...formData, guests_count: parseInt(e.target.value) || 2})} />
                   </motion.div>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📢 Statut</label>
-                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold appearance-none" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                  <option value="en_attente">En attente</option>
-                  <option value="confirmé">Confirmé</option>
-                  <option value="décliné">Décliné</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">💒 Côté</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -271,19 +295,39 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                     { id: 'partenaire_2', label: 'Mariée' },
                     { id: 'commun', label: 'Commun' }
                   ].map((side) => (
-                    <button key={side.id} type="button" onClick={() => setFormData({...formData, side: side.id})} className={`py-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${formData.side === side.id ? 'bg-rose-500 border-rose-500 text-white shadow-md' : 'bg-white border-slate-100 text-slate-400'}`}>
+                    <button key={side.id} type="button" onClick={() => setFormData({...formData, side: side.id})} className={`py-3 rounded-xl text-[10px] font-black uppercase border-2 transition-all ${formData.side === side.id ? 'bg-rose-500 border-rose-500 text-white shadow-md' : 'bg-white border-slate-100 text-slate-400'}`}>
                       {side.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">💌 Message laissé aux mariés</label>
-                <textarea rows={3} placeholder="Message ou vœux de l'invité..." className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-medium text-sm text-slate-700" value={formData.message} onChange={(e) => setFormData({...formData, message: e.target.value})} />
+              {formData.status === 'confirmé' && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📍 Présence aux cérémonies</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 font-bold text-xs cursor-pointer ${formData.attending_civil ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                      <input type="checkbox" checked={formData.attending_civil} onChange={e => setFormData({...formData, attending_civil: e.target.checked})} className="sr-only" />
+                      <Landmark size={14} /> Mairie
+                    </label>
+                    <label className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 font-bold text-xs cursor-pointer ${formData.attending_church ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                      <input type="checkbox" checked={formData.attending_church} onChange={e => setFormData({...formData, attending_church: e.target.checked})} className="sr-only" />
+                      <Cross size={14} /> Église
+                    </label>
+                    <label className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 font-bold text-xs cursor-pointer ${formData.attending_reception ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                      <input type="checkbox" checked={formData.attending_reception} onChange={e => setFormData({...formData, attending_reception: e.target.checked})} className="sr-only" />
+                      <GlassWater size={14} /> Dîner
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">💌 Notes / Message de l'invité</label>
+                <textarea rows={3} placeholder="Message, vœux ou notes particulières..." className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-medium text-sm text-slate-700" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
               </div>
 
-              <div className="flex gap-4 pt-6">
+              <div className="flex gap-4 pt-4">
                 <button type="button" onClick={onClose} className="flex-1 py-4 font-black text-slate-400 hover:text-slate-600 transition-colors">Annuler</button>
                 <button disabled={isSubmitting} type="submit" className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-rose-600 transition-all flex items-center justify-center gap-2">
                   {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />} Enregistrer
@@ -322,26 +366,21 @@ export default function GuestPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // FILTRAGE MULTI-CRITÈRES
+  // FILTRAGE MULTI-CRITÈRES (Mise à jour sur notes)
   const filteredGuests = guests.filter(g => {
-    // Recherche textuelle (nom, téléphone ou contenu du message)
     const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           g.phone.includes(searchTerm) || 
-                          (g.message && g.message.toLowerCase().includes(searchTerm.toLowerCase()));
+                          (g.notes && g.notes.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    // Filtre Catégorie
     const matchesCategory = categoryFilter === "all" || g.category === categoryFilter;
 
-    // Filtre Accompagnants
     const matchesAccompanist = 
       accompanistFilter === "all" ? true :
       accompanistFilter === "single" ? (g.guests_count || 1) === 1 :
       accompanistFilter === "accompanied" ? (g.guests_count || 1) > 1 : true;
 
-    // Filtre Statut RSVP
     const matchesRSVP = rsvpFilter === "all" || g.status === rsvpFilter;
 
-    // Filtre Message / Invitation
     const matchesMessage = 
       messageFilter === "all" ? true :
       messageFilter === "sent" ? g.invitation_sent === true :
@@ -404,6 +443,7 @@ export default function GuestPage() {
           category: ['parents', 'amis', 'collègues'].includes(row.category) ? row.category : 'amis',
           guests_count: parseInt(row.guests_count) || 1,
           is_vip: row.is_vip?.toLowerCase() === 'true' || row.is_vip === '1',
+          notes: row.notes?.trim() || row.message?.trim() || null,
           status: 'en_attente'
         }));
 
@@ -475,14 +515,12 @@ export default function GuestPage() {
     
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
-`> NB : Cette invitation est strictement personnelle. \n\n` +
-`Bonjour *${guest.name}* ! 👋\n\n` +
+`Bonjour *${guest.name}* ! 👋✨\n\n` +
 `Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
 `📍 *Pour confirmer votre présence (RSVP) :*\n` +
 `Merci de cliquer sur le lien ci-dessous pour valider votre venue :\n` +
 `👉 ${rsvpUrl}\n\n` +
-`Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
-`_Gildas & Mariette_`;
+`Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉`;
     
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${guest.phone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -615,12 +653,11 @@ export default function GuestPage() {
         {/* BARRE DE RECHERCHE ET BARRE DE FILTRES AVANCÉS */}
         <div className="search-container bg-white p-6 rounded-[2.5rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
           <div className="flex flex-col md:flex-row gap-4 items-stretch">
-            {/* Input recherche */}
             <div className="relative flex-1">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
               <input 
                 type="text" 
-                placeholder="Rechercher un nom, téléphone, message..." 
+                placeholder="Rechercher un nom, téléphone, notes..." 
                 className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-slate-300 transition-all text-sm" 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
@@ -637,13 +674,11 @@ export default function GuestPage() {
             </button>
           </div>
 
-          {/* Grille des Filtres */}
           <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5 text-xs font-black text-slate-400 uppercase tracking-wider mr-2">
               <Filter size={14} className="text-rose-500" /> Filtres :
             </div>
 
-            {/* Filtre Catégorie */}
             <select 
               className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
               value={categoryFilter} 
@@ -655,7 +690,6 @@ export default function GuestPage() {
               <option value="collègues">Collègues 💼</option>
             </select>
 
-            {/* Filtre Accompagnants */}
             <select 
               className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
               value={accompanistFilter} 
@@ -666,7 +700,6 @@ export default function GuestPage() {
               <option value="accompanied">Accompagné (x2+)</option>
             </select>
 
-            {/* Filtre Statut RSVP */}
             <select 
               className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
               value={rsvpFilter} 
@@ -678,7 +711,6 @@ export default function GuestPage() {
               <option value="décliné">Absent / Décliné ❌</option>
             </select>
 
-            {/* Filtre Statut Message */}
             <select 
               className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
               value={messageFilter} 
@@ -747,7 +779,7 @@ export default function GuestPage() {
                 <th className="px-8 py-5 text-center border-b border-slate-100">Catégorie</th>
                 <th className="px-8 py-5 text-center border-b border-slate-100">Accompagnants</th>
                 <th className="px-8 py-5 border-b border-slate-100">Statut RSVP</th>
-                <th className="px-8 py-5 border-b border-slate-100">Message aux mariés</th>
+                <th className="px-8 py-5 border-b border-slate-100">Notes / Vœux</th>
                 <th className="px-8 py-5 text-right border-b border-slate-100">Actions</th>
               </tr>
             </thead>
@@ -816,13 +848,13 @@ export default function GuestPage() {
                       <StatusPill guest={guest} />
                     </td>
                     <td className="px-8 py-5 max-w-xs">
-                      {guest.message ? (
+                      {guest.notes ? (
                         <div className="flex items-start gap-2 bg-rose-50/60 border border-rose-100 p-3 rounded-2xl text-xs text-slate-700">
                           <MessageSquareQuote size={16} className="text-rose-400 shrink-0 mt-0.5" />
-                          <p className="italic font-medium leading-relaxed break-words">{guest.message}</p>
+                          <p className="italic font-medium leading-relaxed break-words">{guest.notes}</p>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-300 italic">Aucun message</span>
+                        <span className="text-xs text-slate-300 italic">Aucune note</span>
                       )}
                     </td>
                     <td className="px-8 py-5 text-right">
