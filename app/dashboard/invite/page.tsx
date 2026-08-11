@@ -11,7 +11,7 @@ import {
   MessageSquare, Settings, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
   MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet, Upload,
-  Landmark, Cross, GlassWater
+  Landmark, Cross, GlassWater, Filter
 } from 'lucide-react';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
@@ -89,7 +89,7 @@ function StatusPill({ guest }: { guest: any }) {
   );
 }
 
-// --- 2. MODAL D'AJOUT AVEC GESTION D'ERREUR ---
+// --- 2. MODAL D'AJOUT ET ÉDITION ---
 
 function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -303,20 +303,42 @@ export default function GuestPage() {
   const [guests, setGuests] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
-  const [printFilter, setPrintFilter] = useState("all");
+
+  // ÉTATS DES FILTRES
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [accompanistFilter, setAccompanistFilter] = useState("all");
+  const [rsvpFilter, setRsvpFilter] = useState("all");
+  const [messageFilter, setMessageFilter] = useState("all");
 
   const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // FILTRAGE MULTI-CRITÈRES
   const filteredGuests = guests.filter(g => {
+    // Recherche textuelle (nom ou téléphone)
     const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || g.phone.includes(searchTerm);
-    if (printFilter === "parents") return matchesSearch && g.category === "parents";
-    if (printFilter === "amis") return matchesSearch && g.category === "amis";
-    if (printFilter === "collègues") return matchesSearch && g.category === "collègues";
-    if (printFilter === "accompanied") return matchesSearch && (g.guests_count > 1);
-    return matchesSearch;
+    
+    // Filtre Catégorie
+    const matchesCategory = categoryFilter === "all" || g.category === categoryFilter;
+
+    // Filtre Accompagnants
+    const matchesAccompanist = 
+      accompanistFilter === "all" ? true :
+      accompanistFilter === "single" ? (g.guests_count || 1) === 1 :
+      accompanistFilter === "accompanied" ? (g.guests_count || 1) > 1 : true;
+
+    // Filtre Statut RSVP
+    const matchesRSVP = rsvpFilter === "all" || g.status === rsvpFilter;
+
+    // Filtre Message / Invitation
+    const matchesMessage = 
+      messageFilter === "all" ? true :
+      messageFilter === "sent" ? g.invitation_sent === true :
+      messageFilter === "pending" ? !g.invitation_sent : true;
+
+    return matchesSearch && matchesCategory && matchesAccompanist && matchesRSVP && matchesMessage;
   });
 
   const totalPages = Math.ceil(filteredGuests.length / itemsPerPage);
@@ -329,7 +351,7 @@ export default function GuestPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, printFilter]);
+  }, [searchTerm, categoryFilter, accompanistFilter, rsvpFilter, messageFilter]);
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -444,7 +466,6 @@ export default function GuestPage() {
     
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
-`> NB : Cette invitation est strictement personnelle.\n\n` +
 `Bonjour *${guest.name}* ! 👋✨\n\n` +
 `Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
 `📍 *Pour confirmer votre présence (RSVP) :*\n` +
@@ -476,6 +497,14 @@ export default function GuestPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const resetFilters = () => {
+    setCategoryFilter("all");
+    setAccompanistFilter("all");
+    setRsvpFilter("all");
+    setMessageFilter("all");
+    setSearchTerm("");
   };
 
   if (loading) return (
@@ -573,24 +602,91 @@ export default function GuestPage() {
           )}
         </AnimatePresence>
 
-        <div className="search-container flex flex-col md:flex-row gap-4 mb-8 max-w-3xl items-stretch">
-          <div className="relative flex-1">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={22} />
-            <input type="text" placeholder="Rechercher..." className="w-full pl-16 pr-8 py-5 bg-white border-2 border-slate-100 rounded-[2rem] outline-none font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
-          
-          <div className="flex items-center gap-2 bg-white border-2 border-slate-100 rounded-[2rem] px-4 py-2">
-            <select className="bg-transparent font-bold text-sm outline-none text-slate-600 px-2 cursor-pointer" value={printFilter} onChange={(e) => setPrintFilter(e.target.value)}>
-              <option value="all">Toute la liste</option>
-              <option value="parents">Catégorie: Parents</option>
-              <option value="amis">Catégorie: Amis</option>
-              <option value="collègues">Catégorie: Collègues</option>
-              <option value="accompanied">Personnes accompagnées</option>
-            </select>
-            
-            <button onClick={handlePrint} className="p-3 bg-slate-900 text-white rounded-2xl hover:bg-rose-500 transition-all shadow-md flex items-center justify-center" title="Lancer l'impression">
+        {/* BARRE DE RECHERCHE ET BARRE DE FILTRES AVANCÉS */}
+        <div className="search-container bg-white p-6 rounded-[2.5rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch">
+            {/* Input recherche */}
+            <div className="relative flex-1">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+              <input 
+                type="text" 
+                placeholder="Rechercher un nom, téléphone..." 
+                className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-slate-300 transition-all text-sm" 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+              />
+            </div>
+
+            <button 
+              onClick={handlePrint} 
+              className="px-6 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-rose-600 transition-all shadow-md flex items-center justify-center gap-2 text-sm shrink-0" 
+              title="Imprimer la liste filtrée"
+            >
               <Printer size={18} />
+              <span>Imprimer</span>
             </button>
+          </div>
+
+          {/* Grille des Filtres */}
+          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs font-black text-slate-400 uppercase tracking-wider mr-2">
+              <Filter size={14} className="text-rose-500" /> Filtres :
+            </div>
+
+            {/* Filtre Catégorie */}
+            <select 
+              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
+              value={categoryFilter} 
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="all">🏷️ Catégorie : Toutes</option>
+              <option value="amis">Amis ✨</option>
+              <option value="parents">Parents 🏠</option>
+              <option value="collègues">Collègues 💼</option>
+            </select>
+
+            {/* Filtre Accompagnants */}
+            <select 
+              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
+              value={accompanistFilter} 
+              onChange={(e) => setAccompanistFilter(e.target.value)}
+            >
+              <option value="all">👥 Accompagnants : Tous</option>
+              <option value="single">Seul (x1)</option>
+              <option value="accompanied">Accompagné (x2+)</option>
+            </select>
+
+            {/* Filtre Statut RSVP */}
+            <select 
+              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
+              value={rsvpFilter} 
+              onChange={(e) => setRsvpFilter(e.target.value)}
+            >
+              <option value="all">📢 RSVP : Tous les statuts</option>
+              <option value="confirmé">Confirmé présent ✅</option>
+              <option value="en_attente">En attente ⏳</option>
+              <option value="décliné">Absent / Décliné ❌</option>
+            </select>
+
+            {/* Filtre Statut Message */}
+            <select 
+              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
+              value={messageFilter} 
+              onChange={(e) => setMessageFilter(e.target.value)}
+            >
+              <option value="all">💬 Message WhatsApp : Tous</option>
+              <option value="sent">Message envoyé ✉️</option>
+              <option value="pending">Message à envoyer ⏳</option>
+            </select>
+
+            {(categoryFilter !== "all" || accompanistFilter !== "all" || rsvpFilter !== "all" || messageFilter !== "all" || searchTerm !== "") && (
+              <button 
+                onClick={resetFilters} 
+                className="text-xs font-bold text-rose-500 hover:text-rose-700 px-2 py-1 transition-colors underline ml-auto"
+              >
+                Réinitialiser
+              </button>
+            )}
           </div>
         </div>
 
@@ -634,7 +730,7 @@ export default function GuestPage() {
 
         {/* TABLEAU DES INVITÉS */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-left border-separate border-tools-0">
+          <table className="w-full text-left border-separate border-spacing-0">
             <thead className="bg-slate-50/80 border-b border-slate-200">
               <tr className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                 <th className="px-8 py-5 border-b border-slate-100">Invité</th>
@@ -645,93 +741,99 @@ export default function GuestPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentGuests.map((guest) => (
-                <tr 
-                  key={guest.id} 
-                  className={`transition-colors group ${
-                    guest.invitation_sent 
-                      ? 'bg-emerald-50/15 hover:bg-emerald-50/25' 
-                      : 'hover:bg-slate-50/50'
-                  }`}
-                >
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col">
-                      <div className="font-bold text-slate-800 flex flex-wrap items-center gap-2">
-                        {guest.is_vip && (
-                          <span title="VIP">
-                            <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
-                          </span>
-                        )}
-                        <span className={guest.is_vip ? "text-amber-900 font-extrabold" : ""}>{guest.name}</span>
-                        
-                        <span className={`text-[9px] px-2 py-0.5 rounded-md border ${
-                          guest.side === 'partenaire_2' 
-                            ? 'bg-rose-50 border-rose-100 text-rose-500' 
-                            : guest.side === 'partenaire_1'
-                            ? 'bg-indigo-50 border-indigo-100 text-indigo-500'
-                            : 'bg-purple-50 border-purple-100 text-purple-500'
-                        }`}>
-                          {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
-                        </span>
+              {currentGuests.map((guest) => {
+                const isConfirmed = guest.status === 'confirmé';
 
-                        {guest.invitation_sent ? (
-                          <span className="bg-emerald-100/70 text-emerald-800 border-emerald-200/50 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border">
-                            ✉️ Envoyé
+                return (
+                  <tr 
+                    key={guest.id} 
+                    className={`transition-all group border-l-4 ${
+                      isConfirmed 
+                        ? 'bg-[#f0fdf4]/80 hover:bg-[#e6f7ec] border-l-emerald-500' 
+                        : guest.invitation_sent 
+                        ? 'bg-emerald-50/10 hover:bg-emerald-50/20 border-l-transparent' 
+                        : 'hover:bg-slate-50/50 border-l-transparent'
+                    }`}
+                  >
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col">
+                        <div className="font-bold text-slate-800 flex flex-wrap items-center gap-2">
+                          {guest.is_vip && (
+                            <span title="VIP">
+                              <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
+                            </span>
+                          )}
+                          <span className={guest.is_vip ? "text-amber-900 font-extrabold" : ""}>{guest.name}</span>
+                          
+                          <span className={`text-[9px] px-2 py-0.5 rounded-md border ${
+                            guest.side === 'partenaire_2' 
+                              ? 'bg-rose-50 border-rose-100 text-rose-500' 
+                              : guest.side === 'partenaire_1'
+                              ? 'bg-indigo-50 border-indigo-100 text-indigo-500'
+                              : 'bg-purple-50 border-purple-100 text-purple-500'
+                          }`}>
+                            {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
                           </span>
-                        ) : (
-                          <span className="bg-amber-50 text-amber-600 border-amber-200/60 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border italic">
-                            ⏳ À envoyer
-                          </span>
-                        )}
+
+                          {guest.invitation_sent ? (
+                            <span className="bg-emerald-100/70 text-emerald-800 border-emerald-200/50 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border">
+                              ✉️ Envoyé
+                            </span>
+                          ) : (
+                            <span className="bg-amber-50 text-amber-600 border-amber-200/60 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border italic">
+                              ⏳ À envoyer
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
+                          <Phone size={10} className="text-slate-300"/> {guest.phone}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
-                        <Phone size={10} className="text-slate-300"/> {guest.phone}
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100/80 rounded-lg text-[10px] font-black uppercase text-slate-600 border border-slate-200/60">
+                        {getCategoryIcon(guest.category)}
+                        {guest.category || 'amis'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      <span className="inline-block px-3 py-1 bg-slate-100/80 rounded-lg font-black text-slate-700 text-sm">
+                        x{guest.guests_count || 1}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5">
+                      <StatusPill guest={guest} />
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <button 
+                          onClick={() => sendWhatsAppInvitation(guest)} 
+                          className={`p-2.5 rounded-xl transition-all shadow-sm ${
+                            guest.invitation_sent 
+                              ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' 
+                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'
+                          }`}
+                          title={guest.invitation_sent ? "Renvoyer l'invitation" : "Inviter via WhatsApp"}
+                        >
+                          <MessageCircle size={16}/>
+                        </button>
+                        <button onClick={() => { setSelectedGuest(guest); setIsModalOpen(true); }} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+                          <Edit3 size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(guest.id)} className="p-2.5 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm">
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-center">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase text-slate-500 border border-slate-200/60">
-                      {getCategoryIcon(guest.category)}
-                      {guest.category || 'amis'}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5 text-center">
-                    <span className="inline-block px-3 py-1 bg-slate-100 rounded-lg font-black text-slate-600 text-sm">
-                      x{guest.guests_count || 1}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5">
-                    <StatusPill guest={guest} />
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                      <button 
-                        onClick={() => sendWhatsAppInvitation(guest)} 
-                        className={`p-2.5 rounded-xl transition-all shadow-sm ${
-                          guest.invitation_sent 
-                            ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' 
-                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'
-                        }`}
-                        title={guest.invitation_sent ? "Renvoyer l'invitation" : "Inviter via WhatsApp"}
-                      >
-                        <MessageCircle size={16}/>
-                      </button>
-                      <button onClick={() => { setSelectedGuest(guest); setIsModalOpen(true); }} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm">
-                        <Edit3 size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(guest.id)} className="p-2.5 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
           <div className="pagination-container px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Page {currentPage} sur {totalPages || 1}
+              Page {currentPage} sur {totalPages || 1} ({filteredGuests.length} résultat{filteredGuests.length > 1 ? 's' : ''})
             </div>
             
             <div className="flex items-center gap-2">
