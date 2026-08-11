@@ -11,7 +11,7 @@ import {
   MessageSquare, Settings, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
   MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet, Upload,
-  Landmark, Cross, GlassWater, Filter
+  Landmark, Cross, GlassWater, Filter, MessageSquareQuote
 } from 'lucide-react';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
@@ -98,7 +98,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
   
   const [formData, setFormData] = useState({
     name: '', phone: '', guests_count: 1, side: 'partenaire_1', status: 'en_attente',
-    category: 'amis', is_vip: false
+    category: 'amis', is_vip: false, message: ''
   });
 
   useEffect(() => {
@@ -112,13 +112,14 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
           side: guestToEdit.side || 'partenaire_1',
           status: guestToEdit.status || 'en_attente',
           category: guestToEdit.category || 'amis',
-          is_vip: guestToEdit.is_vip || false
+          is_vip: guestToEdit.is_vip || false,
+          message: guestToEdit.message || ''
         });
         setHasAccompanist(guestToEdit.guests_count > 1);
       } else {
         setFormData({ 
           name: '', phone: '', guests_count: 1, side: 'commun', status: 'en_attente',
-          category: 'amis', is_vip: false 
+          category: 'amis', is_vip: false, message: '' 
         });
         setHasAccompanist(false);
       }
@@ -143,7 +144,8 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
         side: formData.side,
         status: formData.status,
         category: formData.category,
-        is_vip: formData.is_vip
+        is_vip: formData.is_vip,
+        message: formData.message
       };
 
       if (guestToEdit) {
@@ -276,6 +278,11 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">💌 Message laissé aux mariés</label>
+                <textarea rows={3} placeholder="Message ou vœux de l'invité..." className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-medium text-sm text-slate-700" value={formData.message} onChange={(e) => setFormData({...formData, message: e.target.value})} />
+              </div>
+
               <div className="flex gap-4 pt-6">
                 <button type="button" onClick={onClose} className="flex-1 py-4 font-black text-slate-400 hover:text-slate-600 transition-colors">Annuler</button>
                 <button disabled={isSubmitting} type="submit" className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-rose-600 transition-all flex items-center justify-center gap-2">
@@ -317,8 +324,10 @@ export default function GuestPage() {
 
   // FILTRAGE MULTI-CRITÈRES
   const filteredGuests = guests.filter(g => {
-    // Recherche textuelle (nom ou téléphone)
-    const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || g.phone.includes(searchTerm);
+    // Recherche textuelle (nom, téléphone ou contenu du message)
+    const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          g.phone.includes(searchTerm) || 
+                          (g.message && g.message.toLowerCase().includes(searchTerm.toLowerCase()));
     
     // Filtre Catégorie
     const matchesCategory = categoryFilter === "all" || g.category === categoryFilter;
@@ -466,7 +475,8 @@ export default function GuestPage() {
     
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
-`Bonjour *${guest.name}* ! 👋✨\n\n` +
+`> NB : Cette invitation est strictement personnelle. \n\n` +
+`Bonjour *${guest.name}* ! 👋\n\n` +
 `Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
 `📍 *Pour confirmer votre présence (RSVP) :*\n` +
 `Merci de cliquer sur le lien ci-dessous pour valider votre venue :\n` +
@@ -610,7 +620,7 @@ export default function GuestPage() {
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
               <input 
                 type="text" 
-                placeholder="Rechercher un nom, téléphone..." 
+                placeholder="Rechercher un nom, téléphone, message..." 
                 className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-slate-300 transition-all text-sm" 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
@@ -737,6 +747,7 @@ export default function GuestPage() {
                 <th className="px-8 py-5 text-center border-b border-slate-100">Catégorie</th>
                 <th className="px-8 py-5 text-center border-b border-slate-100">Accompagnants</th>
                 <th className="px-8 py-5 border-b border-slate-100">Statut RSVP</th>
+                <th className="px-8 py-5 border-b border-slate-100">Message aux mariés</th>
                 <th className="px-8 py-5 text-right border-b border-slate-100">Actions</th>
               </tr>
             </thead>
@@ -803,6 +814,16 @@ export default function GuestPage() {
                     </td>
                     <td className="px-8 py-5">
                       <StatusPill guest={guest} />
+                    </td>
+                    <td className="px-8 py-5 max-w-xs">
+                      {guest.message ? (
+                        <div className="flex items-start gap-2 bg-rose-50/60 border border-rose-100 p-3 rounded-2xl text-xs text-slate-700">
+                          <MessageSquareQuote size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                          <p className="italic font-medium leading-relaxed break-words">{guest.message}</p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300 italic">Aucun message</span>
+                      )}
                     </td>
                     <td className="px-8 py-5 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
