@@ -29,10 +29,10 @@ function SidebarItem({ icon: Icon, label, active = false, onClick }: any) {
 
 function BentoStatCard({ label, value, emoji, color }: any) {
   return (
-    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group transition-transform hover:scale-105 hover:shadow-lg">
-      <div className={`text-4xl font-black tabular-nums leading-none ${color}`}>{value}</div>
+    <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group transition-transform hover:scale-105 hover:shadow-lg">
+      <div className={`text-3xl font-black tabular-nums leading-none ${color}`}>{value}</div>
       <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1 mb-2">{label}</div>
-      <div className="bg-slate-50 w-10 h-10 rounded-full flex items-center justify-center m-auto text-xl">{emoji}</div>
+      <div className="bg-slate-50 w-9 h-9 rounded-full flex items-center justify-center m-auto text-lg">{emoji}</div>
     </div>
   );
 }
@@ -238,18 +238,16 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📞 Numéro WhatsApp</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📞 Numéro WhatsApp (avec indicatif)</label>
                 <input 
                   required 
-                  type="text" 
-                  pattern="[0-9]*"
-                  inputMode="numeric"
-                  placeholder="Ex: 2250102030405" 
+                  type="text"
+                  placeholder="Ex: +33612345678 ou 2250102030405" 
                   className={`w-full px-5 py-3.5 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} 
                   value={formData.phone} 
                   onChange={(e) => {
-                    const onlyNums = e.target.value.replace(/[^0-9]/g, '');
-                    setFormData({...formData, phone: onlyNums});
+                    const cleaned = e.target.value.replace(/(?!^\+)[^\d]/g, '');
+                    setFormData({...formData, phone: cleaned});
                   }} 
                 />
               </div>
@@ -366,7 +364,22 @@ export default function GuestPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // FILTRAGE MULTI-CRITÈRES (Mise à jour sur notes)
+  // CALCUL DES STATISTIQUES DES CÉRÉMONIES
+  const confirmedGuests = guests.filter(g => g.status === 'confirmé');
+  
+  const totalCivil = confirmedGuests
+    .filter(g => g.attending_civil)
+    .reduce((acc, g) => acc + (g.guests_count || 1), 0);
+
+  const totalChurch = confirmedGuests
+    .filter(g => g.attending_church)
+    .reduce((acc, g) => acc + (g.guests_count || 1), 0);
+
+  const totalReception = confirmedGuests
+    .filter(g => g.attending_reception)
+    .reduce((acc, g) => acc + (g.guests_count || 1), 0);
+
+  // FILTRAGE MULTI-CRITÈRES
   const filteredGuests = guests.filter(g => {
     const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           g.phone.includes(searchTerm) || 
@@ -438,7 +451,7 @@ export default function GuestPage() {
         const allGuests = rows.map((row: any) => ({
           marriage_id: marriage.id,
           name: row.name?.trim(),
-          phone: row.phone?.trim()?.replace(/\s+/g, ''),
+          phone: row.phone?.trim()?.replace(/(?!^\+)[^\d]/g, ''),
           side: ['partenaire_1', 'partenaire_2', 'commun'].includes(row.side) ? row.side : 'commun',
           category: ['parents', 'amis', 'collègues'].includes(row.category) ? row.category : 'amis',
           guests_count: parseInt(row.guests_count) || 1,
@@ -513,8 +526,12 @@ export default function GuestPage() {
   const sendWhatsAppInvitation = async (guest: any) => {
     const rsvpUrl = `${window.location.origin}/dashboard/rsvp/${marriage.id}?guest=${guest.id}`;
     
+    // Si le numéro commence par +, on enlève le + pour le paramètre d'URL de l'API WhatsApp
+    const formattedPhone = guest.phone.startsWith('+') ? guest.phone.substring(1) : guest.phone;
+
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
+`> NB : Cette invitation est strictement personnelle. \n\n` +
 `Bonjour *${guest.name}* ! 👋✨\n\n` +
 `Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
 `📍 *Pour confirmer votre présence (RSVP) :*\n` +
@@ -522,7 +539,7 @@ export default function GuestPage() {
 `👉 ${rsvpUrl}\n\n` +
 `Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉`;
     
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${guest.phone}&text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
 
     await supabase
@@ -630,11 +647,15 @@ export default function GuestPage() {
           </div>
         </header>
 
-        <div className="bento-cards grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        {/* BENTO STATS AVEC DÉTAIL DES CÉRÉMONIES */}
+        <div className="bento-cards grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-12">
           <BentoStatCard label="Total Invités" value={guests.reduce((acc, g) => acc + (g.guests_count || 1), 0)} emoji="👥" color="text-[#0D1C41]" />
           <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} emoji="✅" color="text-emerald-500" />
           <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} emoji="⏳" color="text-amber-500" />
           <BentoStatCard label="Invités VIP" value={guests.filter(g => g.is_vip).length} emoji="⭐" color="text-amber-600" />
+          <BentoStatCard label="Mairie" value={totalCivil} emoji="🏛️" color="text-rose-600" />
+          <BentoStatCard label="Église" value={totalChurch} emoji="⛪" color="text-blue-600" />
+          <BentoStatCard label="Dîner" value={totalReception} emoji="🥂" color="text-amber-700" />
         </div>
 
         <AnimatePresence>
