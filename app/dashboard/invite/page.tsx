@@ -92,6 +92,7 @@ function StatusPill({ guest }: { guest: any }) {
 
 function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasAccompanist, setHasAccompanist] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
@@ -125,6 +126,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
           attending_church: guestToEdit.attending_church ?? true,
           attending_reception: guestToEdit.attending_reception ?? true
         });
+        setHasAccompanist((guestToEdit.guests_count || 1) > 1);
       } else {
         setFormData({ 
           name: '',
@@ -139,6 +141,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
           attending_church: true,
           attending_reception: true
         });
+        setHasAccompanist(false);
       }
     }
   }, [guestToEdit, isOpen]);
@@ -149,13 +152,15 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    const finalCount = hasAccompanist ? formData.guests_count : 1;
+
     try {
       let error;
       const dataToSave = {
         marriage_id: marriageId,
         name: formData.name,
         phone: formData.phone,
-        guests_count: 1,
+        guests_count: finalCount,
         side: formData.side,
         status: formData.status,
         category: formData.category,
@@ -265,6 +270,19 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                     <option value="décliné">Décliné</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">👥 Accompagné ?</label>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setHasAccompanist(false)} className={`flex-1 py-3 rounded-xl font-black text-xs border-2 transition-all ${!hasAccompanist ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>NON</button>
+                  <button type="button" onClick={() => setHasAccompanist(true)} className={`flex-1 py-3 rounded-xl font-black text-xs border-2 transition-all ${hasAccompanist ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>OUI</button>
+                </div>
+                {hasAccompanist && (
+                  <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+                    <input type="number" min="2" placeholder="Nombre de personnes" className="w-full mt-2 px-5 py-3 bg-rose-50 border border-rose-100 rounded-2xl outline-none font-black text-rose-600" value={formData.guests_count} onChange={(e) => setFormData({...formData, guests_count: parseInt(e.target.value) || 2})} />
+                  </motion.div>
+                )}
               </div>
 
               <div className="space-y-1.5">
