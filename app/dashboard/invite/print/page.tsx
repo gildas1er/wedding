@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  Printer, ArrowLeft, CheckCircle2, Users, Clock, 
+  Printer, ArrowLeft, CheckCircle2, Clock, 
   Heart, Briefcase, Landmark, Cross, GlassWater, 
-  Crown, Home, Sparkles, Building2, UserCheck, Layers
+  Crown, Sparkles, Layers
 } from 'lucide-react';
 
 // Configuration des 10 rapports d'impression
@@ -16,7 +16,6 @@ const PRINT_REPORTS = [
     title: '1. Invités Confirmés',
     description: 'Liste de tous les invités ayant confirmé leur présence.',
     icon: CheckCircle2,
-    color: 'emerald',
     filter: (g: any) => g.status === 'confirmé'
   },
   {
@@ -24,7 +23,6 @@ const PRINT_REPORTS = [
     title: '2. Liste des Amis',
     description: 'Tous les proches enregistrés dans la catégorie Amis.',
     icon: Sparkles,
-    color: 'pink',
     filter: (g: any) => g.category === 'amis'
   },
   {
@@ -32,7 +30,6 @@ const PRINT_REPORTS = [
     title: '3. Liste des Collègues',
     description: 'Tous les invités professionnels / collègues.',
     icon: Briefcase,
-    color: 'blue',
     filter: (g: any) => g.category === 'collègues'
   },
   {
@@ -40,7 +37,6 @@ const PRINT_REPORTS = [
     title: '4. Invités en Attente',
     description: 'Liste des personnes n\'ayant pas encore répondu au RSVP.',
     icon: Clock,
-    color: 'amber',
     filter: (g: any) => g.status === 'en_attente'
   },
   {
@@ -48,7 +44,6 @@ const PRINT_REPORTS = [
     title: '5. Parents - Côté Marié',
     description: 'Famille et parents rattachés au marié.',
     icon: Heart,
-    color: 'indigo',
     filter: (g: any) => g.category === 'parents' && g.side === 'partenaire_1'
   },
   {
@@ -56,7 +51,6 @@ const PRINT_REPORTS = [
     title: '6. Parents - Côté Mariée',
     description: 'Famille et parents rattachés à la mariée.',
     icon: Heart,
-    color: 'rose',
     filter: (g: any) => g.category === 'parents' && g.side === 'partenaire_2'
   },
   {
@@ -64,7 +58,6 @@ const PRINT_REPORTS = [
     title: '7. Cérémonie Civile (Mairie)',
     description: 'Invités confirmés présents à la Mairie.',
     icon: Landmark,
-    color: 'rose',
     filter: (g: any) => g.status === 'confirmé' && g.attending_civil
   },
   {
@@ -72,7 +65,6 @@ const PRINT_REPORTS = [
     title: '8. Cérémonie Religieuse',
     description: 'Invités confirmés présents à l\'Église/Lieu de culte.',
     icon: Cross,
-    color: 'sky',
     filter: (g: any) => g.status === 'confirmé' && g.attending_church
   },
   {
@@ -80,7 +72,6 @@ const PRINT_REPORTS = [
     title: '9. Dîner / Réception',
     description: 'Invités confirmés présents au Dîner.',
     icon: GlassWater,
-    color: 'amber',
     filter: (g: any) => g.status === 'confirmé' && g.attending_reception
   },
   {
@@ -88,7 +79,6 @@ const PRINT_REPORTS = [
     title: '10. Présents à TOUTES les Cérémonies',
     description: 'Invités confirmés présents à la Mairie, l\'Église ET au Dîner.',
     icon: Layers,
-    color: 'purple',
     filter: (g: any) => g.status === 'confirmé' && g.attending_civil && g.attending_church && g.attending_reception
   }
 ];
@@ -173,7 +163,7 @@ export default function PrintPage() {
             border-collapse: collapse !important;
           }
           th, td {
-            padding: 8px 12px !important;
+            padding: 10px 14px !important;
             border-bottom: 1px solid #CBD5E1 !important;
             font-size: 11pt !important;
           }
@@ -298,35 +288,29 @@ export default function PrintPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b-2 border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <th className="py-3 px-2">#</th>
-                      <th className="py-3 px-2">Nom & Prénom</th>
-                      <th className="py-3 px-2">Téléphone</th>
-                      <th className="py-3 px-2 text-center">Côté</th>
-                      <th className="py-3 px-2 text-center">Nombre</th>
-                      <th className="py-3 px-2">Remarques / Table</th>
+                      <th className="py-3 px-3 w-12">#</th>
+                      <th className="py-3 px-3">Nom & Prénom</th>
+                      <th className="py-3 px-3 text-center w-32">Côté</th>
+                      <th className="py-3 px-3 text-right w-28">Nombre</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {filteredGuests.map((guest, idx) => (
                       <tr key={guest.id} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-2 font-bold text-slate-400 text-xs">{idx + 1}</td>
-                        <td className="py-3 px-2 font-bold text-slate-800">
+                        <td className="py-3.5 px-3 font-bold text-slate-400 text-xs">{idx + 1}</td>
+                        <td className="py-3.5 px-3 font-bold text-slate-800">
                           <div className="flex items-center gap-1.5">
-                            {guest.is_vip && <Crown size={12} className="text-amber-500 fill-amber-400 shrink-0" />}
+                            {guest.is_vip && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
                             <span>{guest.name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-2 font-medium text-slate-600 text-xs">{guest.phone}</td>
-                        <td className="py-3 px-2 text-center">
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                        <td className="py-3.5 px-3 text-center">
+                          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded border border-slate-200 text-slate-600">
                             {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-center font-black text-slate-800">
+                        <td className="py-3.5 px-3 text-right font-black text-slate-800">
                           x{guest.guests_count || 1}
-                        </td>
-                        <td className="py-3 px-2 text-xs text-slate-500 italic max-w-[180px] truncate">
-                          {guest.notes || '-'}
                         </td>
                       </tr>
                     ))}
