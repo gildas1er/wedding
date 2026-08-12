@@ -15,70 +15,70 @@ const PRINT_REPORTS = [
     title: '1. Invités Confirmés',
     description: 'Liste de tous les invités ayant confirmé leur présence.',
     icon: CheckCircle2,
-    filter: (g: any) => g.status === 'confirmé'
+    filter: (g: any) => String(g.status || '').toLowerCase() === 'confirmé' || String(g.status || '').toLowerCase() === 'confirme'
   },
   {
     id: 'friends',
     title: '2. Liste des Amis',
     description: 'Tous les proches enregistrés dans la catégorie Amis.',
     icon: Sparkles,
-    filter: (g: any) => g.category === 'amis'
+    filter: (g: any) => String(g.category || '').toLowerCase() === 'amis' || String(g.category || '').toLowerCase() === 'ami'
   },
   {
     id: 'colleagues',
     title: '3. Liste des Collègues',
     description: 'Tous les invités professionnels / collègues.',
     icon: Briefcase,
-    filter: (g: any) => g.category === 'collègues'
+    filter: (g: any) => String(g.category || '').toLowerCase().includes('collègue') || String(g.category || '').toLowerCase().includes('collegue')
   },
   {
     id: 'pending',
     title: '4. Invités en Attente',
     description: 'Liste des personnes n\'ayant pas encore répondu au RSVP.',
     icon: Clock,
-    filter: (g: any) => g.status === 'en_attente'
+    filter: (g: any) => String(g.status || '').toLowerCase().includes('attente')
   },
   {
     id: 'groom_parents',
     title: '5. Parents - Côté Marié',
     description: 'Famille et parents rattachés au marié.',
     icon: Heart,
-    filter: (g: any) => g.category === 'parents' && g.side === 'partenaire_1'
+    filter: (g: any) => String(g.category || '').toLowerCase() === 'parents' && (g.side === 'partenaire_1' || g.side === 'marié' || g.side === 'marim')
   },
   {
     id: 'bride_parents',
     title: '6. Parents - Côté Mariée',
     description: 'Famille et parents rattachés à la mariée.',
     icon: Heart,
-    filter: (g: any) => g.category === 'parents' && g.side === 'partenaire_2'
+    filter: (g: any) => String(g.category || '').toLowerCase() === 'parents' && (g.side === 'partenaire_2' || g.side === 'mariée' || g.side === 'mariee')
   },
   {
     id: 'civil',
     title: '7. Cérémonie Civile (Mairie)',
     description: 'Invités confirmés présents à la Mairie.',
     icon: Landmark,
-    filter: (g: any) => g.status === 'confirmé' && g.attending_civil
+    filter: (g: any) => g.attending_civil || g.civil
   },
   {
     id: 'church',
     title: '8. Cérémonie Religieuse',
     description: 'Invités confirmés présents à l\'Église/Lieu de culte.',
     icon: Cross,
-    filter: (g: any) => g.status === 'confirmé' && g.attending_church
+    filter: (g: any) => g.attending_church || g.church
   },
   {
     id: 'dinner',
     title: '9. Dîner / Réception',
     description: 'Invités confirmés présents au Dîner.',
     icon: GlassWater,
-    filter: (g: any) => g.status === 'confirmé' && g.attending_reception
+    filter: (g: any) => g.attending_reception || g.reception || g.dinner
   },
   {
     id: 'full_presence',
     title: '10. Présents à TOUTES les Cérémonies',
     description: 'Invités confirmés présents à la Mairie, l\'Église ET au Dîner.',
     icon: Layers,
-    filter: (g: any) => g.status === 'confirmé' && g.attending_civil && g.attending_church && g.attending_reception
+    filter: (g: any) => (g.attending_civil || g.civil) && (g.attending_church || g.church) && (g.attending_reception || g.reception || g.dinner)
   }
 ];
 
@@ -86,30 +86,59 @@ export default function PrintPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<any[]>([]);
-  const [marriage, setMarriage] = useState<any>(null);
+  const [coupleTitle, setCoupleTitle] = useState<string>('');
   const [selectedReportId, setSelectedReportId] = useState<string>('confirmed');
 
   const loadData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push('/login'); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/login'); return; }
 
-    const { data: marriageData } = await supabase
-      .from('marriages')
-      .select('id, title, partner1_name, partner2_name')
-      .eq('user_id', user.id)
-      .maybeSingle();
+      // 1. Récupération des informations du mariage
+      const { data: marriageData } = await supabase
+        .from('marriages')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    if (marriageData) {
-      setMarriage(marriageData);
-      const { data: guestsData } = await supabase
+      if (marriageData) {
+        const title = marriageData.partner1_name && marriageData.partner2_name 
+          ? `${marriageData.partner1_name} & ${marriageData.partner2_name}`
+          : marriageData.title || marriageData.name || 'Mariage';
+        setCoupleTitle(title);
+      }
+
+      // 2. Chargement des invités (détection automatique de la table 'invite' ou 'guests')
+      let guestsResponse = await supabase
         .from('invite')
         .select('*')
-        .eq('marriage_id', marriageData.id)
-        .order('name', { ascending: true });
+        .eq('user_id', user.id);
 
-      setGuests(guestsData || []);
+      if (!guestsResponse.data || guestsResponse.data.length === 0) {
+        if (marriageData?.id) {
+          guestsResponse = await supabase
+            .from('invite')
+            .select('*')
+            .eq('marriage_id', marriageData.id);
+        }
+      }
+
+      // Si la table s'appelle 'guests' au lieu de 'invite'
+      if (!guestsResponse.data || guestsResponse.data.length === 0) {
+        guestsResponse = await supabase
+          .from('guests')
+          .select('*')
+          .eq('user_id', user.id);
+      }
+
+      if (guestsResponse.data) {
+        setGuests(guestsResponse.data);
+      }
+    } catch (err) {
+      console.error("Erreur de chargement des données :", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [router]);
 
   useEffect(() => {
@@ -118,7 +147,7 @@ export default function PrintPage() {
 
   const activeReport = PRINT_REPORTS.find(r => r.id === selectedReportId) || PRINT_REPORTS[0];
   const filteredGuests = guests.filter(activeReport.filter);
-  const totalCount = filteredGuests.reduce((acc, g) => acc + (g.guests_count || 1), 0);
+  const totalCount = filteredGuests.reduce((acc, g) => acc + (Number(g.guests_count || g.count || 1)), 0);
 
   const handlePrint = () => {
     window.print();
@@ -128,20 +157,17 @@ export default function PrintPage() {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white">
         <div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" />
-        <p className="mt-4 font-bold text-rose-500">Préparation du centre d'impression...</p>
+        <p className="mt-4 font-bold text-rose-500">Chargement des données...</p>
       </div>
     );
   }
 
-  // Construction du nom des mariés
-  const coupleNames = marriage?.partner1_name && marriage?.partner2_name
-    ? `${marriage.partner1_name} & ${marriage.partner2_name}`
-    : marriage?.title || "Mariage";
+  const displayName = coupleTitle || "Célébration de Mariage";
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* RÈGLES D'IMPRESSION STRICTES */}
+      {/* CSS IMPRESSION STRICT A4 ET EN-TÊTE RÉTÉRÉE */}
       <style jsx global>{`
         @media print {
           @page {
@@ -196,7 +222,7 @@ export default function PrintPage() {
         }
       `}</style>
 
-      {/* PANNEAU DE NAVIGATION (ECRAN UNIQUEMENT) */}
+      {/* HEADER D'ACTION ECRAN */}
       <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -228,7 +254,7 @@ export default function PrintPage() {
 
       <div className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* SÉLECTEUR DE LISTE (ECRAN UNIQUEMENT) */}
+        {/* MENU LATÉRAL DE SÉLECTION */}
         <aside className="no-print lg:col-span-4 space-y-3">
           <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm mb-4">
             <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">
@@ -241,7 +267,7 @@ export default function PrintPage() {
             {PRINT_REPORTS.map((report) => {
               const Icon = report.icon;
               const isSelected = selectedReportId === report.id;
-              const reportCount = guests.filter(report.filter).reduce((acc, g) => acc + (g.guests_count || 1), 0);
+              const reportCount = guests.filter(report.filter).reduce((acc, g) => acc + (Number(g.guests_count || g.count || 1)), 0);
 
               return (
                 <button
@@ -275,28 +301,29 @@ export default function PrintPage() {
           </div>
         </aside>
 
-        {/* ZONE D'IMPRESSION ET APERÇU */}
+        {/* FEUILLE D'IMPRESSION ET APERÇU */}
         <main className="lg:col-span-8">
           <div className="print-container bg-white border border-slate-200 rounded-[2rem] p-8 md:p-10 shadow-sm w-full">
             
             <table className="print-table w-full text-left border-collapse">
               
-              {/* EN-TÊTE RÉPÉTÉE SUR TOUTES LES PAGES */}
+              {/* EN-TÊTE RÉPÉTÉE SUR CHAQUE PAGE D'IMPRESSION */}
               <thead className="print-header">
                 <tr>
                   <th colSpan={4} className="p-0 font-normal">
                     <div className="border-b-2 border-slate-900 pb-4 mb-6">
+                      
                       {/* LIGNE DU NOM DES MARIÉS */}
                       <div className="flex justify-between items-center pb-2 mb-3 border-b border-slate-200">
                         <span className="text-base font-black tracking-wide text-rose-600 uppercase">
-                          {coupleNames}
+                          {displayName}
                         </span>
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                           Liste Officielle
                         </span>
                       </div>
 
-                      {/* TITRE ET TOTAL */}
+                      {/* TITRE DE LA LISTE & TOTAL */}
                       <div className="flex justify-between items-end gap-4">
                         <div>
                           <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
@@ -318,7 +345,7 @@ export default function PrintPage() {
                   </th>
                 </tr>
 
-                {/* COLONNES DU TABLEAU */}
+                {/* ENTÊTE DES COLONNES */}
                 <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-xs font-black uppercase tracking-wider">
                   <th className="py-3 px-3 w-[12%] text-left">#</th>
                   <th className="py-3 px-3 w-[53%] text-left">Nom & Prénom</th>
@@ -327,44 +354,44 @@ export default function PrintPage() {
                 </tr>
               </thead>
 
-              {/* PIED DE PAGE RÉPÉTÉ SUR TOUTES LES PAGES */}
+              {/* PIED DE PAGE RÉPÉTÉ SUR CHAQUE PAGE D'IMPRESSION */}
               <tfoot className="print-footer">
                 <tr>
                   <td colSpan={4} className="p-0 font-normal">
                     <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                       <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
-                      <span>{coupleNames}</span>
+                      <span>{displayName}</span>
                       <span className="page-number"></span>
                     </div>
                   </td>
                 </tr>
               </tfoot>
 
-              {/* CONTENU DE LA LISTE */}
+              {/* CORPS DES DONNÉES */}
               <tbody className="divide-y divide-slate-200 text-sm">
                 {filteredGuests.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-400 font-bold italic bg-slate-50/50">
+                    <td colSpan={4} className="py-12 text-center text-slate-500 font-bold italic bg-slate-50/50">
                       Aucun invité ne correspond à cette liste.
                     </td>
                   </tr>
                 ) : (
                   filteredGuests.map((guest, idx) => (
-                    <tr key={guest.id} className="print-row hover:bg-slate-50">
+                    <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
                       <td className="py-3 px-3 font-bold text-slate-500 text-xs">{idx + 1}</td>
                       <td className="py-3 px-3 font-bold text-slate-900">
                         <div className="flex items-center gap-1.5">
-                          {guest.is_vip && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
-                          <span>{guest.name}</span>
+                          {(guest.is_vip || guest.vip) && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
+                          <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
                         </div>
                       </td>
                       <td className="py-3 px-3 text-center">
                         <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
-                          {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
+                          {guest.side === 'partenaire_1' || guest.side === 'marié' ? 'Marié' : guest.side === 'partenaire_2' || guest.side === 'mariée' ? 'Mariée' : 'Commun'}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right font-black text-slate-900">
-                        x{guest.guests_count || 1}
+                        x{guest.guests_count || guest.count || 1}
                       </td>
                     </tr>
                   ))
