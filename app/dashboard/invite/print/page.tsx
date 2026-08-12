@@ -11,6 +11,10 @@ import {
   ClipboardList, Wallet
 } from 'lucide-react';
 
+const isConfirmed = (g: any) => 
+  String(g.status || '').toLowerCase() === 'confirmé' || 
+  String(g.status || '').toLowerCase() === 'confirme';
+
 const PRINT_REPORTS = [
   {
     id: 'confirmed',
@@ -59,28 +63,28 @@ const PRINT_REPORTS = [
     title: '7. Cérémonie Civile (Mairie)',
     description: 'Invités confirmés présents à la Mairie.',
     icon: Landmark,
-    filter: (g: any) => Boolean(g.attending_civil || g.civil)
+    filter: (g: any) => isConfirmed(g) && Boolean(g.attending_civil || g.civil)
   },
   {
     id: 'church',
     title: '8. Cérémonie Religieuse',
     description: 'Invités confirmés présents à l\'Église/Lieu de culte.',
     icon: Cross,
-    filter: (g: any) => Boolean(g.attending_church || g.church)
+    filter: (g: any) => isConfirmed(g) && Boolean(g.attending_church || g.church)
   },
   {
     id: 'dinner',
     title: '9. Dîner / Réception',
     description: 'Invités confirmés présents au Dîner.',
     icon: GlassWater,
-    filter: (g: any) => Boolean(g.attending_reception || g.reception || g.dinner)
+    filter: (g: any) => isConfirmed(g) && Boolean(g.attending_reception || g.reception || g.dinner)
   },
   {
     id: 'full_presence',
     title: '10. Présents à TOUTES les Cérémonies',
     description: 'Invités confirmés présents à la Mairie, l\'Église ET au Dîner.',
     icon: Layers,
-    filter: (g: any) => Boolean((g.attending_civil || g.civil) && (g.attending_church || g.church) && (g.attending_reception || g.reception || g.dinner))
+    filter: (g: any) => isConfirmed(g) && Boolean((g.attending_civil || g.civil) && (g.attending_church || g.church) && (g.attending_reception || g.reception || g.dinner))
   }
 ];
 
