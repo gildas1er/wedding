@@ -537,7 +537,8 @@ export default function GuestPage() {
 `📍 *Pour confirmer votre présence (RSVP) :*\n` +
 `Merci de cliquer sur le lien ci-dessous pour valider votre venue :\n` +
 `👉 ${rsvpUrl}\n\n` +
-`Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉`;
+`Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
+`_Gildas & Mariette_ \n`;
     
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
