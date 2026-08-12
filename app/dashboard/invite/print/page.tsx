@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import { 
   Printer, ArrowLeft, CheckCircle2, Clock, 
   Heart, Briefcase, Landmark, Cross, GlassWater, 
-  Crown, Sparkles, Layers, Edit3
+  Crown, Sparkles, Layers, Edit3,
+  LayoutDashboard, MessageSquare, Users, Send, UtensilsCrossed,
+  ClipboardList, Wallet
 } from 'lucide-react';
 
 const PRINT_REPORTS = [
@@ -15,21 +17,21 @@ const PRINT_REPORTS = [
     title: '1. Invités Confirmés',
     description: 'Liste de tous les invités ayant confirmé leur présence.',
     icon: CheckCircle2,
-    filter: (g: any) => String(g.status || '').toLowerCase().includes('confirm')
+    filter: (g: any) => String(g.status || '').toLowerCase() === 'confirmé' || String(g.status || '').toLowerCase() === 'confirme'
   },
   {
     id: 'friends',
     title: '2. Liste des Amis',
     description: 'Tous les proches enregistrés dans la catégorie Amis.',
     icon: Sparkles,
-    filter: (g: any) => String(g.category || '').toLowerCase().includes('ami')
+    filter: (g: any) => String(g.category || '').toLowerCase() === 'amis' || String(g.category || '').toLowerCase() === 'ami'
   },
   {
     id: 'colleagues',
     title: '3. Liste des Collègues',
     description: 'Tous les invités professionnels / collègues.',
     icon: Briefcase,
-    filter: (g: any) => String(g.category || '').toLowerCase().includes('colleg') || String(g.category || '').toLowerCase().includes('collèg')
+    filter: (g: any) => String(g.category || '').toLowerCase().includes('collègue') || String(g.category || '').toLowerCase().includes('collegue')
   },
   {
     id: 'pending',
@@ -43,14 +45,14 @@ const PRINT_REPORTS = [
     title: '5. Parents - Côté Marié',
     description: 'Famille et parents rattachés au marié.',
     icon: Heart,
-    filter: (g: any) => String(g.category || '').toLowerCase().includes('parent') && (g.side === 'partenaire_1' || String(g.side || '').toLowerCase().includes('marié'))
+    filter: (g: any) => String(g.category || '').toLowerCase() === 'parents' && (g.side === 'partenaire_1' || g.side === 'marié' || g.side === 'marim')
   },
   {
     id: 'bride_parents',
     title: '6. Parents - Côté Mariée',
     description: 'Famille et parents rattachés à la mariée.',
     icon: Heart,
-    filter: (g: any) => String(g.category || '').toLowerCase().includes('parent') && (g.side === 'partenaire_2' || String(g.side || '').toLowerCase().includes('mariée'))
+    filter: (g: any) => String(g.category || '').toLowerCase() === 'parents' && (g.side === 'partenaire_2' || g.side === 'mariée' || g.side === 'mariee')
   },
   {
     id: 'civil',
@@ -86,15 +88,15 @@ export default function PrintPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<any[]>([]);
-  const [coupleNames, setCoupleNames] = useState<string>('');
-  const [selectedReportId, setSelectedReportId] = useState<string>('bride_parents');
+  const [coupleTitle, setCoupleTitle] = useState<string>('');
+  const [selectedReportId, setSelectedReportId] = useState<string>('confirmed');
 
   const loadData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
 
-      // 1. Charger les données du mariage
+      // 1. Récupération des informations du mariage
       const { data: marriageData } = await supabase
         .from('marriages')
         .select('*')
@@ -106,35 +108,43 @@ export default function PrintPage() {
         const p2 = marriageData.partner2_name || marriageData.partner_2_name || marriageData.bride_name || '';
         
         if (p1 && p2) {
-          setCoupleNames(`${p1} & ${p2}`);
+          setCoupleTitle(`${p1} & ${p2}`);
         } else if (marriageData.title && marriageData.title.toLowerCase() !== 'mariage') {
-          setCoupleNames(marriageData.title);
+          setCoupleTitle(marriageData.title);
         } else {
-          setCoupleNames("Saisir le nom des Mariés");
+          setCoupleTitle("Paul & Marie");
         }
+      } else {
+        setCoupleTitle("Paul & Marie");
       }
 
-      // 2. Charger la liste des invités
-      let { data: guestsData } = await supabase
+      // 2. Chargement des invités (détection automatique de la table 'invite' ou 'guests')
+      let guestsResponse = await supabase
         .from('invite')
         .select('*')
         .eq('user_id', user.id);
 
-      if (!guestsData || guestsData.length === 0) {
+      if (!guestsResponse.data || guestsResponse.data.length === 0) {
         if (marriageData?.id) {
-          const res = await supabase.from('invite').select('*').eq('marriage_id', marriageData.id);
-          guestsData = res.data;
+          guestsResponse = await supabase
+            .from('invite')
+            .select('*')
+            .eq('marriage_id', marriageData.id);
         }
       }
 
-      if (!guestsData || guestsData.length === 0) {
-        const res = await supabase.from('guests').select('*').eq('user_id', user.id);
-        guestsData = res.data;
+      if (!guestsResponse.data || guestsResponse.data.length === 0) {
+        guestsResponse = await supabase
+          .from('guests')
+          .select('*')
+          .eq('user_id', user.id);
       }
 
-      setGuests(guestsData || []);
+      if (guestsResponse.data) {
+        setGuests(guestsResponse.data);
+      }
     } catch (err) {
-      console.error("Erreur lors du chargement :", err);
+      console.error("Erreur de chargement des données :", err);
     } finally {
       setLoading(false);
     }
@@ -156,28 +166,29 @@ export default function PrintPage() {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white">
         <div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" />
-        <p className="mt-4 font-bold text-rose-500">Chargement du centre d'impression...</p>
+        <p className="mt-4 font-bold text-rose-500">Chargement des données...</p>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      
-      {/* RÈGLES DE MISE EN PAGE STRICTES POUR L'IMPRESSION SUR TOUTE LA LARGEUR */}
-      <style jsx global>{`
-        @page {
-          size: A4 portrait;
-          margin: 12mm 15mm 15mm 15mm;
-        }
+  const displayName = coupleTitle || "Paul & Marie";
 
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      
+      {/* CSS IMPRESSION STRICT A4 ET EN-TÊTE RÉPÉTÉE */}
+      <style jsx global>{`
         @media print {
-          html, body {
-            background: #ffffff !important;
-            color: #000000 !important;
+          @page {
+            size: A4 portrait;
+            margin: 10mm 12mm 15mm 12mm;
+          }
+
+          body {
+            background: white !important;
+            color: #000 !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: 100% !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -186,21 +197,19 @@ export default function PrintPage() {
             display: none !important;
           }
 
-          .print-wrapper {
-            display: block !important;
+          .print-container {
             width: 100% !important;
-            max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
+            background: white !important;
           }
 
-          .print-table {
+          table.print-table {
             width: 100% !important;
-            max-width: 100% !important;
-            table-layout: fixed !important;
             border-collapse: collapse !important;
+            table-layout: fixed !important;
           }
 
           thead.print-header {
@@ -216,204 +225,305 @@ export default function PrintPage() {
             break-inside: avoid !important;
           }
 
-          .page-counter::after {
+          .page-number::after {
             content: "Page " counter(page) " / " counter(pages);
           }
         }
       `}</style>
 
-      {/* EN-TÊTE NAVIGATION ÉCRAN */}
-      <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => router.push('/dashboard/guests')}
-              className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 transition-colors"
-              title="Retour"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <Printer className="text-rose-500" size={22} />
-                Centre d'Impression des Listes
-              </h1>
-              <p className="text-xs text-slate-500 font-bold">Ajustez le nom si besoin puis lancez l'impression</p>
-            </div>
-          </div>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 bg-slate-900 hover:bg-rose-600 text-white font-black px-6 py-3 rounded-2xl shadow-lg transition-all"
-          >
-            <Printer size={18} />
-            <span>Imprimer la liste actuelle</span>
-          </button>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 print-wrapper">
-        
-        {/* SECTEUR ÉCRAN - SELECTION DE LISTE */}
-        <aside className="no-print lg:col-span-4 space-y-4">
+      {/* BARRE DE NAVIGATION GÉNÉRALE (SIDEBAR - no-print) */}
+      <aside className="no-print w-64 bg-white border-r border-slate-200 min-h-screen p-6 flex flex-col justify-between shrink-0">
+        <div className="space-y-8">
           
-          {/* CHAMP D'ÉDITION DU NOM DES MARIÉS */}
-          <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm space-y-2">
-            <label className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
-              <Edit3 size={14} className="text-rose-500" />
-              Nom des Mariés sur l'En-tête
-            </label>
-            <input 
-              type="text" 
-              value={coupleNames} 
-              onChange={(e) => setCoupleNames(e.target.value)}
-              placeholder="Ex: Paul & Marie"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
-            />
+          {/* LOGO OU NOM APPLI */}
+          <div className="px-3">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Wedding Studio</h2>
           </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm">
-            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">
-              10 Listes Disponibles
-            </h2>
+          {/* SECTION GÉNÉRAL */}
+          <div className="space-y-2">
+            <p className="px-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
+              GÉNÉRAL
+            </p>
+            <nav className="space-y-1">
+              <button 
+                onClick={() => router.push('/dashboard')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm bg-[#0F172A] text-white shadow-md transition-all"
+              >
+                <LayoutDashboard size={18} />
+                <span>Tableau de bord</span>
+              </button>
+
+              <button 
+                onClick={() => router.push('/dashboard/messages')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <MessageSquare size={18} />
+                <span>Messages</span>
+              </button>
+            </nav>
           </div>
 
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-            {PRINT_REPORTS.map((report) => {
-              const Icon = report.icon;
-              const isSelected = selectedReportId === report.id;
-              const reportCount = guests.filter(report.filter).reduce((acc, g) => acc + (Number(g.guests_count || g.count || 1)), 0);
+          {/* SECTION ORGANISATION */}
+          <div className="space-y-2">
+            <p className="px-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
+              ORGANISATION
+            </p>
+            <nav className="space-y-1">
+              <button 
+                onClick={() => router.push('/dashboard/guests')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <Users size={18} />
+                <span>Liste des invités</span>
+              </button>
 
-              return (
-                <button
-                  key={report.id}
-                  onClick={() => setSelectedReportId(report.id)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
-                    isSelected 
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-xl scale-[1.02]' 
-                      : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/80'
-                  }`}
-                >
-                  <div className={`p-2.5 rounded-xl shrink-0 ${isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                    <Icon size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-bold text-sm truncate">{report.title}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-black ${
-                        isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {reportCount}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+              <button 
+                onClick={() => router.push('/dashboard/rsvp')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <Send size={18} />
+                <span>Invitations (RSVP)</span>
+              </button>
+
+              <button 
+                onClick={() => router.push('/dashboard/tables')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <UtensilsCrossed size={18} />
+                <span>Gestion des tables</span>
+              </button>
+
+              <button 
+                onClick={() => router.push('/dashboard/tasks')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <ClipboardList size={18} />
+                <span>Mes tâches</span>
+              </button>
+
+              <button 
+                onClick={() => router.push('/dashboard/budget')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <Wallet size={18} />
+                <span>Budget</span>
+              </button>
+
+              <button 
+                onClick={() => router.push('/dashboard/planning')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <Clock size={18} />
+                <span>Planning Jour J</span>
+              </button>
+            </nav>
           </div>
-        </aside>
 
-        {/* CONTENU À IMPRIMER - PREND 100% DE LA LARGEUR DE LA PAGE EN MODE PRINT */}
-        <main className="lg:col-span-8 print-wrapper">
-          <div className="bg-white border border-slate-200 rounded-[2rem] p-8 md:p-10 shadow-sm w-full print-wrapper">
+        </div>
+      </aside>
+
+      {/* CONTENU PRINCIPAL */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        
+        {/* HEADER D'ACTION ECRAN */}
+        <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => router.push('/dashboard/guests')}
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 transition-colors"
+                title="Retour à la liste"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <Printer className="text-rose-500" size={22} />
+                  Centre d'Impression des Listes
+                </h1>
+                <p className="text-xs text-slate-500 font-bold">Sélectionnez la liste souhaitée puis lancez l'impression</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 bg-slate-900 hover:bg-rose-600 text-white font-black px-6 py-3 rounded-2xl shadow-lg transition-all"
+            >
+              <Printer size={18} />
+              <span>Imprimer la liste actuelle</span>
+            </button>
+          </div>
+        </header>
+
+        <div className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
+          
+          {/* MENU LATÉRAL DE SÉLECTION DE LA LISTE (ÉCRAN) */}
+          <aside className="no-print lg:col-span-4 space-y-3">
             
-            <table className="print-table w-full text-left border-collapse">
-              
-              {/* EN-TÊTE RÉPÉTÉE AUTOMATIQUEMENT SUR CHAQUE FEUILLE */}
-              <thead className="print-header">
-                <tr>
-                  <th colSpan={4} className="p-0 font-normal">
-                    <div className="border-b-2 border-slate-900 pb-4 mb-6">
-                      
-                      <div className="flex justify-between items-center pb-2 mb-3 border-b border-slate-200">
-                        <span className="text-lg font-black tracking-wide text-rose-600 uppercase">
-                          {coupleNames || "CÉLÉBRATION DE MARIAGE"}
-                        </span>
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                          Liste Officielle
+            {/* ÉDITEUR NOM MARIÉS */}
+            <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm space-y-2">
+              <label className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                <Edit3 size={14} className="text-rose-500" />
+                Nom des Mariés
+              </label>
+              <input 
+                type="text" 
+                value={coupleTitle} 
+                onChange={(e) => setCoupleTitle(e.target.value)}
+                placeholder="Ex: Paul & Marie"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm mb-4">
+              <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                10 Listes Disponibles
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">Cliquez sur un lien pour afficher l'aperçu avant impression.</p>
+            </div>
+
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {PRINT_REPORTS.map((report) => {
+                const Icon = report.icon;
+                const isSelected = selectedReportId === report.id;
+                const reportCount = guests.filter(report.filter).reduce((acc, g) => acc + (Number(g.guests_count || g.count || 1)), 0);
+
+                return (
+                  <button
+                    key={report.id}
+                    onClick={() => setSelectedReportId(report.id)}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                      isSelected 
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xl scale-[1.02]' 
+                        : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/80'
+                    }`}
+                  >
+                    <div className={`p-2.5 rounded-xl shrink-0 ${isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-sm truncate">{report.title}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-black ${
+                          isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {reportCount}
                         </span>
                       </div>
+                      <p className={`text-[11px] mt-0.5 font-medium line-clamp-1 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                        {report.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
 
-                      <div className="flex justify-between items-end gap-4">
-                        <div>
-                          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-                            {activeReport.title}
-                          </h2>
-                          <p className="text-xs text-slate-600 font-medium mt-1">
-                            {activeReport.description}
-                          </p>
+          {/* FEUILLE D'IMPRESSION ET APERÇU */}
+          <main className="lg:col-span-8 w-full">
+            <div className="print-container bg-white border border-slate-200 rounded-[2rem] p-8 md:p-10 shadow-sm w-full">
+              
+              <table className="print-table w-full text-left border-collapse">
+                
+                {/* EN-TÊTE RÉPÉTÉE SUR CHAQUE PAGE D'IMPRESSION */}
+                <thead className="print-header">
+                  <tr>
+                    <th colSpan={4} className="p-0 font-normal">
+                      <div className="border-b-2 border-slate-900 pb-4 mb-6">
+                        
+                        {/* LIGNE DU NOM DES MARIÉS */}
+                        <div className="flex justify-between items-center pb-2 mb-3 border-b border-slate-200">
+                          <span className="text-lg font-black tracking-wide text-rose-600 uppercase">
+                            {displayName}
+                          </span>
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            Liste Officielle
+                          </span>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <div className="text-3xl font-black text-slate-900 leading-none">{totalCount}</div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
-                            Personnes au total
+                        {/* TITRE DE LA LISTE & TOTAL */}
+                        <div className="flex justify-between items-end gap-4">
+                          <div>
+                            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                              {activeReport.title}
+                            </h2>
+                            <p className="text-xs text-slate-600 font-medium mt-1">
+                              {activeReport.description}
+                            </p>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <div className="text-3xl font-black text-slate-900 leading-none">{totalCount}</div>
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                              Personnes au total
+                            </div>
                           </div>
                         </div>
                       </div>
+                    </th>
+                  </tr>
 
-                    </div>
-                  </th>
-                </tr>
+                  {/* ENTÊTE DES COLONNES */}
+                  <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-xs font-black uppercase tracking-wider">
+                    <th className="py-3 px-3 w-[12%] text-left">#</th>
+                    <th className="py-3 px-3 w-[53%] text-left">Nom & Prénom</th>
+                    <th className="py-3 px-3 w-[20%] text-center">Côté</th>
+                    <th className="py-3 px-3 w-[15%] text-right">Nombre</th>
+                  </tr>
+                </thead>
 
-                {/* TITRES DES COLONNES */}
-                <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-xs font-black uppercase tracking-wider">
-                  <th className="py-3 px-3 w-[10%] text-left">#</th>
-                  <th className="py-3 px-3 w-[55%] text-left">Nom & Prénom</th>
-                  <th className="py-3 px-3 w-[20%] text-center">Côté</th>
-                  <th className="py-3 px-3 w-[15%] text-right">Nombre</th>
-                </tr>
-              </thead>
-
-              {/* PIED DE PAGE RÉPÉTÉ AUTOMATIQUEMENT SUR CHAQUE FEUILLE */}
-              <tfoot className="print-footer">
-                <tr>
-                  <td colSpan={4} className="p-0 font-normal">
-                    <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
-                      <span>{coupleNames || "MARIAGE"}</span>
-                      <span className="page-counter"></span>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
-
-              {/* LISTE DES INVITÉS */}
-              <tbody className="divide-y divide-slate-200 text-sm">
-                {filteredGuests.length === 0 ? (
+                {/* PIED DE PAGE RÉPÉTÉ SUR CHAQUE PAGE D'IMPRESSION */}
+                <tfoot className="print-footer">
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-500 font-bold italic bg-slate-50/50">
-                      Aucun invité ne correspond à cette liste.
+                    <td colSpan={4} className="p-0 font-normal">
+                      <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
+                        <span>{displayName}</span>
+                        <span className="page-number"></span>
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  filteredGuests.map((guest, idx) => (
-                    <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
-                      <td className="py-3.5 px-3 font-bold text-slate-500 text-xs">{idx + 1}</td>
-                      <td className="py-3.5 px-3 font-bold text-slate-900">
-                        <div className="flex items-center gap-1.5">
-                          {(guest.is_vip || guest.vip) && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
-                          <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-3 text-center">
-                        <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
-                          {guest.side === 'partenaire_1' || String(guest.side || '').toLowerCase().includes('marié') && !String(guest.side || '').toLowerCase().includes('mariée') ? 'Marié' : guest.side === 'partenaire_2' || String(guest.side || '').toLowerCase().includes('mariée') ? 'Mariée' : 'Commun'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-right font-black text-slate-900">
-                        x{guest.guests_count || guest.count || 1}
+                </tfoot>
+
+                {/* CORPS DES DONNÉES */}
+                <tbody className="divide-y divide-slate-200 text-sm">
+                  {filteredGuests.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 text-center text-slate-500 font-bold italic bg-slate-50/50">
+                        Aucun invité ne correspond à cette liste.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
+                  ) : (
+                    filteredGuests.map((guest, idx) => (
+                      <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
+                        <td className="py-3 px-3 font-bold text-slate-500 text-xs">{idx + 1}</td>
+                        <td className="py-3 px-3 font-bold text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            {(guest.is_vip || guest.vip) && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
+                            <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
+                            {guest.side === 'partenaire_1' || guest.side === 'marié' ? 'Marié' : guest.side === 'partenaire_2' || guest.side === 'mariée' ? 'Mariée' : 'Commun'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-black text-slate-900">
+                          x{guest.guests_count || guest.count || 1}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
 
-            </table>
+              </table>
 
-          </div>
-        </main>
+            </div>
+          </main>
 
+        </div>
       </div>
     </div>
   );
