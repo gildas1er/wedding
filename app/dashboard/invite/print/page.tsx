@@ -9,7 +9,6 @@ import {
   Crown, Sparkles, Layers
 } from 'lucide-react';
 
-// Configuration des 10 rapports d'impression
 const PRINT_REPORTS = [
   {
     id: 'confirmed',
@@ -134,46 +133,59 @@ export default function PrintPage() {
     );
   }
 
+  const coupleNames = marriage 
+    ? `${marriage.partner1_name || 'Marié'} & ${marriage.partner2_name || 'Mariée'}` 
+    : 'Célébration de Mariage';
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A]" style={{ fontFamily: '"DM Sans", sans-serif' }}>
       
-      {/* CSS SPÉCIFIQUE À L'IMPRESSION */}
+      {/* RÈGLES CSS POUR L'IMPRESSION */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 15mm;
+            margin: 12mm 15mm 12mm 15mm;
+            @bottom-right {
+              content: "Page " counter(page) " / " counter(pages);
+              font-family: sans-serif;
+              font-size: 8pt;
+              color: #475569;
+            }
           }
           body {
             background: white !important;
-            color: black !important;
+            color: #0F172A !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
           }
           .print-area {
+            width: 100% !important;
+            max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
             background: white !important;
           }
-          table {
+          .print-table {
             width: 100% !important;
+            table-layout: fixed !important;
             border-collapse: collapse !important;
           }
-          th, td {
-            padding: 10px 14px !important;
-            border-bottom: 1px solid #CBD5E1 !important;
-            font-size: 11pt !important;
+          .print-table th, .print-table td {
+            word-wrap: break-word;
           }
-          tr {
-            page-break-inside: avoid !important;
+          .page-number-fallback::after {
+            content: "Page " counter(page) " / " counter(pages);
           }
         }
       `}</style>
 
-      {/* EN-TÊTE ET NAVIGATION (MASQUÉS À L'IMPRESSION) */}
+      {/* EN-TÊTE ET NAVIGATION ECRAN */}
       <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -189,7 +201,7 @@ export default function PrintPage() {
                 <Printer className="text-rose-500" size={22} />
                 Centre d'Impression des Listes
               </h1>
-              <p className="text-xs text-slate-400 font-bold">Sélectionnez la liste souhaitée puis lancez l'impression</p>
+              <p className="text-xs text-slate-500 font-bold">Sélectionnez la liste souhaitée puis lancez l'impression</p>
             </div>
           </div>
 
@@ -205,7 +217,7 @@ export default function PrintPage() {
 
       <div className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* MENU DE SÉLECTION DE LA LISTE (MASQUÉ À L'IMPRESSION) */}
+        {/* MENU DE SÉLECTION DE LA LISTE */}
         <aside className="no-print lg:col-span-4 space-y-3">
           <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm mb-4">
             <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">
@@ -252,78 +264,99 @@ export default function PrintPage() {
           </div>
         </aside>
 
-        {/* APERÇU ET DOCUMENT PRÊT À L'IMPRESSION */}
+        {/* CONTENU À IMPRIMER */}
         <main className="lg:col-span-8">
-          <div className="print-area bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-12 shadow-sm min-h-[800px] flex flex-col justify-between">
+          <div className="print-area bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-12 shadow-sm min-h-[800px] w-full">
             
-            <div>
-              {/* EN-TÊTE DE LA LISTE D'IMPRESSION */}
-              <div className="border-b-2 border-slate-900 pb-6 mb-8 flex justify-between items-end">
-                <div>
-                  <div className="text-xs font-black uppercase text-rose-500 tracking-[0.2em] mb-1">
-                    {marriage?.title || "Célébration de Mariage"}
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-                    {activeReport.title}
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium mt-1">
-                    {activeReport.description}
-                  </p>
-                </div>
+            <table className="print-table w-full text-left border-collapse">
+              {/* EN-TÊTE RÉPÉTÉ SUR TOUTES LES PAGES À L'IMPRESSION */}
+              <thead>
+                <tr>
+                  <th colSpan={4} className="p-0 font-normal">
+                    <div className="border-b-2 border-slate-900 pb-4 mb-6">
+                      <div className="flex justify-between items-center pb-3 mb-3 border-b border-slate-200">
+                        <span className="text-sm font-black tracking-wider uppercase text-rose-600">
+                          {coupleNames}
+                        </span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          Liste d'invités officielle
+                        </span>
+                      </div>
 
-                <div className="text-right shrink-0">
-                  <div className="text-3xl font-black text-slate-900">{totalCount}</div>
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Personne{totalCount > 1 ? 's' : ''} au total
-                  </div>
-                </div>
-              </div>
+                      <div className="flex justify-between items-end gap-4">
+                        <div>
+                          <h2 className="text-2xl md:text-3xl font-black text-slate-950 tracking-tight leading-tight">
+                            {activeReport.title}
+                          </h2>
+                          <p className="text-xs text-slate-600 font-semibold mt-1">
+                            {activeReport.description}
+                          </p>
+                        </div>
 
-              {/* TABLEAU DES INVITÉS */}
-              {filteredGuests.length === 0 ? (
-                <div className="py-16 text-center text-slate-400 font-bold italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                  Aucun invité ne correspond actuellement à cette liste.
-                </div>
-              ) : (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b-2 border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <th className="py-3 px-3 w-12">#</th>
-                      <th className="py-3 px-3">Nom & Prénom</th>
-                      <th className="py-3 px-3 text-center w-32">Côté</th>
-                      <th className="py-3 px-3 text-right w-28">Nombre</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
-                    {filteredGuests.map((guest, idx) => (
-                      <tr key={guest.id} className="hover:bg-slate-50/50">
-                        <td className="py-3.5 px-3 font-bold text-slate-400 text-xs">{idx + 1}</td>
-                        <td className="py-3.5 px-3 font-bold text-slate-800">
-                          <div className="flex items-center gap-1.5">
-                            {guest.is_vip && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
-                            <span>{guest.name}</span>
+                        <div className="text-right shrink-0">
+                          <div className="text-3xl font-black text-slate-950 leading-none">{totalCount}</div>
+                          <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">
+                            Personne{totalCount > 1 ? 's' : ''} au total
                           </div>
-                        </td>
-                        <td className="py-3.5 px-3 text-center">
-                          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded border border-slate-200 text-slate-600">
-                            {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-black text-slate-800">
-                          x{guest.guests_count || 1}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                </tr>
 
-            {/* PIED DE PAGE D'IMPRESSION */}
-            <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
-              <span>Document officiel d'organisation</span>
-            </div>
+                {/* EN-TÊTE DU TABLEAU */}
+                <tr className="border-b-2 border-slate-900 text-slate-900 font-black text-xs uppercase tracking-wider bg-slate-50">
+                  <th className="py-3 px-3 w-[10%] text-slate-900 font-black">#</th>
+                  <th className="py-3 px-3 w-[55%] text-slate-900 font-black">Nom & Prénom</th>
+                  <th className="py-3 px-3 w-[20%] text-center text-slate-900 font-black">Côté</th>
+                  <th className="py-3 px-3 w-[15%] text-right text-slate-900 font-black">Nombre</th>
+                </tr>
+              </thead>
+
+              {/* PIED DE PAGE RÉPÉTÉ SUR TOUTES LES PAGES À L'IMPRESSION */}
+              <tfoot>
+                <tr>
+                  <td colSpan={4} className="p-0 font-normal">
+                    <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
+                      <span>{coupleNames}</span>
+                      <span className="page-number-fallback"></span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+
+              {/* CORPS DU TABLEAU */}
+              <tbody className="divide-y divide-slate-200 text-sm">
+                {filteredGuests.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-16 text-center text-slate-500 font-bold italic bg-slate-50/50">
+                      Aucun invité ne correspond actuellement à cette liste.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredGuests.map((guest, idx) => (
+                    <tr key={guest.id} className="hover:bg-slate-50/50 page-break-inside-avoid">
+                      <td className="py-3.5 px-3 font-bold text-slate-500 text-xs">{idx + 1}</td>
+                      <td className="py-3.5 px-3 font-bold text-slate-950">
+                        <div className="flex items-center gap-1.5">
+                          {guest.is_vip && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
+                          <span>{guest.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3 text-center">
+                        <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
+                          {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-black text-slate-950">
+                        x{guest.guests_count || 1}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
 
           </div>
         </main>
