@@ -44,7 +44,7 @@ function RSVPContent() {
   // Nouveaux états pour le RSVP multi-événements
   const [allEventsSelected, setAllEventsSelected] = useState(true);
   const [form, setForm] = useState({
-    status: 'en_attente',
+    status: '',
     guests_count: 1,
     notes: '',
     attending_civil: true,
@@ -80,7 +80,7 @@ function RSVPContent() {
 
             setForm(prev => ({ 
               ...prev, 
-              status: gData.status || 'en_attente',
+              status: gData.status || '',
               guests_count: gData.guests_count || 1,
               notes: gData.notes || '',
               attending_civil: isCivil,
@@ -163,6 +163,12 @@ function RSVPContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestId) return;
+
+    if (!form.status) {
+      alert("Veuillez sélectionner si vous serez présent(e) ou si vous déclinez.");
+      return;
+    }
+
     setSending(true);
 
     const isDeclined = form.status === 'décliné';
@@ -358,7 +364,7 @@ function RSVPContent() {
                     className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
                         form.status === 'confirmé' 
                         ? 'bg-slate-900 text-white shadow-xl scale-105' 
-                        : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-300'
+                        : 'bg-slate-100 text-slate-400 border border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     Je serai là
@@ -369,7 +375,7 @@ function RSVPContent() {
                     className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
                         form.status === 'décliné' 
                         ? 'bg-rose-500 text-white shadow-xl scale-105' 
-                        : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-300'
+                        : 'bg-slate-100 text-slate-400 border border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     Je décline
@@ -447,21 +453,6 @@ function RSVPContent() {
 
                       <div className="h-[1px] bg-slate-100 w-full" />
 
-                      {/* NOMBRE DE PERSONNES */}
-                      {/* <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-slate-400" />
-                            <span className="text-[11px] font-black uppercase text-slate-600">Nombre de personnes</span>
-                        </div>
-                        <select 
-                            className="bg-slate-50 px-3 py-1.5 rounded-lg font-bold text-sm outline-none border border-slate-100"
-                            value={form.guests_count} 
-                            onChange={e => setForm({...form, guests_count: parseInt(e.target.value)})}
-                        >
-                          {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                      </div> */}
-                      
                       {/* NOTES */}
                       <textarea 
                         placeholder="Un petit mot pour nous ? (Allergies, musique...)" 
