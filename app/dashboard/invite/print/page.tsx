@@ -75,7 +75,7 @@ const PRINT_REPORTS = [
   {
     id: 'dinner',
     title: '9. Dîner / Réception',
-    description: 'Invités confirmés présents au Dîner.',
+    description: 'Invités confirmés présents au Dîner avec leurs catégories.',
     icon: GlassWater,
     filter: (g: any) => isConfirmed(g) && Boolean(g.attending_reception || g.reception || g.dinner)
   },
@@ -192,12 +192,10 @@ export default function PrintPage() {
             margin: 10mm;
           }
 
-          /* Masquer totalement ce qui n'est pas la zone d'impression */
           body * {
             visibility: hidden !important;
           }
 
-          /* Forcer la zone d'impression à prendre 100% de la largeur du papier */
           .print-area, .print-area * {
             visibility: visible !important;
           }
@@ -423,7 +421,7 @@ export default function PrintPage() {
             </div>
           </aside>
 
-          {/* ZONE D'IMPRESSION - DÉTACHÉE DU FLUX PARENT LORS DE L'IMPRESSION */}
+          {/* ZONE D'IMPRESSION */}
           <main className="lg:col-span-8 w-full">
             <div className="print-area bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm w-full">
               
@@ -468,8 +466,8 @@ export default function PrintPage() {
                   {/* ENTÊTE DES COLONNES */}
                   <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-[11px] font-black uppercase tracking-wider">
                     <th className="py-2 px-2.5 w-[8%] text-left">#</th>
-                    <th className="py-2 px-2.5 w-[57%] text-left">Nom & Prénom</th>
-                    <th className="py-2 px-2.5 w-[20%] text-center">Côté</th>
+                    <th className="py-2 px-2.5 w-[50%] text-left">Nom & Prénom</th>
+                    <th className="py-2 px-2.5 w-[27%] text-center">Côté / Catégorie</th>
                     <th className="py-2 px-2.5 w-[15%] text-right">Nombre</th>
                   </tr>
                 </thead>
@@ -496,25 +494,40 @@ export default function PrintPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredGuests.map((guest, idx) => (
-                      <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
-                        <td className="py-2 px-2.5 font-bold text-slate-500 text-[11px]">{idx + 1}</td>
-                        <td className="py-2 px-2.5 font-bold text-slate-900">
-                          <div className="flex items-center gap-1.5">
-                            {(guest.is_vip || guest.vip) && <Crown size={13} className="text-amber-500 fill-amber-400 shrink-0" />}
-                            <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2.5 text-center">
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
-                            {guest.side === 'partenaire_1' || guest.side === 'marié' ? 'Marié' : guest.side === 'partenaire_2' || guest.side === 'mariée' ? 'Mariée' : 'Commun'}
-                          </span>
-                        </td>
-                        <td className="py-2 px-2.5 text-right font-black text-slate-900">
-                          x{guest.guests_count || guest.count || 1}
-                        </td>
-                      </tr>
-                    ))
+                    filteredGuests.map((guest, idx) => {
+                      const sideText = guest.side === 'partenaire_1' || guest.side === 'marié' ? 'Marié' : guest.side === 'partenaire_2' || guest.side === 'mariée' ? 'Mariée' : 'Commun';
+                      const categoryText = guest.category || guest.group || '';
+
+                      return (
+                        <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
+                          <td className="py-2 px-2.5 font-bold text-slate-500 text-[11px]">{idx + 1}</td>
+                          <td className="py-2 px-2.5 font-bold text-slate-900">
+                            <div className="flex items-center gap-1.5">
+                              {(guest.is_vip || guest.vip) && <Crown size={13} className="text-amber-500 fill-amber-400 shrink-0" />}
+                              <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-center">
+                            <div className="inline-flex items-center justify-center gap-1 flex-wrap">
+                              {/* BADGE CÔTÉ */}
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
+                                {sideText}
+                              </span>
+
+                              {/* BADGE CATÉGORIE (AMIS, COLLÈGUES, PARENTS, ETC.) */}
+                              {categoryText && (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-rose-200 bg-rose-50 text-rose-700 inline-block">
+                                  {categoryText}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-black text-slate-900">
+                            x{guest.guests_count || guest.count || 1}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
 
