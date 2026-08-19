@@ -8,7 +8,7 @@ import {
   Heart, Briefcase, Landmark, Cross, GlassWater, 
   Crown, Sparkles, Layers, Edit3,
   LayoutDashboard, MessageSquare, Users, Send, UtensilsCrossed,
-  ClipboardList, Wallet
+  ClipboardList, Wallet, Menu, X
 } from 'lucide-react';
 
 const isConfirmed = (g: any) => 
@@ -94,6 +94,7 @@ export default function PrintPage() {
   const [guests, setGuests] = useState<any[]>([]);
   const [coupleTitle, setCoupleTitle] = useState<string>('');
   const [selectedReportId, setSelectedReportId] = useState<string>('confirmed');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -172,7 +173,7 @@ export default function PrintPage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-white">
+      <div className="h-screen flex flex-col items-center justify-center bg-white p-4">
         <div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" />
         <p className="mt-4 font-bold text-rose-500">Chargement des données...</p>
       </div>
@@ -182,9 +183,9 @@ export default function PrintPage() {
   const displayName = coupleTitle || "GILDAS & MARIETTE";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col lg:flex-row" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* CSS DE CORRECTION ULTIME POUR IMPRESSION A4 PLEINE PAGE */}
+      {/* CSS D'IMPRESSION STRICT A4 */}
       <style jsx global>{`
         @media print {
           @page {
@@ -235,12 +236,28 @@ export default function PrintPage() {
         }
       `}</style>
 
-      {/* SIDEBAR (no-print) */}
-      <aside className="no-print w-64 bg-white border-r border-slate-200 min-h-screen p-6 flex flex-col justify-between shrink-0">
+      {/* OVERLAY NAVIGATION MOBILE (no-print) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="no-print fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR RESPONSIVE (no-print) */}
+      <aside className={`no-print fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-white border-r border-slate-200 p-6 flex flex-col justify-between shrink-0 transform transition-transform duration-300 ease-in-out ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
         <div className="space-y-8">
           
-          <div className="px-3">
+          <div className="flex items-center justify-between px-1">
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Wedding Studio</h2>
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100"
+            >
+              <X size={20} />
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -327,39 +344,49 @@ export default function PrintPage() {
       {/* CONTENU PRINCIPAL */}
       <div className="flex-1 min-w-0 flex flex-col">
         
-        {/* HEADER D'ACTION ECRAN */}
-        <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        {/* HEADER RESPONSIVE (no-print) */}
+        <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 lg:hidden transition-colors"
+                title="Ouvrir le menu"
+              >
+                <Menu size={20} />
+              </button>
+
               <button 
                 onClick={() => router.push('/dashboard/guests')}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 transition-colors"
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 transition-colors hidden sm:block"
                 title="Retour à la liste"
               >
                 <ArrowLeft size={20} />
               </button>
+
               <div>
-                <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                  <Printer className="text-rose-500" size={22} />
-                  Centre d'Impression des Listes
+                <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <Printer className="text-rose-500 shrink-0" size={22} />
+                  Centre d'Impression
                 </h1>
-                <p className="text-xs text-slate-500 font-bold">Sélectionnez la liste souhaitée puis lancez l'impression</p>
+                <p className="text-xs text-slate-500 font-bold hidden sm:block">Sélectionnez la liste souhaitée puis lancez l'impression</p>
               </div>
             </div>
 
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-slate-900 hover:bg-rose-600 text-white font-black px-6 py-3 rounded-2xl shadow-lg transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-rose-600 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-all"
             >
               <Printer size={18} />
-              <span>Imprimer la liste actuelle</span>
+              <span>Imprimer la liste</span>
             </button>
           </div>
         </header>
 
-        <div className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 w-full">
           
-          {/* MENU LATÉRAL SÉLECTION LISTE (no-print) */}
+          {/* MENU SELECTION LISTES (no-print) */}
           <aside className="no-print lg:col-span-4 space-y-3">
             
             <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm space-y-2">
@@ -376,14 +403,14 @@ export default function PrintPage() {
               />
             </div>
 
-            <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm mb-4">
+            <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm">
               <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">
                 10 Listes Disponibles
               </h2>
-              <p className="text-xs text-slate-500 mt-1">Cliquez sur un lien pour afficher l'aperçu avant impression.</p>
+              <p className="text-xs text-slate-500 mt-1">Cliquez sur une liste pour mettre à jour l'aperçu.</p>
             </div>
 
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-1">
               {PRINT_REPORTS.map((report) => {
                 const Icon = report.icon;
                 const isSelected = selectedReportId === report.id;
@@ -393,9 +420,9 @@ export default function PrintPage() {
                   <button
                     key={report.id}
                     onClick={() => setSelectedReportId(report.id)}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                    className={`w-full text-left p-3.5 sm:p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
                       isSelected 
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-xl scale-[1.02]' 
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xl' 
                         : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/80'
                     }`}
                   >
@@ -421,41 +448,41 @@ export default function PrintPage() {
             </div>
           </aside>
 
-          {/* ZONE D'IMPRESSION */}
-          <main className="lg:col-span-8 w-full">
-            <div className="print-area bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm w-full">
+          {/* APERÇU ET ZONE D'IMPRESSION RESPONSIVE */}
+          <main className="lg:col-span-8 w-full overflow-x-auto">
+            <div className="print-area bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-sm min-w-[320px] w-full">
               
               <table className="print-table w-full text-left border-collapse">
                 
-                {/* EN-TÊTE RÉPÉTÉE SUR CHAQUE PAGE */}
+                {/* EN-TÊTE RÉPÉTÉE */}
                 <thead className="print-header">
                   <tr>
                     <th colSpan={4} className="p-0 font-normal">
                       <div className="border-b-2 border-slate-900 pb-3 mb-4">
                         
                         <div className="flex justify-between items-center pb-1.5 mb-2 border-b border-slate-200">
-                          <span className="text-base font-black tracking-wide text-rose-600 uppercase">
+                          <span className="text-xs sm:text-base font-black tracking-wide text-rose-600 uppercase">
                             {displayName}
                           </span>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                          <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                             Liste Officielle
                           </span>
                         </div>
 
-                        <div className="flex justify-between items-end gap-4">
+                        <div className="flex justify-between items-end gap-2 sm:gap-4">
                           <div>
-                            <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                            <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 tracking-tight">
                               {activeReport.title}
                             </h2>
-                            <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                            <p className="text-[10px] sm:text-[11px] text-slate-600 font-medium mt-0.5">
                               {activeReport.description}
                             </p>
                           </div>
 
                           <div className="text-right shrink-0">
-                            <div className="text-2xl font-black text-slate-900 leading-none">{totalCount}</div>
-                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5">
-                              Personnes au total
+                            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{totalCount}</div>
+                            <div className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5">
+                              Total
                             </div>
                           </div>
                         </div>
@@ -463,29 +490,29 @@ export default function PrintPage() {
                     </th>
                   </tr>
 
-                  {/* ENTÊTE DES COLONNES */}
-                  <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-[11px] font-black uppercase tracking-wider">
-                    <th className="py-2 px-2.5 w-[8%] text-left">#</th>
-                    <th className="py-2 px-2.5 w-[50%] text-left">Nom & Prénom</th>
-                    <th className="py-2 px-2.5 w-[27%] text-center">Côté / Catégorie</th>
-                    <th className="py-2 px-2.5 w-[15%] text-right">Nombre</th>
+                  {/* COLONNES */}
+                  <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-[10px] sm:text-[11px] font-black uppercase tracking-wider">
+                    <th className="py-2 px-2 w-[8%] text-left">#</th>
+                    <th className="py-2 px-2 w-[48%] text-left">Nom & Prénom</th>
+                    <th className="py-2 px-2 w-[29%] text-center">Côté / Catégorie</th>
+                    <th className="py-2 px-2 w-[15%] text-right">Nombre</th>
                   </tr>
                 </thead>
 
-                {/* PIED DE PAGE RÉPÉTÉ SUR CHAQUE PAGE */}
+                {/* PIED DE PAGE */}
                 <tfoot className="print-footer">
                   <tr>
                     <td colSpan={4} className="p-0 font-normal">
-                      <div className="mt-6 pt-3 border-t border-slate-300 flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                      <div className="mt-6 pt-3 border-t border-slate-300 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                         <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
-                        <span>{displayName}</span>
+                        <span className="hidden sm:inline">{displayName}</span>
                         <span>LISTE IMPRIMÉE</span>
                       </div>
                     </td>
                   </tr>
                 </tfoot>
 
-                {/* CORPS DE TABLEAU */}
+                {/* DONNÉES */}
                 <tbody className="divide-y divide-slate-200 text-xs">
                   {filteredGuests.length === 0 ? (
                     <tr>
@@ -500,29 +527,27 @@ export default function PrintPage() {
 
                       return (
                         <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
-                          <td className="py-2 px-2.5 font-bold text-slate-500 text-[11px]">{idx + 1}</td>
-                          <td className="py-2 px-2.5 font-bold text-slate-900">
+                          <td className="py-2 px-2 font-bold text-slate-500 text-[10px] sm:text-[11px]">{idx + 1}</td>
+                          <td className="py-2 px-2 font-bold text-slate-900">
                             <div className="flex items-center gap-1.5">
                               {(guest.is_vip || guest.vip) && <Crown size={13} className="text-amber-500 fill-amber-400 shrink-0" />}
-                              <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
+                              <span className="break-words">{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
                             </div>
                           </td>
-                          <td className="py-2 px-2.5 text-center">
+                          <td className="py-2 px-2 text-center">
                             <div className="inline-flex items-center justify-center gap-1 flex-wrap">
-                              {/* BADGE CÔTÉ */}
-                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
+                              <span className="text-[9px] sm:text-[10px] font-black uppercase px-1.5 sm:px-2 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
                                 {sideText}
                               </span>
 
-                              {/* BADGE CATÉGORIE (AMIS, COLLÈGUES, PARENTS, ETC.) */}
                               {categoryText && (
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-rose-200 bg-rose-50 text-rose-700 inline-block">
+                                <span className="text-[9px] sm:text-[10px] font-black uppercase px-1.5 sm:px-2 py-0.5 rounded border border-rose-200 bg-rose-50 text-rose-700 inline-block">
                                   {categoryText}
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="py-2 px-2.5 text-right font-black text-slate-900">
+                          <td className="py-2 px-2 text-right font-black text-slate-900">
                             x{guest.guests_count || guest.count || 1}
                           </td>
                         </tr>
