@@ -5,11 +5,10 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
   Heart, Users, Banknote, Calendar, LogOut, 
-  MessageSquare, Settings, ChevronRight,
-  LayoutDashboard, CheckCircle2, Clock, 
-  ClipboardList, Utensils, Send, XCircle,
+  MessageSquare, ChevronRight, LayoutDashboard, 
+  Clock, ClipboardList, Utensils, Send, 
   Search, Plus, Trash2, Edit2, Crown, UserMinus, 
-  ArrowLeft, Sparkles, AlertCircle
+  AlertCircle
 } from 'lucide-react';
 
 interface TableItem {
@@ -18,8 +17,6 @@ interface TableItem {
   name: string;
   capacity: number;
   shape: string;
-  position_x?: number;
-  position_y?: number;
 }
 
 interface GuestItem {
@@ -36,6 +33,8 @@ interface GuestItem {
   is_vip?: boolean;
   presence_dinner?: boolean;
   dinner?: boolean;
+  attend_dinner?: boolean;
+  presence?: string;
 }
 
 export default function TablesDashboardPage() {
@@ -53,7 +52,7 @@ export default function TablesDashboardPage() {
   const [tableCapacity, setTableCapacity] = useState(10);
   const [tableShape, setTableShape] = useState('circle');
 
-  // Filtres
+  // Filtres (Par défaut sur 'all' pour éviter de masquer la liste au chargement)
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -82,35 +81,33 @@ export default function TablesDashboardPage() {
 
       if (tablesData) setTables(tablesData);
 
-      // 3. Récupération des invités DÎNER uniquement
-      let { data: guestsData } = await supabase
+      // 3. Récupération exacte des invités confirmés au Dîner
+      const { data: guestsData } = await supabase
         .from('invite')
         .select('*')
         .eq('marriage_id', marriage.id);
 
-      if (!guestsData || guestsData.length === 0) {
-        const { data: userGuests } = await supabase
-          .from('invite')
-          .select('*')
-          .eq('user_id', user.id);
-        guestsData = userGuests || [];
-      }
+      const allGuests = guestsData || [];
 
-      // FILTRAGE STRICT : Invités confirmés ET présents au DÎNER uniquement
-      const dinnerGuests = (guestsData || []).filter((g: any) => {
-        const isConfirmed = String(g.status || '').toLowerCase().includes('confirm');
-        
-        // Vérification de la présence au dîner (champs habituels : presence_dinner, dinner, ou attend_dinner)
+      // Filtre strict équivalent à la liste officielle (97 personnes)
+      const dinnerGuests = allGuests.filter((g: any) => {
+        const statusClean = String(g.status || '').toLowerCase().trim();
+        const isConfirmed = statusClean === 'confirmé' || statusClean === 'confirme' || statusClean.includes('confirm');
+
+        // Vérification présence au dîner
+        const presenceClean = String(g.presence || '').toLowerCase();
         const isAtDinner = g.presence_dinner === true || 
                            g.dinner === true || 
                            g.attend_dinner === true ||
-                           String(g.presence || '').toLowerCase().includes('dîner') ||
-                           String(g.presence || '').toLowerCase().includes('diner');
+                           presenceClean.includes('dîner') ||
+                           presenceClean.includes('diner') ||
+                           presenceClean.includes('reception') ||
+                           presenceClean.includes('réception');
 
-        // Si aucun champ spécifique de dîner n'existe encore, on retient les confirmés par défaut
-        const hasDinnerField = 'presence_dinner' in g || 'dinner' in g || 'attend_dinner' in g;
-        
-        return isConfirmed && (hasDinnerField ? isAtDinner : true);
+        // Si aucun champ spécifique au dîner n'est renseigné, on se base sur la confirmation globale
+        const hasSpecificDinnerField = ('presence_dinner' in g) || ('dinner' in g) || ('attend_dinner' in g);
+
+        return isConfirmed && (hasSpecificDinnerField ? isAtDinner : true);
       });
 
       setGuests(dinnerGuests);
@@ -125,7 +122,7 @@ export default function TablesDashboardPage() {
     loadData();
   }, [loadData]);
 
-  // Ajouter / Modifier une table
+  // Sauvegarder Table
   const handleSaveTable = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!marriageId || !tableName.trim()) return;
@@ -165,7 +162,7 @@ export default function TablesDashboardPage() {
 
   // Supprimer une table
   const handleDeleteTable = async (tableId: string) => {
-    if (!confirm("Voulez-vous supprimer cette table ? Les invités seront remis en liste d'attente.")) return;
+    if (!confirm("Voulez-vous supprimer cette table ? Les invités seront détachés.")) return;
 
     await supabase.from('invite').update({ table_id: null }).eq('table_id', tableId);
     const { error } = await supabase.from('tables').delete().eq('id', tableId);
@@ -176,15 +173,31 @@ export default function TablesDashboardPage() {
     }
   };
 
-  // Attribuer / Retirer un invité
-  const handleAssignGuest = async (guestId: string, newTableId: string | null) => {
+  // Attribuer un invité avec contrôle STRICT de capacité
+  const handleAssignGuest = async (guest: GuestItem, targetTableId: string | null) => {
+    const guestCount = Number(guest.guests_count || guest.count || 1);
+
+    if (targetTableId) {
+      const targetTable = tables.find(t => t.id === targetTableId);
+      if (targetTable) {
+        const tableGuests = guests.filter(g => g.table_id === targetTableId);
+        const currentOccupied = tableGuests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
+        const remainingSeats = targetTable.capacity - currentOccupied;
+
+        if (guestCount > remainingSeats) {
+          alert(`Impossible d'ajouter cet invité (${guestCount} place(s)) à la table "${targetTable.name}". Il ne reste que ${remainingSeats} place(s) disponible(s).`);
+          return;
+        }
+      }
+    }
+
     const { error } = await supabase
       .from('invite')
-      .update({ table_id: newTableId })
-      .eq('id', guestId);
+      .update({ table_id: targetTableId })
+      .eq('id', guest.id);
 
     if (!error) {
-      setGuests(guests.map(g => g.id === guestId ? { ...g, table_id: newTableId } : g));
+      setGuests(guests.map(g => g.id === guest.id ? { ...g, table_id: targetTableId } : g));
     }
   };
 
@@ -213,15 +226,20 @@ export default function TablesDashboardPage() {
     setEditingTable(null);
   };
 
-  // Calculs
+  // Calculs totaux
   const unassignedGuests = guests.filter(g => !g.table_id);
   const totalDinnerPersons = guests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
   const assignedDinnerPersons = guests.filter(g => Boolean(g.table_id)).reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
 
+  // Filtrage insensible à la casse
   const filteredUnassigned = unassignedGuests.filter(g => {
-    const name = (g.name || g.full_name || `${g.first_name || ''} ${g.last_name || ''}`).toLowerCase();
-    const matchesSearch = name.includes(searchQuery.toLowerCase());
-    const matchesCat = selectedCategory === 'all' || (g.category || '').toLowerCase() === selectedCategory.toLowerCase();
+    const guestName = (g.name || g.full_name || `${g.first_name || ''} ${g.last_name || ''}`).toLowerCase();
+    const matchesSearch = guestName.includes(searchQuery.toLowerCase().trim());
+    
+    const guestCat = (g.category || '').toLowerCase().trim();
+    const filterCat = selectedCategory.toLowerCase().trim();
+    const matchesCat = filterCat === 'all' || guestCat.includes(filterCat) || filterCat.includes(guestCat);
+
     return matchesSearch && matchesCat;
   });
 
@@ -236,7 +254,7 @@ export default function TablesDashboardPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
       
-      {/* SIDEBAR D'ORIGINE */}
+      {/* SIDEBAR DASHBOARD */}
       <aside className="w-64 border-r border-slate-200 flex flex-col bg-white sticky top-0 h-screen z-50 shrink-0">
         <div className="p-8 flex items-center gap-3">
           <div className="w-10 h-10 bg-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-100">
@@ -309,7 +327,7 @@ export default function TablesDashboardPage() {
           </button>
         </header>
 
-        {/* STATISTIQUES EN CARTES HAUT DE PAGE */}
+        {/* CARTES STATISTIQUES */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
             <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black">
@@ -358,7 +376,7 @@ export default function TablesDashboardPage() {
                 </span>
               </div>
 
-              {/* BARRE DE RECHERCHE & FILTRES */}
+              {/* RECHERCHE & FILTRES */}
               <div className="space-y-2">
                 <div className="relative">
                   <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -377,9 +395,9 @@ export default function TablesDashboardPage() {
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 focus:outline-none"
                 >
                   <option value="all">Toutes les catégories</option>
+                  <option value="collègues">Collègues</option>
                   <option value="famille">Famille</option>
                   <option value="amis">Amis</option>
-                  <option value="collègues">Collègues</option>
                   <option value="vip">VIP</option>
                 </select>
               </div>
@@ -415,17 +433,28 @@ export default function TablesDashboardPage() {
                         </div>
                       </div>
 
+                      {/* SELECTEUR DE TABLE DYNAMIQUE */}
                       <select
                         onChange={(e) => {
-                          if (e.target.value) handleAssignGuest(guest.id, e.target.value);
+                          if (e.target.value) handleAssignGuest(guest, e.target.value);
+                          e.target.value = "";
                         }}
                         defaultValue=""
-                        className="text-[11px] font-bold bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 focus:ring-2 focus:ring-rose-400 shrink-0 shadow-sm cursor-pointer"
+                        className="text-[11px] font-bold bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-slate-700 focus:ring-2 focus:ring-rose-400 shrink-0 shadow-sm cursor-pointer"
                       >
                         <option value="" disabled>Placer à...</option>
-                        {tables.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
+                        {tables.map(t => {
+                          const tableGuests = guests.filter(g => g.table_id === t.id);
+                          const occupied = tableGuests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
+                          const remaining = t.capacity - occupied;
+                          const isDisabled = count > remaining;
+
+                          return (
+                            <option key={t.id} value={t.id} disabled={isDisabled}>
+                              {t.name} ({remaining} place{remaining > 1 ? 's' : ''} libre{remaining > 1 ? 's' : ''}) {isDisabled ? '- Pleine' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   );
@@ -434,13 +463,13 @@ export default function TablesDashboardPage() {
             </div>
           </div>
 
-          {/* COLONNE DROITE : GRILLE DES TABLES */}
+          {/* COLONNE DROITE : LES TABLES */}
           <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
             {tables.length === 0 ? (
               <div className="col-span-full bg-white p-12 text-center rounded-[2.5rem] border border-slate-100 shadow-sm">
                 <Utensils size={40} className="mx-auto text-slate-300 mb-3" />
-                <h3 className="font-black text-slate-800 text-base">Aucune table pour le moment</h3>
-                <p className="text-xs text-slate-400 mt-1 mb-6">Créez votre première table pour commencer le plan de salle du dîner.</p>
+                <h3 className="font-black text-slate-800 text-base">Aucune table créée</h3>
+                <p className="text-xs text-slate-400 mt-1 mb-6">Créez votre première table pour organiser la salle du dîner.</p>
                 <button
                   onClick={() => openModal()}
                   className="bg-slate-900 text-white font-black text-xs uppercase tracking-widest px-6 py-3.5 rounded-2xl hover:bg-rose-500 transition-colors shadow-lg"
@@ -453,7 +482,6 @@ export default function TablesDashboardPage() {
                 const tableGuests = guests.filter(g => g.table_id === table.id);
                 const occupiedSeats = tableGuests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
                 const isFull = occupiedSeats >= table.capacity;
-                const isOverfilled = occupiedSeats > table.capacity;
 
                 return (
                   <div key={table.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 flex flex-col justify-between hover:shadow-xl hover:border-rose-100 transition-all">
@@ -487,25 +515,23 @@ export default function TablesDashboardPage() {
                       {/* JAUGE DE PLACES */}
                       <div className="mt-4 mb-5">
                         <div className="flex justify-between items-center text-xs font-black mb-1.5">
-                          <span className={isOverfilled ? 'text-rose-600' : isFull ? 'text-amber-600' : 'text-slate-700'}>
+                          <span className={isFull ? 'text-rose-600' : 'text-slate-700'}>
                             {occupiedSeats} / {table.capacity} places
                           </span>
                           <span className="text-[10px] font-bold text-slate-400">
-                            {table.capacity - occupiedSeats < 0 ? 0 : table.capacity - occupiedSeats} libres
+                            {table.capacity - occupiedSeats} disponibles
                           </span>
                         </div>
 
                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                           <div 
-                            className={`h-full transition-all duration-500 ${
-                              isOverfilled ? 'bg-rose-500' : isFull ? 'bg-amber-500' : 'bg-slate-900'
-                            }`}
+                            className={`h-full transition-all duration-500 ${isFull ? 'bg-rose-500' : 'bg-slate-900'}`}
                             style={{ width: `${Math.min((occupiedSeats / table.capacity) * 100, 100)}%` }}
                           />
                         </div>
                       </div>
 
-                      {/* LISTE DES CONVIVES À CETTE TABLE */}
+                      {/* INVITÉS SUR LA TABLE */}
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {tableGuests.length === 0 ? (
                           <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl">
@@ -522,7 +548,7 @@ export default function TablesDashboardPage() {
                                   {guestName} <span className="text-slate-400 font-normal">(x{count})</span>
                                 </span>
                                 <button 
-                                  onClick={() => handleAssignGuest(guest.id, null)}
+                                  onClick={() => handleAssignGuest(guest, null)}
                                   className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-white transition-colors"
                                   title="Retirer de la table"
                                 >
@@ -545,7 +571,7 @@ export default function TablesDashboardPage() {
 
       </main>
 
-      {/* MODAL CRÉATION / ÉDITION DE TABLE */}
+      {/* MODALE CRÉATION / ÉDITION DE TABLE */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-slate-100">
@@ -563,14 +589,14 @@ export default function TablesDashboardPage() {
                   required
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
-                  placeholder="Ex: Table d'Honneur, Table Abidjan..."
+                  placeholder="Ex: Table d'Honneur, Table VIP..."
                   className="w-full mt-1.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Nombre de places
+                  Capacité (Nombre de personnes)
                 </label>
                 <input 
                   type="number" 
