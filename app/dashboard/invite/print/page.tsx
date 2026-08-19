@@ -100,7 +100,6 @@ export default function PrintPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
 
-      // 1. Récupération des informations du mariage
       const { data: marriageData } = await supabase
         .from('marriages')
         .select('*')
@@ -122,7 +121,6 @@ export default function PrintPage() {
         setCoupleTitle("G&M");
       }
 
-      // 2. Chargement des invités
       let guestsResponse = await supabase
         .from('invite')
         .select('*')
@@ -186,19 +184,21 @@ export default function PrintPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* CSS IMPRESSION STRICT A4 ET EN-TÊTE RÉPÉTÉE */}
+      {/* CSS IMPRESSION STRICT A4 PLEINE LARGEUR ET TAILLES OPTIMISÉES */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 10mm 12mm 15mm 12mm;
+            margin: 8mm 10mm 10mm 10mm;
           }
 
-          body {
-            background: white !important;
-            color: #000 !important;
+          html, body {
+            width: 100% !important;
+            height: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            background: white !important;
+            color: #000 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             counter-reset: page;
@@ -206,6 +206,14 @@ export default function PrintPage() {
 
           .no-print {
             display: none !important;
+          }
+
+          main {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
           }
 
           .print-container {
@@ -216,10 +224,12 @@ export default function PrintPage() {
             box-shadow: none !important;
             border: none !important;
             background: white !important;
+            display: block !important;
           }
 
           table.print-table {
             width: 100% !important;
+            max-width: 100% !important;
             border-collapse: collapse !important;
             table-layout: fixed !important;
           }
@@ -243,16 +253,14 @@ export default function PrintPage() {
         }
       `}</style>
 
-      {/* BARRE DE NAVIGATION GÉNÉRALE (SIDEBAR - no-print) */}
+      {/* SIDEBAR (no-print) */}
       <aside className="no-print w-64 bg-white border-r border-slate-200 min-h-screen p-6 flex flex-col justify-between shrink-0">
         <div className="space-y-8">
           
-          {/* LOGO OU NOM APPLI */}
           <div className="px-3">
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Wedding Studio</h2>
           </div>
 
-          {/* SECTION GÉNÉRAL */}
           <div className="space-y-2">
             <p className="px-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
               GÉNÉRAL
@@ -276,7 +284,6 @@ export default function PrintPage() {
             </nav>
           </div>
 
-          {/* SECTION ORGANISATION */}
           <div className="space-y-2">
             <p className="px-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
               ORGANISATION
@@ -370,10 +377,9 @@ export default function PrintPage() {
 
         <div className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
           
-          {/* MENU LATÉRAL DE SÉLECTION DE LA LISTE (ÉCRAN) */}
+          {/* MENU LATÉRAL SÉLECTION LISTE (no-print) */}
           <aside className="no-print lg:col-span-4 space-y-3">
             
-            {/* ÉDITEUR NOM MARIÉS */}
             <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm space-y-2">
               <label className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
                 <Edit3 size={14} className="text-rose-500" />
@@ -433,42 +439,40 @@ export default function PrintPage() {
             </div>
           </aside>
 
-          {/* FEUILLE D'IMPRESSION ET APERÇU */}
+          {/* FEUILLE D'IMPRESSION ET APERÇU (A4 PLEINE LARGEUR ET TAILLE OPTIMISÉE) */}
           <main className="lg:col-span-8 w-full">
-            <div className="print-container bg-white border border-slate-200 rounded-[2rem] p-8 md:p-10 shadow-sm w-full">
+            <div className="print-container bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm w-full">
               
               <table className="print-table w-full text-left border-collapse">
                 
-                {/* EN-TÊTE RÉPÉTÉE SUR CHAQUE PAGE D'IMPRESSION */}
+                {/* EN-TÊTE RÉPÉTÉE SUR CHAQUE PAGE */}
                 <thead className="print-header">
                   <tr>
                     <th colSpan={4} className="p-0 font-normal">
-                      <div className="border-b-2 border-slate-900 pb-4 mb-6">
+                      <div className="border-b-2 border-slate-900 pb-3 mb-4">
                         
-                        {/* LIGNE DU NOM DES MARIÉS */}
-                        <div className="flex justify-between items-center pb-2 mb-3 border-b border-slate-200">
-                          <span className="text-lg font-black tracking-wide text-rose-600 uppercase">
+                        <div className="flex justify-between items-center pb-1.5 mb-2 border-b border-slate-200">
+                          <span className="text-base font-black tracking-wide text-rose-600 uppercase">
                             {displayName}
                           </span>
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                             Liste Officielle
                           </span>
                         </div>
 
-                        {/* TITRE DE LA LISTE & TOTAL */}
                         <div className="flex justify-between items-end gap-4">
                           <div>
-                            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                            <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
                               {activeReport.title}
                             </h2>
-                            <p className="text-xs text-slate-600 font-medium mt-1">
+                            <p className="text-[11px] text-slate-600 font-medium mt-0.5">
                               {activeReport.description}
                             </p>
                           </div>
 
                           <div className="text-right shrink-0">
-                            <div className="text-3xl font-black text-slate-900 leading-none">{totalCount}</div>
-                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                            <div className="text-2xl font-black text-slate-900 leading-none">{totalCount}</div>
+                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5">
                               Personnes au total
                             </div>
                           </div>
@@ -477,20 +481,20 @@ export default function PrintPage() {
                     </th>
                   </tr>
 
-                  {/* ENTÊTE DES COLONNES */}
-                  <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-xs font-black uppercase tracking-wider">
-                    <th className="py-3 px-3 w-[8%] text-left">#</th>
-                    <th className="py-3 px-3 w-[57%] text-left">Nom & Prénom</th>
-                    <th className="py-3 px-3 w-[20%] text-center">Côté</th>
-                    <th className="py-3 px-3 w-[15%] text-right">Nombre</th>
+                  {/* ENTÊTE DES COLONNES DESSSERRÉE */}
+                  <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-[11px] font-black uppercase tracking-wider">
+                    <th className="py-2 px-2.5 w-[6%] text-left">#</th>
+                    <th className="py-2 px-2.5 w-[60%] text-left">Nom & Prénom</th>
+                    <th className="py-2 px-2.5 w-[19%] text-center">Côté</th>
+                    <th className="py-2 px-2.5 w-[15%] text-right">Nombre</th>
                   </tr>
                 </thead>
 
-                {/* PIED DE PAGE RÉPÉTÉ SUR CHAQUE PAGE D'IMPRESSION */}
+                {/* PIED DE PAGE RÉPÉTÉ SUR CHAQUE PAGE */}
                 <tfoot className="print-footer">
                   <tr>
                     <td colSpan={4} className="p-0 font-normal">
-                      <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      <div className="mt-6 pt-3 border-t border-slate-300 flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                         <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
                         <span>{displayName}</span>
                         <span className="page-number"></span>
@@ -499,30 +503,30 @@ export default function PrintPage() {
                   </tr>
                 </tfoot>
 
-                {/* CORPS DES DONNÉES */}
-                <tbody className="divide-y divide-slate-200 text-sm">
+                {/* CORPS DE TABLEAU HARMONISÉ */}
+                <tbody className="divide-y divide-slate-200 text-xs">
                   {filteredGuests.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-12 text-center text-slate-500 font-bold italic bg-slate-50/50">
+                      <td colSpan={4} className="py-8 text-center text-slate-500 font-bold italic bg-slate-50/50">
                         Aucun invité ne correspond à cette liste.
                       </td>
                     </tr>
                   ) : (
                     filteredGuests.map((guest, idx) => (
                       <tr key={guest.id || idx} className="print-row hover:bg-slate-50">
-                        <td className="py-3 px-3 font-bold text-slate-500 text-xs">{idx + 1}</td>
-                        <td className="py-3 px-3 font-bold text-slate-900">
+                        <td className="py-2 px-2.5 font-bold text-slate-500 text-[11px]">{idx + 1}</td>
+                        <td className="py-2 px-2.5 font-bold text-slate-900">
                           <div className="flex items-center gap-1.5">
-                            {(guest.is_vip || guest.vip) && <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />}
+                            {(guest.is_vip || guest.vip) && <Crown size={13} className="text-amber-500 fill-amber-400 shrink-0" />}
                             <span>{guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'Invité sans nom'}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-3 text-center">
-                          <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
+                        <td className="py-2 px-2.5 text-center">
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded border border-slate-300 bg-slate-50 text-slate-800 inline-block">
                             {guest.side === 'partenaire_1' || guest.side === 'marié' ? 'Marié' : guest.side === 'partenaire_2' || guest.side === 'mariée' ? 'Mariée' : 'Commun'}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-right font-black text-slate-900">
+                        <td className="py-2 px-2.5 text-right font-black text-slate-900">
                           x{guest.guests_count || guest.count || 1}
                         </td>
                       </tr>
