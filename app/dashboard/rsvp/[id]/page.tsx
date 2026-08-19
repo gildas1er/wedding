@@ -162,12 +162,7 @@ function RSVPContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guestId) return;
-
-    if (!form.status) {
-      alert("Veuillez sélectionner si vous serez présent(e) ou si vous déclinez.");
-      return;
-    }
+    if (!guestId || !form.status) return;
 
     setSending(true);
 
@@ -465,12 +460,16 @@ function RSVPContent() {
                 </AnimatePresence>
 
                 <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: form.status ? 1.02 : 1 }}
+                  whileTap={{ scale: form.status ? 0.98 : 1 }}
                   type="submit" 
-                  disabled={sending || !guestId}
-                  className="w-full py-5 rounded-full text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                  style={{ backgroundColor: m.primary_color }}
+                  disabled={sending || !guestId || !form.status}
+                  className={`w-full py-5 rounded-full font-black uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-3 transition-all ${
+                    !form.status 
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                      : 'text-white shadow-xl opacity-100'
+                  }`}
+                  style={{ backgroundColor: form.status ? m.primary_color : undefined }}
                 >
                   {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                   Valider ma réponse
