@@ -4,9 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  UtensilsCrossed, Plus, Trash2, Edit2, Users, 
-  UserPlus, UserMinus, Search, Crown, CheckCircle2,
-  LayoutDashboard, ArrowLeft
+  Heart, Users, Banknote, Calendar, LogOut, 
+  MessageSquare, Settings, ChevronRight,
+  LayoutDashboard, CheckCircle2, Clock, 
+  ClipboardList, Utensils, Send, XCircle,
+  Search, Plus, Trash2, Edit2, Crown, UserMinus, 
+  ArrowLeft, Sparkles, AlertCircle
 } from 'lucide-react';
 
 interface TableItem {
@@ -27,14 +30,15 @@ interface GuestItem {
   last_name?: string;
   guests_count?: number;
   count?: number;
-  side?: string;
   category?: string;
   status?: string;
   table_id?: string | null;
   is_vip?: boolean;
+  presence_dinner?: boolean;
+  dinner?: boolean;
 }
 
-export default function TablesPage() {
+export default function TablesDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [marriageId, setMarriageId] = useState<string | null>(null);
@@ -42,7 +46,7 @@ export default function TablesPage() {
   const [tables, setTables] = useState<TableItem[]>([]);
   const [guests, setGuests] = useState<GuestItem[]>([]);
 
-  // Modals & Formulaires
+  // Formulaires & Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<TableItem | null>(null);
   const [tableName, setTableName] = useState('');
@@ -78,26 +82,38 @@ export default function TablesPage() {
 
       if (tablesData) setTables(tablesData);
 
-      // 3. Récupération des invités confirmés
+      // 3. Récupération des invités DÎNER uniquement
       let { data: guestsData } = await supabase
         .from('invite')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('marriage_id', marriage.id);
 
       if (!guestsData || guestsData.length === 0) {
-        const { data: fallbackGuests } = await supabase
+        const { data: userGuests } = await supabase
           .from('invite')
           .select('*')
-          .eq('marriage_id', marriage.id);
-        guestsData = fallbackGuests || [];
+          .eq('user_id', user.id);
+        guestsData = userGuests || [];
       }
 
-      // Conserver uniquement les invités confirmés pour le placement
-      const confirmedGuests = (guestsData || []).filter((g: any) => 
-        String(g.status || '').toLowerCase().includes('confirm')
-      );
+      // FILTRAGE STRICT : Invités confirmés ET présents au DÎNER uniquement
+      const dinnerGuests = (guestsData || []).filter((g: any) => {
+        const isConfirmed = String(g.status || '').toLowerCase().includes('confirm');
+        
+        // Vérification de la présence au dîner (champs habituels : presence_dinner, dinner, ou attend_dinner)
+        const isAtDinner = g.presence_dinner === true || 
+                           g.dinner === true || 
+                           g.attend_dinner === true ||
+                           String(g.presence || '').toLowerCase().includes('dîner') ||
+                           String(g.presence || '').toLowerCase().includes('diner');
 
-      setGuests(confirmedGuests);
+        // Si aucun champ spécifique de dîner n'existe encore, on retient les confirmés par défaut
+        const hasDinnerField = 'presence_dinner' in g || 'dinner' in g || 'attend_dinner' in g;
+        
+        return isConfirmed && (hasDinnerField ? isAtDinner : true);
+      });
+
+      setGuests(dinnerGuests);
     } catch (err) {
       console.error("Erreur de chargement :", err);
     } finally {
@@ -109,7 +125,7 @@ export default function TablesPage() {
     loadData();
   }, [loadData]);
 
-  // Ajouter ou Modifier une table
+  // Ajouter / Modifier une table
   const handleSaveTable = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!marriageId || !tableName.trim()) return;
@@ -149,19 +165,18 @@ export default function TablesPage() {
 
   // Supprimer une table
   const handleDeleteTable = async (tableId: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette table ? Les invités associés seront détachés.")) return;
+    if (!confirm("Voulez-vous supprimer cette table ? Les invités seront remis en liste d'attente.")) return;
 
-    // Réinitialiser le table_id des invités rattachés
     await supabase.from('invite').update({ table_id: null }).eq('table_id', tableId);
-    
     const { error } = await supabase.from('tables').delete().eq('id', tableId);
+    
     if (!error) {
       setTables(tables.filter(t => t.id !== tableId));
       setGuests(guests.map(g => g.table_id === tableId ? { ...g, table_id: null } : g));
     }
   };
 
-  // Attribuer ou Retirer un invité
+  // Attribuer / Retirer un invité
   const handleAssignGuest = async (guestId: string, newTableId: string | null) => {
     const { error } = await supabase
       .from('invite')
@@ -171,6 +186,11 @@ export default function TablesPage() {
     if (!error) {
       setGuests(guests.map(g => g.id === guestId ? { ...g, table_id: newTableId } : g));
     }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
   const openModal = (table?: TableItem) => {
@@ -191,15 +211,13 @@ export default function TablesPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingTable(null);
-    setTableName('');
   };
 
-  // Calculs & Métriques
+  // Calculs
   const unassignedGuests = guests.filter(g => !g.table_id);
-  const totalGuestsCount = guests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
-  const assignedGuestsCount = guests.filter(g => Boolean(g.table_id)).reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
+  const totalDinnerPersons = guests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
+  const assignedDinnerPersons = guests.filter(g => Boolean(g.table_id)).reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
 
-  // Filtrage des invités non placés
   const filteredUnassigned = unassignedGuests.filter(g => {
     const name = (g.name || g.full_name || `${g.first_name || ''} ${g.last_name || ''}`).toLowerCase();
     const matchesSearch = name.includes(searchQuery.toLowerCase());
@@ -216,261 +234,344 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] flex text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
       
-      {/* HEADER */}
-      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <button 
-            onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 mb-2 transition-colors"
-          >
-            <ArrowLeft size={16} /> Retour au tableau de bord
-          </button>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <UtensilsCrossed className="text-rose-500" size={28} />
-            Gestion des Tables & Plan de Salle
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">
-            Placez vos invités confirmés sur vos différentes tables.
-          </p>
+      {/* SIDEBAR D'ORIGINE */}
+      <aside className="w-64 border-r border-slate-200 flex flex-col bg-white sticky top-0 h-screen z-50 shrink-0">
+        <div className="p-8 flex items-center gap-3">
+          <div className="w-10 h-10 bg-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-100">
+            <Heart size={20} className="text-white fill-white" />
+          </div>
+          <span className="font-bold text-xl tracking-tight">Mariage</span>
         </div>
 
-        <button
-          onClick={() => openModal()}
-          className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-rose-600 text-white font-bold px-5 py-3 rounded-2xl shadow-lg transition-all"
-        >
-          <Plus size={18} />
-          <span>Créer une nouvelle table</span>
-        </button>
-      </div>
-
-      {/* STATISTIQUES */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Total Confirmés</p>
-          <p className="text-2xl font-black text-slate-900 mt-1">{totalGuestsCount} pers.</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Invités Placés</p>
-          <p className="text-2xl font-black text-emerald-600 mt-1">{assignedGuestsCount} / {totalGuestsCount}</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Nombre de Tables</p>
-          <p className="text-2xl font-black text-slate-900 mt-1">{tables.length} tables</p>
-        </div>
-      </div>
-
-      {/* CONTENU PRINCIPAL EN 2 COLONNES */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* COLONNE GAUCHE : INVITÉS NON PLACÉS */}
-        <div className="lg:col-span-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col h-[700px]">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+          <p className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Général</p>
+          <SidebarItem icon={LayoutDashboard} label="Tableau de bord" onClick={() => router.push('/dashboard')} />
+          <SidebarItem icon={MessageSquare} label="Messages" />
           
-          <div className="pb-4 border-b border-slate-100">
-            <h2 className="text-base font-black text-slate-900 flex items-center justify-between">
-              <span>Non placés</span>
-              <span className="bg-rose-100 text-rose-700 text-xs px-2.5 py-0.5 rounded-full">
-                {filteredUnassigned.length} invités
-              </span>
-            </h2>
+          <p className="px-4 py-2 mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Organisation</p>
+          <SidebarItem icon={Users} label="Liste des invités" onClick={() => router.push('/dashboard/invite')} />
+          <SidebarItem icon={Send} label="Invitations (RSVP)" onClick={() => router.push('/dashboard/studio')} />
+          <SidebarItem icon={Utensils} label="Gestion des tables" active onClick={() => router.push('/dashboard/table')} />
+          <SidebarItem icon={ClipboardList} label="Mes tâches" onClick={() => router.push('/dashboard/tasks')} />
+          <SidebarItem icon={Banknote} label="Budget" onClick={() => router.push('/dashboard/budget')} />
+          <SidebarItem icon={Clock} label="Planning Jour J" onClick={() => router.push('/dashboard/planning')} />
+          
+          <div className="mt-8 p-6 bg-gradient-to-br from-indigo-600 to-rose-500 rounded-[2rem] text-white shadow-xl relative overflow-hidden group mx-2">
+            <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
+            <h4 className="text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+              <Crown size={12} /> Version Premium
+            </h4>
+            <p className="text-[10px] leading-relaxed mb-4 opacity-90 font-medium text-white/80">
+              Plan de salle interactif & invités illimités.
+            </p>
+            <button className="w-full py-3 bg-white text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-100 transition-colors">
+              Upgrade
+            </button>
+          </div>
+        </nav>
 
-            {/* BARRE DE RECHERCHE & FILTRE */}
-            <div className="mt-3 space-y-2">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-3 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="Rechercher un invité..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
+        <div className="p-4 border-t border-slate-100">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all"
+          >
+            <LogOut size={18} />
+            <span>Déconnexion</span>
+          </button>
+        </div>
+      </aside>
 
-              <select 
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none"
-              >
-                <option value="all">Toutes les catégories</option>
-                <option value="amis">Amis</option>
-                <option value="collègues">Collègues</option>
-                <option value="parents">Parents</option>
-              </select>
+      {/* CONTENU PRINCIPAL */}
+      <main className="flex-1 p-8 lg:p-12 overflow-y-auto">
+        
+        {/* HEADER */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-rose-500 mb-1">
+              <Utensils size={14} /> Plan de Réception
+            </div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+              Placement du Dîner 🍷
+            </h1>
+            <p className="text-slate-400 text-xs font-bold mt-1">
+              Seules les personnes confirmées <span className="text-slate-800 underline">présentes au Dîner</span> sont affichées ici.
+            </p>
+          </div>
+
+          <button
+            onClick={() => openModal()}
+            className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-widest px-6 py-4 rounded-2xl shadow-xl shadow-slate-200 transition-all hover:scale-[1.02]"
+          >
+            <Plus size={16} />
+            <span>Ajouter une table</span>
+          </button>
+        </header>
+
+        {/* STATISTIQUES EN CARTES HAUT DE PAGE */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black">
+              🍽️
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couverts Dîner</p>
+              <p className="text-2xl font-black text-slate-900">{totalDinnerPersons} convives</p>
             </div>
           </div>
 
-          {/* LISTE DES INVITÉS À PLACER */}
-          <div className="flex-1 overflow-y-auto pt-3 space-y-2 pr-1">
-            {filteredUnassigned.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs font-bold">
-                {unassignedGuests.length === 0 ? "Tous les invités confirmés sont placés ! 🎉" : "Aucun invité ne correspond à la recherche."}
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black">
+              ✨
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Convives Placés</p>
+              <p className="text-2xl font-black text-emerald-600">{assignedDinnerPersons} / {totalDinnerPersons}</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center font-black">
+              🪑
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tables Configurées</p>
+              <p className="text-2xl font-black text-slate-900">{tables.length} tables</p>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION DOUBLE COLONNE */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* COLONNE GAUCHE : INVITÉS DÎNER À PLACER */}
+          <div className="lg:col-span-4 bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm flex flex-col h-[680px]">
+            
+            <div className="pb-4 border-b border-slate-100">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">
+                  À placer au Dîner
+                </h3>
+                <span className="bg-rose-50 text-rose-600 text-[10px] font-black px-3 py-1 rounded-full">
+                  {filteredUnassigned.length} restants
+                </span>
+              </div>
+
+              {/* BARRE DE RECHERCHE & FILTRES */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Chercher un invité..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  />
+                </div>
+
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 focus:outline-none"
+                >
+                  <option value="all">Toutes les catégories</option>
+                  <option value="famille">Famille</option>
+                  <option value="amis">Amis</option>
+                  <option value="collègues">Collègues</option>
+                  <option value="vip">VIP</option>
+                </select>
+              </div>
+            </div>
+
+            {/* LISTE DES CONVIVES NON PLACÉS */}
+            <div className="flex-1 overflow-y-auto pt-3 space-y-2 pr-1">
+              {filteredUnassigned.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 text-xs font-bold">
+                  {unassignedGuests.length === 0 
+                    ? "Tous les convives du dîner sont installés ! 🎉" 
+                    : "Aucun invité ne correspond à la recherche."}
+                </div>
+              ) : (
+                filteredUnassigned.map((guest) => {
+                  const guestName = guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim();
+                  const count = Number(guest.guests_count || guest.count || 1);
+
+                  return (
+                    <div key={guest.id} className="p-3.5 bg-slate-50/80 hover:bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between gap-2 transition-all">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {guest.is_vip && <Crown size={12} className="text-amber-500 fill-amber-400 shrink-0" />}
+                          <p className="text-xs font-bold text-slate-900 truncate">{guestName}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[9px] font-black uppercase text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">
+                            {guest.category || 'Invité'}
+                          </span>
+                          <span className="text-[10px] font-black bg-slate-200 px-1.5 py-0.5 rounded text-slate-700">
+                            x{count}
+                          </span>
+                        </div>
+                      </div>
+
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) handleAssignGuest(guest.id, e.target.value);
+                        }}
+                        defaultValue=""
+                        className="text-[11px] font-bold bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 focus:ring-2 focus:ring-rose-400 shrink-0 shadow-sm cursor-pointer"
+                      >
+                        <option value="" disabled>Placer à...</option>
+                        {tables.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* COLONNE DROITE : GRILLE DES TABLES */}
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {tables.length === 0 ? (
+              <div className="col-span-full bg-white p-12 text-center rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <Utensils size={40} className="mx-auto text-slate-300 mb-3" />
+                <h3 className="font-black text-slate-800 text-base">Aucune table pour le moment</h3>
+                <p className="text-xs text-slate-400 mt-1 mb-6">Créez votre première table pour commencer le plan de salle du dîner.</p>
+                <button
+                  onClick={() => openModal()}
+                  className="bg-slate-900 text-white font-black text-xs uppercase tracking-widest px-6 py-3.5 rounded-2xl hover:bg-rose-500 transition-colors shadow-lg"
+                >
+                  + Créer une table
+                </button>
               </div>
             ) : (
-              filteredUnassigned.map((guest) => {
-                const guestName = guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim();
-                const count = Number(guest.guests_count || guest.count || 1);
+              tables.map((table) => {
+                const tableGuests = guests.filter(g => g.table_id === table.id);
+                const occupiedSeats = tableGuests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
+                const isFull = occupiedSeats >= table.capacity;
+                const isOverfilled = occupiedSeats > table.capacity;
 
                 return (
-                  <div key={guest.id} className="p-3 bg-slate-50 border border-slate-200/60 rounded-2xl flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        {guest.is_vip && <Crown size={12} className="text-amber-500 fill-amber-400 shrink-0" />}
-                        <p className="text-xs font-bold text-slate-900 truncate">{guestName}</p>
+                  <div key={table.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 flex flex-col justify-between hover:shadow-xl hover:border-rose-100 transition-all">
+                    
+                    <div>
+                      {/* EN-TÊTE TABLE */}
+                      <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div>
+                          <h3 className="font-black text-slate-900 text-base">{table.name}</h3>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Table {table.shape === 'circle' ? 'Ronde ⭕' : 'Rectangulaire 🟩'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => openModal(table)}
+                            className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-colors"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteTable(table.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-black uppercase text-slate-500">{guest.category || 'Invité'}</span>
-                        <span className="text-[10px] font-black bg-slate-200 px-1.5 py-0.5 rounded text-slate-700">x{count}</span>
+
+                      {/* JAUGE DE PLACES */}
+                      <div className="mt-4 mb-5">
+                        <div className="flex justify-between items-center text-xs font-black mb-1.5">
+                          <span className={isOverfilled ? 'text-rose-600' : isFull ? 'text-amber-600' : 'text-slate-700'}>
+                            {occupiedSeats} / {table.capacity} places
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {table.capacity - occupiedSeats < 0 ? 0 : table.capacity - occupiedSeats} libres
+                          </span>
+                        </div>
+
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 ${
+                              isOverfilled ? 'bg-rose-500' : isFull ? 'bg-amber-500' : 'bg-slate-900'
+                            }`}
+                            style={{ width: `${Math.min((occupiedSeats / table.capacity) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* LISTE DES CONVIVES À CETTE TABLE */}
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {tableGuests.length === 0 ? (
+                          <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                            <p className="text-xs text-slate-400 font-bold">Table vide</p>
+                          </div>
+                        ) : (
+                          tableGuests.map((guest) => {
+                            const guestName = guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim();
+                            const count = Number(guest.guests_count || guest.count || 1);
+
+                            return (
+                              <div key={guest.id} className="flex items-center justify-between text-xs py-2 px-3 bg-slate-50 rounded-xl border border-slate-100/60">
+                                <span className="font-bold text-slate-800 truncate">
+                                  {guestName} <span className="text-slate-400 font-normal">(x{count})</span>
+                                </span>
+                                <button 
+                                  onClick={() => handleAssignGuest(guest.id, null)}
+                                  className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-white transition-colors"
+                                  title="Retirer de la table"
+                                >
+                                  <UserMinus size={14} />
+                                </button>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
 
-                    {/* SELECTEUR RAPIDE DE TABLE */}
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) handleAssignGuest(guest.id, e.target.value);
-                      }}
-                      defaultValue=""
-                      className="text-xs font-bold bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700 focus:ring-2 focus:ring-rose-500 shrink-0"
-                    >
-                      <option value="" disabled>Placer...</option>
-                      {tables.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
                   </div>
                 );
               })
             )}
           </div>
+
         </div>
 
-        {/* COLONNE DROITE : LES TABLES */}
-        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-start">
-          {tables.length === 0 ? (
-            <div className="col-span-full bg-white p-12 text-center rounded-3xl border border-slate-200/80">
-              <UtensilsCrossed size={40} className="mx-auto text-slate-300 mb-3" />
-              <h3 className="font-bold text-slate-800">Aucune table créée</h3>
-              <p className="text-xs text-slate-500 mt-1 mb-4">Commencez par ajouter votre première table de réception.</p>
-              <button
-                onClick={() => openModal()}
-                className="bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-rose-600 transition-colors"
-              >
-                + Ajouter une table
-              </button>
-            </div>
-          ) : (
-            tables.map((table) => {
-              const tableGuests = guests.filter(g => g.table_id === table.id);
-              const occupiedSeats = tableGuests.reduce((acc, g) => acc + Number(g.guests_count || g.count || 1), 0);
-              const isFull = occupiedSeats >= table.capacity;
-
-              return (
-                <div key={table.id} className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 flex flex-col justify-between">
-                  
-                  {/* EN-TÊTE DE LA TABLE */}
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                      <div>
-                        <h3 className="font-black text-slate-900 text-base">{table.name}</h3>
-                        <p className="text-[11px] font-bold text-slate-400 capitalize">
-                          Forme: {table.shape === 'circle' ? 'Ronde' : 'Rectangulaire'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => openModal(table)}
-                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteTable(table.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* BARRE DE CAPACITÉ */}
-                    <div className="mt-3 mb-4">
-                      <div className="flex justify-between items-center text-xs font-black mb-1">
-                        <span className={isFull ? 'text-rose-600' : 'text-slate-700'}>
-                          {occupiedSeats} / {table.capacity} places
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {table.capacity - occupiedSeats} restantes
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all ${isFull ? 'bg-rose-500' : 'bg-slate-900'}`}
-                          style={{ width: `${Math.min((occupiedSeats / table.capacity) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* LISTE DES INVITÉS À CETTE TABLE */}
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {tableGuests.length === 0 ? (
-                        <p className="text-xs text-slate-400 font-medium italic py-2">Aucun invité assigné à cette table.</p>
-                      ) : (
-                        tableGuests.map((guest) => {
-                          const guestName = guest.name || guest.full_name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim();
-                          const count = Number(guest.guests_count || guest.count || 1);
-
-                          return (
-                            <div key={guest.id} className="flex items-center justify-between text-xs py-1.5 px-2 bg-slate-50 rounded-xl">
-                              <span className="font-bold text-slate-800 truncate">{guestName} <span className="text-slate-400 font-normal">(x{count})</span></span>
-                              <button 
-                                onClick={() => handleAssignGuest(guest.id, null)}
-                                className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
-                                title="Retirer de la table"
-                              >
-                                <UserMinus size={14} />
-                              </button>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })
-          )}
-        </div>
-
-      </div>
+      </main>
 
       {/* MODAL CRÉATION / ÉDITION DE TABLE */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-black text-slate-900 mb-4">
-              {editingTable ? 'Modifier la Table' : 'Ajouter une Table'}
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-slate-100">
+            <h2 className="text-xl font-black text-slate-900 mb-6">
+              {editingTable ? 'Modifier la Table' : 'Nouvelle Table de Dîner'}
             </h2>
 
             <form onSubmit={handleSaveTable} className="space-y-4">
               <div>
-                <label className="text-xs font-black uppercase text-slate-400">Nom de la table</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Nom de la table
+                </label>
                 <input 
                   type="text" 
                   required
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
-                  placeholder="Ex: Table Honoré, Table VIP 1"
-                  className="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  placeholder="Ex: Table d'Honneur, Table Abidjan..."
+                  className="w-full mt-1.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-black uppercase text-slate-400">Capacité (Nombre de places)</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Nombre de places
+                </label>
                 <input 
                   type="number" 
                   min="1"
@@ -478,33 +579,35 @@ export default function TablesPage() {
                   required
                   value={tableCapacity}
                   onChange={(e) => setTableCapacity(Number(e.target.value))}
-                  className="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  className="w-full mt-1.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-black uppercase text-slate-400">Forme de la table</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Forme géométrique
+                </label>
                 <select 
                   value={tableShape}
                   onChange={(e) => setTableShape(e.target.value)}
-                  className="w-full mt-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none"
+                  className="w-full mt-1.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none"
                 >
                   <option value="circle">Ronde</option>
                   <option value="rectangle">Rectangulaire</option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100"
+                  className="px-5 py-3 rounded-2xl text-xs font-bold text-slate-400 hover:text-slate-700"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-rose-600 transition-colors"
+                  className="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-rose-500 transition-colors shadow-lg"
                 >
                   Enregistrer
                 </button>
@@ -515,5 +618,21 @@ export default function TablesPage() {
       )}
 
     </div>
+  );
+}
+
+function SidebarItem({ icon: Icon, label, active = false, onClick }: any) {
+  return (
+    <button 
+      onClick={onClick} 
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${
+        active 
+          ? 'bg-slate-900 text-white shadow-lg' 
+          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+      }`}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+    </button>
   );
 }
