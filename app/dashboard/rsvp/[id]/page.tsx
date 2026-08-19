@@ -41,6 +41,9 @@ function RSVPContent() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
+  // État explicit pour suivre l'interaction utilisateur
+  const [userInteracted, setUserInteracted] = useState(false);
+
   // Nouveaux états pour le RSVP multi-événements
   const [allEventsSelected, setAllEventsSelected] = useState(true);
   const [form, setForm] = useState({
@@ -80,7 +83,7 @@ function RSVPContent() {
 
             setForm(prev => ({ 
               ...prev, 
-              status: gData.status || '',
+              status: '', // Laissé vide au chargement pour masquer le bouton
               guests_count: gData.guests_count || 1,
               notes: gData.notes || '',
               attending_civil: isCivil,
@@ -355,7 +358,10 @@ function RSVPContent() {
                 <div className="flex gap-3">
                   <button 
                     type="button" 
-                    onClick={() => setForm({...form, status: 'confirmé'})}
+                    onClick={() => {
+                      setForm({...form, status: 'confirmé'});
+                      setUserInteracted(true);
+                    }}
                     className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
                         form.status === 'confirmé' 
                         ? 'bg-slate-900 text-white shadow-xl scale-105' 
@@ -366,7 +372,10 @@ function RSVPContent() {
                   </button>
                   <button 
                     type="button" 
-                    onClick={() => setForm({...form, status: 'décliné'})}
+                    onClick={() => {
+                      setForm({...form, status: 'décliné'});
+                      setUserInteracted(true);
+                    }}
                     className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
                         form.status === 'décliné' 
                         ? 'bg-rose-500 text-white shadow-xl scale-105' 
@@ -460,7 +469,7 @@ function RSVPContent() {
                 </AnimatePresence>
 
                 <AnimatePresence>
-                  {form.status !== '' && (
+                  {userInteracted && form.status !== '' && (
                     <motion.button 
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
