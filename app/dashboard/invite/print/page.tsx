@@ -116,13 +116,13 @@ export default function PrintPage() {
         } else if (marriageData.title && marriageData.title.toLowerCase() !== 'mariage') {
           setCoupleTitle(marriageData.title);
         } else {
-          setCoupleTitle("Paul & Marie");
+          setCoupleTitle("G&M");
         }
       } else {
-        setCoupleTitle("Paul & Marie");
+        setCoupleTitle("G&M");
       }
 
-      // 2. Chargement des invités (détection automatique de la table 'invite' ou 'guests')
+      // 2. Chargement des invités
       let guestsResponse = await supabase
         .from('invite')
         .select('*')
@@ -163,7 +163,13 @@ export default function PrintPage() {
   const totalCount = filteredGuests.reduce((acc, g) => acc + (Number(g.guests_count || g.count || 1)), 0);
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const cleanTitle = `${coupleTitle} - ${activeReport.title}`.replace(/[^a-zA-Z0-9 -]/g, "");
+    document.title = cleanTitle;
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   if (loading) {
@@ -175,7 +181,7 @@ export default function PrintPage() {
     );
   }
 
-  const displayName = coupleTitle || "Paul & Marie";
+  const displayName = coupleTitle || "G&M";
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -195,6 +201,7 @@ export default function PrintPage() {
             padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            counter-reset: page;
           }
 
           .no-print {
@@ -203,6 +210,7 @@ export default function PrintPage() {
 
           .print-container {
             width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
@@ -230,7 +238,7 @@ export default function PrintPage() {
           }
 
           .page-number::after {
-            content: "Page " counter(page) " / " counter(pages);
+            content: "PAGE " counter(page) " / " counter(pages);
           }
         }
       `}</style>
@@ -375,7 +383,7 @@ export default function PrintPage() {
                 type="text" 
                 value={coupleTitle} 
                 onChange={(e) => setCoupleTitle(e.target.value)}
-                placeholder="Ex: Paul & Marie"
+                placeholder="Ex: G&M"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
@@ -471,8 +479,8 @@ export default function PrintPage() {
 
                   {/* ENTÊTE DES COLONNES */}
                   <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-xs font-black uppercase tracking-wider">
-                    <th className="py-3 px-3 w-[12%] text-left">#</th>
-                    <th className="py-3 px-3 w-[53%] text-left">Nom & Prénom</th>
+                    <th className="py-3 px-3 w-[8%] text-left">#</th>
+                    <th className="py-3 px-3 w-[57%] text-left">Nom & Prénom</th>
                     <th className="py-3 px-3 w-[20%] text-center">Côté</th>
                     <th className="py-3 px-3 w-[15%] text-right">Nombre</th>
                   </tr>
