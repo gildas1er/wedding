@@ -115,10 +115,10 @@ export default function PrintPage() {
         } else if (marriageData.title && marriageData.title.toLowerCase() !== 'mariage') {
           setCoupleTitle(marriageData.title);
         } else {
-          setCoupleTitle("G&M");
+          setCoupleTitle("GILDAS & MARIETTE");
         }
       } else {
-        setCoupleTitle("G&M");
+        setCoupleTitle("GILDAS & MARIETTE");
       }
 
       let guestsResponse = await supabase
@@ -179,44 +179,33 @@ export default function PrintPage() {
     );
   }
 
-  const displayName = coupleTitle || "G&M";
+  const displayName = coupleTitle || "GILDAS & MARIETTE";
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* CSS IMPRESSION STRICT A4 PLEINE LARGEUR ET TAILLES OPTIMISÉES */}
+      {/* CSS DE CORRECTION ULTIME POUR IMPRESSION A4 PLEINE PAGE */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm 10mm 10mm 10mm;
+            margin: 10mm;
           }
 
-          html, body {
-            width: 100% !important;
-            height: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            color: #000 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            counter-reset: page;
+          /* Masquer totalement ce qui n'est pas la zone d'impression */
+          body * {
+            visibility: hidden !important;
           }
 
-          .no-print {
-            display: none !important;
+          /* Forcer la zone d'impression à prendre 100% de la largeur du papier */
+          .print-area, .print-area * {
+            visibility: visible !important;
           }
 
-          main {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: block !important;
-          }
-
-          .print-container {
+          .print-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
@@ -224,7 +213,6 @@ export default function PrintPage() {
             box-shadow: none !important;
             border: none !important;
             background: white !important;
-            display: block !important;
           }
 
           table.print-table {
@@ -245,10 +233,6 @@ export default function PrintPage() {
           tr.print-row {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-          }
-
-          .page-number::after {
-            content: "PAGE " counter(page) " / " counter(pages);
           }
         }
       `}</style>
@@ -389,7 +373,7 @@ export default function PrintPage() {
                 type="text" 
                 value={coupleTitle} 
                 onChange={(e) => setCoupleTitle(e.target.value)}
-                placeholder="Ex: G&M"
+                placeholder="Ex: GILDAS & MARIETTE"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
@@ -439,9 +423,9 @@ export default function PrintPage() {
             </div>
           </aside>
 
-          {/* FEUILLE D'IMPRESSION ET APERÇU (A4 PLEINE LARGEUR ET TAILLE OPTIMISÉE) */}
+          {/* ZONE D'IMPRESSION - DÉTACHÉE DU FLUX PARENT LORS DE L'IMPRESSION */}
           <main className="lg:col-span-8 w-full">
-            <div className="print-container bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm w-full">
+            <div className="print-area bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm w-full">
               
               <table className="print-table w-full text-left border-collapse">
                 
@@ -481,11 +465,11 @@ export default function PrintPage() {
                     </th>
                   </tr>
 
-                  {/* ENTÊTE DES COLONNES DESSSERRÉE */}
+                  {/* ENTÊTE DES COLONNES */}
                   <tr className="border-b-2 border-slate-900 bg-slate-100 text-slate-900 text-[11px] font-black uppercase tracking-wider">
-                    <th className="py-2 px-2.5 w-[6%] text-left">#</th>
-                    <th className="py-2 px-2.5 w-[60%] text-left">Nom & Prénom</th>
-                    <th className="py-2 px-2.5 w-[19%] text-center">Côté</th>
+                    <th className="py-2 px-2.5 w-[8%] text-left">#</th>
+                    <th className="py-2 px-2.5 w-[57%] text-left">Nom & Prénom</th>
+                    <th className="py-2 px-2.5 w-[20%] text-center">Côté</th>
                     <th className="py-2 px-2.5 w-[15%] text-right">Nombre</th>
                   </tr>
                 </thead>
@@ -497,13 +481,13 @@ export default function PrintPage() {
                       <div className="mt-6 pt-3 border-t border-slate-300 flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                         <span>Édité le {new Date().toLocaleDateString('fr-FR')}</span>
                         <span>{displayName}</span>
-                        <span className="page-number"></span>
+                        <span>LISTE IMPRIMÉE</span>
                       </div>
                     </td>
                   </tr>
                 </tfoot>
 
-                {/* CORPS DE TABLEAU HARMONISÉ */}
+                {/* CORPS DE TABLEAU */}
                 <tbody className="divide-y divide-slate-200 text-xs">
                   {filteredGuests.length === 0 ? (
                     <tr>
