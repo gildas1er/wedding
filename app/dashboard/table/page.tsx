@@ -1,33 +1,29 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Trash2, Search, Calendar, Loader2,
-  Circle, Square, ZoomIn, ZoomOut, Sparkles, Move, 
-  AlertCircle, X, ArrowLeft, Printer, Users, Tag
+  Plus, Trash2, Search, Calendar, Loader2, ZoomIn, ZoomOut, Sparkles, 
+  AlertCircle, X, ArrowLeft, Printer, Users, Tag, Grid, Layout, CheckCircle2, UserPlus
 } from 'lucide-react';
 
-export default function SeatingPlannerV21() {
+export default function SeatingPlannerV22() {
   const router = useRouter();
   const [tables, setTables] = useState<any[]>([]);
   const [guests, setGuests] = useState<any[]>([]);
   const [marriage, setMarriage] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'canvas'>('grid');
+  
   const [zoom, setZoom] = useState(0.85);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSide, setFilterSide] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
   
   const [error, setError] = useState<string | null>(null);
-  
-  const [isPanning, setIsPanning] = useState(false);
-  const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 });
-  
   const [showAddModal, setShowAddModal] = useState<{show: boolean, shape: 'circle' | 'rectangle'}>({ show: false, shape: 'circle' });
   const [newTableData, setNewTableData] = useState({ name: '', capacity: 10 });
-
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -42,17 +38,14 @@ export default function SeatingPlannerV21() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
       
       const { data: mData } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
       
       if (mData) {
         setMarriage(mData);
         const [tRes, gRes] = await Promise.all([
-          supabase.from('tables').select('*').eq('marriage_id', mData.id),
+          supabase.from('tables').select('*').eq('marriage_id', mData.id).order('created_at', { ascending: true }),
           supabase.from('invite')
             .select('*')
             .eq('marriage_id', mData.id)
@@ -69,10 +62,9 @@ export default function SeatingPlannerV21() {
     }
   };
 
-  // Calcul du total de couverts de tous les invités confirmés à la réception
   const totalReceptionGuests = guests.reduce((sum, g) => sum + (parseInt(g.guests_count) || 1), 0);
+  const totalAssignedGuests = guests.filter(g => g.table_id).reduce((sum, g) => sum + (parseInt(g.guests_count) || 1), 0);
 
-  // Calcule l'occupation réelle d'une table en sommant les guests_count
   const getTableOccupancy = (tableId: string) => {
     return guests
       .filter(g => g.table_id === tableId)
@@ -87,7 +79,7 @@ export default function SeatingPlannerV21() {
         const currentOccupancy = getTableOccupancy(tableId);
 
         if (currentOccupancy + groupSize > table.capacity) {
-            setError(`Capacité insuffisante : ce groupe compte ${groupSize} personnes.`);
+            setError(`Capacité dépassée : ce groupe compte ${groupSize} p.`);
             return;
         }
     }
@@ -96,372 +88,330 @@ export default function SeatingPlannerV21() {
   };
 
   const deleteTable = async (tableId: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette table ? Les invités replaceront en liste d'attente.")) return;
     const { error } = await supabase.from('tables').delete().eq('id', tableId);
     if (!error) {
       setTables(prev => prev.filter(t => t.id !== tableId));
       setGuests(prev => prev.map(g => g.table_id === tableId ? { ...g, table_id: null } : g));
-    } else {
-      setError("Erreur lors de la suppression de la table.");
     }
   };
 
-  // Algorithme de répartition et génération automatique des tables
-  const generateAutomaticLayout = async (capacityPerTable: number) => {
-    const unassignedGuests = guests.filter(g => !g.table_id);
-    
-    if (unassignedGuests.length === 0) {
-      setError("Tous vos invités confirmés sont déjà placés sur des tables ! ✨");
-      return;
-    }
-
-    const totalCouverts = unassignedGuests.reduce((sum, g) => sum + (parseInt(g.guests_count) || 1), 0);
-
-    if (!confirm(`Cette action va distribuer automatiquement ${unassignedGuests.length} fiches d'invités (${totalCouverts} couverts) sur de nouvelles tables de ${capacityPerTable} personnes. Continuer ?`)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const sortedGuests = [...unassignedGuests].sort((a, b) => {
-        const sizeA = parseInt(a.guests_count) || 1;
-        const sizeB = parseInt(b.guests_count) || 1;
-        return sizeB - sizeA;
-      });
-
-      let currentTables = [...tables];
-      let updatedGuests = [...guests];
-      
-      let nextX = 200;
-      let nextY = currentTables.length > 0 ? Math.max(...currentTables.map(t => t.position_y)) + 350 : 200;
-      let tableCounter = currentTables.filter(t => t.name.startsWith("Table Auto")).length + 1;
-
-      let activeTable: any = null;
-      let activeTableOccupancy = 0;
-
-      for (const guest of sortedGuests) {
-        const groupSize = parseInt(guest.guests_count) || 1;
-
-        if (groupSize > capacityPerTable) {
-          setError(`Le groupe "${guest.name || guest.nom}" (${groupSize}p) dépasse la capacité maximale d'une table (${capacityPerTable}p).`);
-          continue; 
-        }
-
-        if (!activeTable || (activeTableOccupancy + groupSize > capacityPerTable)) {
-          const tableName = `Table Auto ${tableCounter++}`;
-          
-          const { data: newTable, error: tableErr } = await supabase
-            .from('tables')
-            .insert([{
-              marriage_id: marriage.id,
-              name: tableName,
-              capacity: capacityPerTable,
-              shape: 'circle',
-              position_x: nextX,
-              position_y: nextY
-            }])
-            .select()
-            .single();
-
-          if (tableErr || !newTable) throw new Error("Erreur lors de la création d'une table automatique");
-
-          nextX += 350;
-          if (nextX > 1500) {
-            nextX = 200;
-            nextY += 350;
-          }
-
-          activeTable = newTable;
-          activeTableOccupancy = 0;
-          currentTables.push(newTable);
-        }
-
-        await supabase.from('invite').update({ table_id: activeTable.id }).eq('id', guest.id);
-        updatedGuests = updatedGuests.map(g => g.id === guest.id ? { ...g, table_id: activeTable.id } : g);
-        activeTableOccupancy += groupSize;
-      }
-
-      setTables(currentTables);
-      setGuests(updatedGuests);
-
-    } catch (err) {
-      console.error(err);
-      setError("Une erreur est survenue lors de la génération automatique.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSideLabel = (side: string) => {
-    if (side === 'partenaire_1') return 'Marié';
-    if (side === 'partenaire_2') return 'Mariée';
-    return 'Commun';
-  };
-
-  const getSideColor = (side: string) => {
-    if (side === 'partenaire_1') return 'bg-blue-50 text-blue-700 border-blue-100';
-    if (side === 'partenaire_2') return 'bg-pink-50 text-pink-700 border-pink-100';
-    return 'bg-purple-50 text-purple-700 border-purple-100';
-  };
-
-  // Récupération dynamique de la mention d'invité (Amis, Collègues, Parents, etc.)
-  const getGuestCategory = (guest: any) => {
-    return guest.category || guest.relation || guest.group || 'Invité';
-  };
+  const getGuestCategory = (guest: any) => guest.category || guest.relation || guest.group || 'Invité';
+  const getSideLabel = (side: string) => side === 'partenaire_1' ? 'Marié' : side === 'partenaire_2' ? 'Mariée' : 'Commun';
+  
+  const categoriesList = Array.from(new Set(guests.map(g => getGuestCategory(g))));
 
   if (loading) {
     return (
-      <div className="h-screen w-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4">
+      <div className="h-screen w-screen bg-[#FAF8F5] flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-amber-600" size={40} />
-        <p className="font-luxury italic text-xl text-slate-800 tracking-wide animate-pulse">
-          Chargement du plan de table...
-        </p>
+        <p className="font-luxury italic text-xl text-slate-800">Chargement de la gestion des tables...</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-[#FDFBF7] flex overflow-hidden font-ui">
+    <div className="h-screen bg-[#FAF8F5] flex flex-col font-ui overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Montserrat:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
         .font-luxury { font-family: 'Playfair Display', serif; }
         .font-ui { font-family: 'Montserrat', sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
         
         @media print {
-          aside, header, .no-print { display: none !important; }
-          main { width: 100% !important; height: auto !important; position: static !important; }
-          .canvas-container { 
-            transform: scale(1) !important; 
-            position: relative !important;
-            background-image: none !important;
-            width: 100% !important;
-            height: auto !important;
-          }
-          .table-card { border: 1px solid #eee !important; box-shadow: none !important; }
+          body * { visibility: hidden; }
+          #pco-print-zone, #pco-print-zone * { visibility: visible; }
+          #pco-print-zone { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+          .no-print { display: none !important; }
         }
       `}} />
 
-      {/* NOTIFICATION */}
+      {/* ALERTE */}
       <AnimatePresence>
         {error && (
-          <motion.div initial={{ opacity: 0, y: 20, x: 20 }} animate={{ opacity: 1, y: 0, x: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed bottom-8 right-8 z-[200] flex items-center gap-4 bg-white border-l-4 border-red-500 shadow-2xl p-5 rounded-r-2xl min-w-[300px] no-print">
-            <div className="bg-red-50 p-2 rounded-full text-red-500"><AlertCircle size={20} /></div>
-            <div className="flex-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-0.5">Attention</p>
-              <p className="text-[12px] font-bold text-slate-700">{error}</p>
-            </div>
-            <button onClick={() => setError(null)} className="text-slate-300 hover:text-slate-500"><X size={16} /></button>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed top-6 right-6 z-[200] flex items-center gap-3 bg-red-600 text-white px-5 py-4 rounded-2xl shadow-2xl no-print">
+            <AlertCircle size={20} />
+            <p className="text-xs font-bold">{error}</p>
+            <button onClick={() => setError(null)}><X size={16} /></button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* SIDEBAR */}
-      <aside className="w-[400px] bg-white border-r border-amber-100 flex flex-col z-40 shadow-xl h-full overflow-hidden shrink-0 no-print">
-        <div className="p-8 pb-4 shrink-0 border-b border-amber-50">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.4em] text-amber-600 mb-1">Gestion</h2>
-          <h3 className="text-2xl font-luxury italic">Liste des Confirmés</h3>
-          <div className="flex gap-1 mt-6 p-1 bg-slate-50 rounded-lg">
-            {['all', 'partenaire_1', 'partenaire_2', 'commun'].map((s) => (
-              <button key={s} onClick={() => setFilterSide(s)} className={`flex-1 py-2 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all ${filterSide === s ? 'bg-white shadow-sm text-amber-600' : 'text-slate-400 hover:text-slate-600'}`}>
-                {s === 'all' ? 'Tous' : s === 'partenaire_1' ? 'Marié' : s === 'partenaire_2' ? 'Mariée' : 'Commun'}
-              </button>
-            ))}
-          </div>
-          <div className="relative mt-4">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-            <input className="w-full pl-10 pr-4 py-3 bg-slate-50 rounded-xl border-none text-[11px] font-bold outline-none focus:ring-1 focus:ring-amber-400" placeholder="Rechercher..." onChange={(e) => setSearchTerm(e.target.value)} />
+      {/* HEADER PRINCIPAL */}
+      <header className="bg-white border-b border-amber-100/80 px-8 py-4 flex justify-between items-center z-30 shadow-sm shrink-0 no-print">
+        <div className="flex items-center gap-5">
+          <button onClick={() => router.push('/dashboard')} className="p-2.5 bg-slate-50 text-slate-500 hover:text-amber-600 rounded-xl transition-all border border-slate-200">
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-luxury font-bold text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
+              <span className="bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+                <Users size={14} className="text-amber-600" />
+                {totalAssignedGuests} / {totalReceptionGuests} Placé(s)
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-3 custom-scrollbar bg-slate-50/30">
-          {guests.filter(g => !g.table_id && (filterSide === "all" || g.side === filterSide) && (g.name || g.nom || "").toLowerCase().includes(searchTerm.toLowerCase())).map(guest => {
-            const groupSize = parseInt(guest.guests_count) || 1;
-            const category = getGuestCategory(guest);
+
+        {/* SWITCHER DE VUES + ACTIONS */}
+        <div className="flex items-center gap-4">
+          <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
+            <button onClick={() => setViewMode('grid')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'grid' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              <Grid size={15} /> Vue Cartes (Pratique)
+            </button>
+            <button onClick={() => setViewMode('canvas')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'canvas' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              <Layout size={15} /> Plan Visuel (Salle)
+            </button>
+          </div>
+
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-md">
+            <Printer size={15} /> Feuille de Route PCO
+          </button>
+
+          <button onClick={() => setShowAddModal({ show: true, shape: 'circle' })} className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-md">
+            <Plus size={16} /> Ajouter une Table
+          </button>
+        </div>
+      </header>
+
+      {/* CONTENU PRINCIPAL HORS IMPRESSION */}
+      <div className="flex-1 flex overflow-hidden no-print">
+        {/* PANNEAU GAUCHE : INVITÉS NON PLACÉS */}
+        <aside className="w-96 bg-white border-r border-amber-100 flex flex-col shrink-0">
+          <div className="p-5 border-b border-amber-50 bg-slate-50/50">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Non placés</h3>
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {guests.filter(g => !g.table_id).length} fiche(s)
+              </span>
+            </div>
+
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input className="w-full pl-9 pr-3 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium outline-none focus:border-amber-400" placeholder="Rechercher par nom..." onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+
+            {/* FILTRES PAR CÔTÉ & CATEGORIE */}
+            <div className="space-y-2">
+              <div className="flex gap-1 bg-white p-1 rounded-lg border border-slate-200">
+                {['all', 'partenaire_1', 'partenaire_2'].map((s) => (
+                  <button key={s} onClick={() => setFilterSide(s)} className={`flex-1 py-1 rounded text-[9px] font-bold uppercase transition-all ${filterSide === s ? 'bg-amber-500 text-white' : 'text-slate-500'}`}>
+                    {s === 'all' ? 'Tous' : s === 'partenaire_1' ? 'Marié' : 'Mariée'}
+                  </button>
+                ))}
+              </div>
+
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700 outline-none">
+                <option value="all">Toutes les mentions (Amis, Parents...)</option>
+                {categoriesList.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/30">
+            {guests.filter(g => !g.table_id && 
+              (filterSide === "all" || g.side === filterSide) && 
+              (filterCategory === "all" || getGuestCategory(g) === filterCategory) &&
+              (g.name || g.nom || "").toLowerCase().includes(searchTerm.toLowerCase())
+            ).map(guest => {
+              const groupSize = parseInt(guest.guests_count) || 1;
+              return (
+                <div key={guest.id} className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-300 transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-bold text-xs text-slate-800">{guest.name || guest.nom}</p>
+                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[8px] font-bold border border-slate-200">
+                      {getGuestCategory(guest)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                      <Users size={10} /> {groupSize} personne(s)
+                    </span>
+                    <select onChange={(e) => assignGuest(guest.id, e.target.value)} className="text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 rounded-lg p-1.5 outline-none cursor-pointer">
+                      <option value="">Placer sur...</option>
+                      {tables.map(t => {
+                        const remaining = t.capacity - getTableOccupancy(t.id);
+                        return (
+                          <option key={t.id} value={t.id} disabled={remaining < groupSize}>
+                            {t.name} ({remaining} p. libres)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* ZONE DE GESTION DES TABLES */}
+        <main className="flex-1 bg-[#FAF8F5] overflow-y-auto p-8 custom-scrollbar">
+          {viewMode === 'grid' ? (
+            /* VUE GRILLE ULTRA ERGONOMIQUE */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+              {tables.map(table => {
+                const tableGuests = guests.filter(g => g.table_id === table.id);
+                const currentOccupancy = getTableOccupancy(table.id);
+                const isFull = currentOccupancy >= table.capacity;
+
+                return (
+                  <div key={table.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col overflow-hidden">
+                    {/* EN-TÊTE TABLE */}
+                    <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                      <div>
+                        <input className="font-luxury font-bold text-slate-800 text-base bg-transparent outline-none focus:border-b focus:border-amber-400" defaultValue={table.name} onBlur={(e) => supabase.from('tables').update({ name: e.target.value }).eq('id', table.id)} />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{table.shape === 'circle' ? 'Table Ronde' : 'Table Rectangulaire'}</p>
+                      </div>
+                      <button onClick={() => deleteTable(table.id)} className="text-slate-300 hover:text-red-500 p-1.5 rounded-lg transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* BARRE DE REMPLISSAGE */}
+                    <div className="px-4 py-2 bg-slate-50 flex items-center justify-between border-b border-slate-100 text-xs">
+                      <span className="font-bold text-slate-600">Remplissage</span>
+                      <span className={`font-extrabold ${isFull ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {currentOccupancy} / {table.capacity} p.
+                      </span>
+                    </div>
+
+                    {/* LISTE DES OCCUPANTS DE LA TABLE */}
+                    <div className="p-4 flex-1 space-y-2 min-h-[160px] max-h-[260px] overflow-y-auto custom-scrollbar">
+                      {tableGuests.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-300 py-6">
+                          <UserPlus size={24} className="mb-1" />
+                          <p className="text-xs font-semibold">Table vide</p>
+                        </div>
+                      ) : (
+                        tableGuests.map(g => (
+                          <div key={g.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between group">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-xs text-slate-800">{g.name || g.nom}</span>
+                                <span className="text-[9px] bg-white px-1.5 py-0.5 rounded text-slate-500 font-bold border border-slate-200">{getGuestCategory(g)}</span>
+                              </div>
+                              <p className="text-[9px] text-slate-400 font-semibold mt-0.5">{getSideLabel(g.side)} • {g.guests_count || 1} couvert(s)</p>
+                            </div>
+                            <button onClick={() => assignGuest(g.id, null)} className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* VUE CANEVAS VISUEL */
+            <div className="w-full h-[700px] bg-white rounded-3xl border border-slate-200 relative overflow-hidden">
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }} className="w-[3000px] h-[3000px] relative p-10">
+                {tables.map((table) => {
+                  const tableGuests = guests.filter(g => g.table_id === table.id);
+                  const currentOccupancy = getTableOccupancy(table.id);
+                  return (
+                    <motion.div key={table.id} drag dragMomentum={false} 
+                      onDragEnd={(e, info) => {
+                        supabase.from('tables').update({ position_x: info.point.x, position_y: info.point.y }).eq('id', table.id);
+                      }}
+                      style={{ x: table.position_x || 100, y: table.position_y || 100 }}
+                      className="absolute cursor-grab active:cursor-grabbing"
+                    >
+                      <div className={`bg-white border-2 border-amber-300 shadow-xl flex flex-col items-center justify-center p-4 ${table.shape === 'circle' ? 'rounded-full w-64 h-64' : 'rounded-3xl w-72 h-52'}`}>
+                        <p className="font-luxury font-bold text-slate-800 text-sm">{table.name}</p>
+                        <p className="text-[10px] font-black text-amber-600 mb-2">{currentOccupancy} / {table.capacity} P.</p>
+                        <div className="flex flex-wrap gap-1 justify-center max-h-24 overflow-y-auto">
+                          {tableGuests.map(g => (
+                            <span key={g.id} className="text-[8px] bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded font-bold text-slate-700">
+                              {g.name || g.nom} ({getGuestCategory(g)})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* DOCUMENT D'IMPRESSION POUR LE PCO (Caché à l'écran, visible uniquement à l'impression) */}
+      <div id="pco-print-zone" className="hidden p-8 bg-white font-ui text-black">
+        <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
+          <div>
+            <h1 className="text-2xl font-bold uppercase tracking-wider">Feuille de Route PCO - Plan de Table</h1>
+            <p className="text-sm font-medium text-slate-600">Mariage : {marriage?.partner_1_name} & {marriage?.partner_2_name}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold">Date : {marriage?.wedding_date}</p>
+            <p className="text-xs font-bold">Total Réception : {totalReceptionGuests} Invités</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          {tables.map(table => {
+            const tableGuests = guests.filter(g => g.table_id === table.id);
+            const currentOccupancy = getTableOccupancy(table.id);
 
             return (
-              <div key={guest.id} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm relative group">
-                <div className="flex items-center gap-1.5 absolute top-2 right-2">
-                  <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[7px] font-bold uppercase border border-slate-200 flex items-center gap-1">
-                    <Tag size={8} /> {category}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded text-[7px] font-bold uppercase border ${getSideColor(guest.side)}`}>
-                    {getSideLabel(guest.side)}
+              <div key={table.id} className="border border-slate-400 rounded-lg p-4 break-inside-avoid">
+                <div className="flex justify-between items-center border-b border-slate-300 pb-2 mb-3">
+                  <h3 className="font-bold text-base">{table.name}</h3>
+                  <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                    {currentOccupancy} / {table.capacity} Couverts
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 mb-3 pr-24 mt-2">
-                  <p className="font-bold text-[11px] text-slate-800">{guest.name || guest.nom}</p>
-                  {groupSize > 1 && (
-                    <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1">
-                      <Users size={8} /> {groupSize}
-                    </span>
-                  )}
-                </div>
-                <select onChange={(e) => assignGuest(guest.id, e.target.value)} className="w-full text-[10px] font-bold bg-slate-50 rounded-lg p-2 outline-none">
-                  <option value="">Placer...</option>
-                  {tables.map(t => {
-                    const remaining = t.capacity - getTableOccupancy(t.id);
-                    return (
-                      <option key={t.id} value={t.id} disabled={remaining < groupSize}>
-                        {t.name} ({remaining} places libres)
-                      </option>
-                    );
-                  })}
-                </select>
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-1">Nom / Groupe</th>
+                      <th className="py-1">Catégorie</th>
+                      <th className="py-1">Côté</th>
+                      <th className="py-1 text-right">Couverts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableGuests.map(g => (
+                      <tr key={g.id} className="border-b border-slate-100">
+                        <td className="py-1.5 font-bold">{g.name || g.nom}</td>
+                        <td className="py-1.5">{getGuestCategory(g)}</td>
+                        <td className="py-1.5">{getSideLabel(g.side)}</td>
+                        <td className="py-1.5 text-right font-bold">{g.guests_count || 1}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             );
           })}
         </div>
-      </aside>
+      </div>
 
-      <main className="flex-1 flex flex-col relative overflow-hidden h-full">
-        {/* HEADER */}
-        <header className="h-28 bg-white/90 backdrop-blur-md border-b border-amber-100 flex justify-between items-center px-12 z-50 shrink-0 no-print">
-          <div className="flex items-center gap-6">
-            <button onClick={() => router.push('/dashboard')} className="p-3 bg-slate-50 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all border border-slate-100 shadow-sm group">
-              <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-luxury text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
-                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-[11px] font-black flex items-center gap-1.5 shadow-sm">
-                  <Users size={12} className="text-amber-600" /> Total Réception : {totalReceptionGuests}
-                </span>
-              </div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1 flex items-center gap-2">
-                  <Calendar size={12} className="text-amber-500" /> {marriage?.wedding_date}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* BOUTONS GENERATEURS AUTOMATIQUES */}
-            <div className="flex items-center bg-amber-50/50 rounded-full p-1 border border-amber-100 shadow-sm gap-1 no-print">
-              <button 
-                onClick={() => generateAutomaticLayout(8)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white text-amber-800 hover:bg-amber-100 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
-              >
-                <Sparkles size={12} className="text-amber-500" /> Générer (8p / Table)
-              </button>
-              <button 
-                onClick={() => generateAutomaticLayout(10)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white hover:bg-amber-700 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
-              >
-                <Sparkles size={12} /> Générer (10p / Table)
-              </button>
-            </div>
-
-            {/* BOUTON IMPRIMER */}
-            <button onClick={() => window.print()} className="flex items-center gap-2 px-5 py-3 bg-white border border-amber-200 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-all shadow-sm">
-              <Printer size={14} /> Imprimer
-            </button>
-            
-            {/* PANNEAU ZOOM */}
-            <div className="flex items-center bg-white rounded-full p-1 border border-amber-100 shadow-sm">
-              <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-2 text-slate-400 hover:text-amber-600"><ZoomOut size={18}/></button>
-              <span className="text-[10px] font-black w-12 text-center text-slate-600">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-2 text-slate-400 hover:text-amber-600"><ZoomIn size={18}/></button>
-            </div>
-            
-            <div className="flex gap-2">
-              <button onClick={() => { setNewTableData({ name: '', capacity: 10 }); setShowAddModal({show: true, shape: 'circle'}); }} className="bg-white border border-amber-200 text-amber-700 px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-amber-50 transition-colors">+ Ronde</button>
-              <button onClick={() => { setNewTableData({ name: '', capacity: 10 }); setShowAddModal({show: true, shape: 'rectangle'}); }} className="bg-slate-900 text-white px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-colors">+ Rectangulaire</button>
-            </div>
-          </div>
-        </header>
-
-        {/* CANEVAS INTERACTIF */}
-        <div 
-          ref={containerRef}
-          className={`flex-1 relative overflow-hidden bg-[#FDFBF7] ${isPanning ? 'cursor-grabbing' : 'cursor-default'}`}
-          onMouseDown={(e) => { if (e.button === 1 || (e.button === 0 && e.altKey)) setIsPanning(true); }}
-          onMouseMove={(e) => { if (isPanning) setCameraPos(p => ({ x: p.x + e.movementX, y: p.y + e.movementY })); }}
-          onMouseUp={() => setIsPanning(false)}
-          onMouseLeave={() => setIsPanning(false)}
-        >
-          <motion.div 
-            style={{ 
-              x: cameraPos.x, y: cameraPos.y, scale: zoom,
-              backgroundImage: 'radial-gradient(#D4AF37 0.8px, transparent 0.8px)', backgroundSize: '80px 80px' 
-            }}
-            className="w-[10000px] h-[10000px] absolute top-0 left-0 origin-top-left canvas-container"
-          >
-            <AnimatePresence>
-              {tables.map((table) => {
-                const tableGuests = guests.filter(g => g.table_id === table.id);
-                const currentOccupancy = getTableOccupancy(table.id);
-                return (
-                  <motion.div key={table.id} drag dragMomentum={false} 
-                    onDragEnd={(e, info) => {
-                        const x = (info.point.x - cameraPos.x) / zoom;
-                        const y = (info.point.y - cameraPos.y) / zoom;
-                        supabase.from('tables').update({ position_x: x, position_y: y }).eq('id', table.id);
-                        setTables(prev => prev.map(t => t.id === table.id ? { ...t, position_x: x, position_y: y } : t));
-                    }} 
-                    style={{ x: table.position_x, y: table.position_y }}
-                    className="absolute z-10 group"
-                  >
-                    <div className={`table-card bg-white shadow-xl flex flex-col items-center justify-center p-6 border border-amber-50 cursor-grab active:cursor-grabbing transition-all hover:border-amber-300 relative ${table.shape === 'circle' ? 'rounded-full w-72 h-72' : 'rounded-[2rem] w-80 h-60'}`}>
-                      <button onClick={() => deleteTable(table.id)} className="absolute -top-2 -right-2 bg-white text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full shadow-lg border border-red-50 opacity-0 group-hover:opacity-100 transition-all z-20 no-print">
-                        <Trash2 size={14} />
-                      </button>
-                      <input className="text-center font-luxury text-lg text-slate-800 bg-transparent border-none w-full" defaultValue={table.name} onBlur={(e) => supabase.from('tables').update({ name: e.target.value }).eq('id', table.id)} />
-                      
-                      <span className={`text-[9px] font-black uppercase tracking-widest mb-4 ${currentOccupancy > table.capacity ? 'text-red-600' : 'text-amber-600'}`}>
-                        {currentOccupancy} / {table.capacity} PLACES
-                      </span>
-
-                      <div className="flex flex-wrap justify-center gap-1 overflow-y-auto max-h-[120px] px-2 custom-scrollbar">
-                        {tableGuests.map(g => {
-                          const gCount = parseInt(g.guests_count) || 1;
-                          const category = getGuestCategory(g);
-
-                          return (
-                            <div key={g.id} onClick={() => assignGuest(g.id, null)} className={`text-[8px] font-bold px-2 py-1 rounded-md border cursor-pointer hover:bg-red-500 hover:text-white transition-all flex items-center gap-1 ${getSideColor(g.side)}`}>
-                              <span>{g.name || g.nom}</span>
-                              <span className="opacity-70 text-[7px] bg-white/50 px-1 rounded">({category})</span>
-                              {gCount > 1 && <span className="opacity-60 text-[7px]">x{gCount}</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
-        </div>
-      </main>
-
-      {/* MODAL AJOUT */}
+      {/* MODAL CREATION TABLE */}
       <AnimatePresence>
         {showAddModal.show && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[3rem] p-12 w-full max-w-md shadow-2xl border border-amber-100">
-              <h3 className="text-3xl font-luxury text-center mb-8">Nouvelle Table</h3>
-              <div className="space-y-6">
-                <input className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-sm outline-none focus:ring-1 focus:ring-amber-300 transition-all" placeholder="Nom de la table" value={newTableData.name} onChange={(e) => setNewTableData({...newTableData, name: e.target.value})} />
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
+              <h3 className="text-xl font-bold font-luxury mb-6 text-center">Ajouter une Table</h3>
+              <div className="space-y-4">
+                <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none" placeholder="Nom de la table (ex: Table Orchidée)" value={newTableData.name} onChange={(e) => setNewTableData({...newTableData, name: e.target.value})} />
+                <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none" placeholder="Capacité (ex: 10)" value={newTableData.capacity || ''} onChange={(e) => setNewTableData({...newTableData, capacity: parseInt(e.target.value) || 0})} />
                 
-                <input 
-                    type="number" 
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-sm outline-none focus:ring-1 focus:ring-amber-300 transition-all" 
-                    placeholder="Capacité (ex: 10)" 
-                    value={newTableData.capacity || ''} 
-                    onChange={(e) => {
-                        const val = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        setNewTableData({...newTableData, capacity: val});
-                    }} 
-                />
-
-                <div className="flex gap-4 pt-4">
-                  <button onClick={() => setShowAddModal({show: false, shape: 'circle'})} className="flex-1 font-bold text-slate-400 text-[11px] uppercase tracking-widest hover:text-slate-600 transition-colors">Annuler</button>
+                <div className="flex gap-3 pt-4">
+                  <button onClick={() => setShowAddModal({ show: false, shape: 'circle' })} className="flex-1 py-3 text-xs font-bold text-slate-400">Annuler</button>
                   <button onClick={async () => {
-                     const capacityToSend = newTableData.capacity <= 0 ? 10 : newTableData.capacity;
-                     const { data } = await supabase.from('tables').insert([{ marriage_id: marriage.id, name: newTableData.name || `Table ${tables.length + 1}`, capacity: capacityToSend, shape: showAddModal.shape, position_x: 200, position_y: 200 }]).select().single();
-                     if (data) { setTables([...tables, data]); setShowAddModal({ show: false, shape: 'circle' }); }
-                  }} className="flex-1 bg-amber-500 text-white py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-lg hover:bg-amber-600 transition-colors">Créer</button>
+                    const cap = newTableData.capacity <= 0 ? 10 : newTableData.capacity;
+                    const { data } = await supabase.from('tables').insert([{ marriage_id: marriage.id, name: newTableData.name || `Table ${tables.length + 1}`, capacity: cap, shape: showAddModal.shape }]).select().single();
+                    if (data) { setTables([...tables, data]); setShowAddModal({ show: false, shape: 'circle' }); }
+                  }} className="flex-1 bg-amber-500 text-white py-3 rounded-xl text-xs font-bold shadow-md">Créer la table</button>
                 </div>
               </div>
             </motion.div>
