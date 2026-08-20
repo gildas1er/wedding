@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Plus, Trash2, Search, Calendar, Loader2,
   Circle, Square, ZoomIn, ZoomOut, Sparkles, Move, 
-  AlertCircle, X, ArrowLeft, Printer, Users
+  AlertCircle, X, ArrowLeft, Printer, Users, Tag
 } from 'lucide-react';
 
 export default function SeatingPlannerV21() {
@@ -123,7 +123,6 @@ export default function SeatingPlannerV21() {
     try {
       setLoading(true);
       
-      // Trier par taille de groupe décroissante pour maximiser le remplissage des tables
       const sortedGuests = [...unassignedGuests].sort((a, b) => {
         const sizeA = parseInt(a.guests_count) || 1;
         const sizeB = parseInt(b.guests_count) || 1;
@@ -205,6 +204,11 @@ export default function SeatingPlannerV21() {
     return 'bg-purple-50 text-purple-700 border-purple-100';
   };
 
+  // Récupération dynamique de la mention d'invité (Amis, Collègues, Parents, etc.)
+  const getGuestCategory = (guest: any) => {
+    return guest.category || guest.relation || guest.group || 'Invité';
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4">
@@ -273,10 +277,20 @@ export default function SeatingPlannerV21() {
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-3 custom-scrollbar bg-slate-50/30">
           {guests.filter(g => !g.table_id && (filterSide === "all" || g.side === filterSide) && (g.name || g.nom || "").toLowerCase().includes(searchTerm.toLowerCase())).map(guest => {
             const groupSize = parseInt(guest.guests_count) || 1;
+            const category = getGuestCategory(guest);
+
             return (
               <div key={guest.id} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm relative group">
-                <span className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[7px] font-bold uppercase border ${getSideColor(guest.side)}`}>{getSideLabel(guest.side)}</span>
-                <div className="flex items-center gap-2 mb-3 pr-12">
+                <div className="flex items-center gap-1.5 absolute top-2 right-2">
+                  <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[7px] font-bold uppercase border border-slate-200 flex items-center gap-1">
+                    <Tag size={8} /> {category}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[7px] font-bold uppercase border ${getSideColor(guest.side)}`}>
+                    {getSideLabel(guest.side)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 mb-3 pr-24 mt-2">
                   <p className="font-bold text-[11px] text-slate-800">{guest.name || guest.nom}</p>
                   {groupSize > 1 && (
                     <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1">
@@ -401,9 +415,12 @@ export default function SeatingPlannerV21() {
                       <div className="flex flex-wrap justify-center gap-1 overflow-y-auto max-h-[120px] px-2 custom-scrollbar">
                         {tableGuests.map(g => {
                           const gCount = parseInt(g.guests_count) || 1;
+                          const category = getGuestCategory(g);
+
                           return (
                             <div key={g.id} onClick={() => assignGuest(g.id, null)} className={`text-[8px] font-bold px-2 py-1 rounded-md border cursor-pointer hover:bg-red-500 hover:text-white transition-all flex items-center gap-1 ${getSideColor(g.side)}`}>
-                              {g.name || g.nom}
+                              <span>{g.name || g.nom}</span>
+                              <span className="opacity-70 text-[7px] bg-white/50 px-1 rounded">({category})</span>
                               {gCount > 1 && <span className="opacity-60 text-[7px]">x{gCount}</span>}
                             </div>
                           );
