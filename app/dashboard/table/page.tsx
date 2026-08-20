@@ -69,6 +69,9 @@ export default function SeatingPlannerV21() {
     }
   };
 
+  // Calcul du total de couverts de tous les invités confirmés à la réception
+  const totalReceptionGuests = guests.reduce((sum, g) => sum + (parseInt(g.guests_count) || 1), 0);
+
   // Calcule l'occupation réelle d'une table en sommant les guests_count
   const getTableOccupancy = (tableId: string) => {
     return guests
@@ -306,7 +309,12 @@ export default function SeatingPlannerV21() {
               <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
             </button>
             <div>
-              <h1 className="text-3xl font-luxury text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-luxury text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
+                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-[11px] font-black flex items-center gap-1.5 shadow-sm">
+                  <Users size={12} className="text-amber-600" /> Total Réception : {totalReceptionGuests}
+                </span>
+              </div>
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1 flex items-center gap-2">
                   <Calendar size={12} className="text-amber-500" /> {marriage?.wedding_date}
               </p>
