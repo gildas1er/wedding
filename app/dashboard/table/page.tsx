@@ -56,7 +56,8 @@ export default function SeatingPlannerV21() {
           supabase.from('invite')
             .select('*')
             .eq('marriage_id', mData.id)
-            .eq('status', 'confirmé') 
+            .eq('status', 'confirmé')
+            .eq('attending_reception', true) 
         ]);
         setTables(tRes.data || []);
         setGuests(gRes.data || []);
