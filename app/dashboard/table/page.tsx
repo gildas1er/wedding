@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Trash2, Search, Loader2, ZoomIn, ZoomOut, Crown,
-  AlertCircle, X, ArrowLeft, Printer, Users, Grid, Layout,
+  X, ArrowLeft, Printer, Users, Grid, Layout,
   Disc, Compass
 } from 'lucide-react';
 
@@ -173,7 +173,7 @@ export default function SeatingPlannerV24() {
     return (
       <div className="h-screen w-screen bg-[#FCFBF7] flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-amber-600" size={40} />
-        <p className="font-luxury italic text-xl text-slate-800">Mise à jour du design VIP...</p>
+        <p className="font-luxury italic text-xl text-slate-800">Chargement...</p>
       </div>
     );
   }
@@ -193,10 +193,35 @@ export default function SeatingPlannerV24() {
         }
         
         @media print {
-          body * { visibility: hidden; }
-          #pco-print-zone, #pco-print-zone * { visibility: visible; }
-          #pco-print-zone { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
-          .no-print { display: none !important; }
+          body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+          }
+          body * { 
+            visibility: hidden; 
+          }
+          #pco-print-zone, #pco-print-zone * { 
+            visibility: visible; 
+          }
+          #pco-print-zone { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            display: block !important; 
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print { 
+            display: none !important; 
+          }
+          .print-card {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            display: inline-block !important;
+            width: 100% !important;
+            margin-bottom: 1.5rem !important;
+          }
         }
       `}} />
 
@@ -237,7 +262,7 @@ export default function SeatingPlannerV24() {
         </div>
       </header>
 
-      {/* CONTENU */}
+      {/* CONTENU principal */}
       <div className="flex-1 flex overflow-hidden no-print">
         {/* PANEL GAUCHE */}
         <aside className="w-96 bg-white border-r border-amber-100 flex flex-col shrink-0">
@@ -308,7 +333,7 @@ export default function SeatingPlannerV24() {
           </div>
         </aside>
 
-        {/* CANEVAS INTERACTIF HAUT DE GAMME ET VUE CARTES */}
+        {/* CANEVAS INTERACTIF & VUE CARTES */}
         <main className="flex-1 bg-[#F7F5EF] relative overflow-hidden flex flex-col">
           {viewMode === 'canvas' && (
             <>
@@ -352,7 +377,6 @@ export default function SeatingPlannerV24() {
                   }}
                   className="w-[4500px] h-[3500px] absolute top-0 left-0 transition-transform duration-75"
                 >
-                  {/* PISTE DE DANSE ELEGANTE */}
                   <motion.div 
                     drag 
                     dragMomentum={false}
@@ -365,7 +389,6 @@ export default function SeatingPlannerV24() {
                     <span className="text-[9px] font-extrabold text-amber-700/80 uppercase tracking-wider">Espace Réception & Bal</span>
                   </motion.div>
 
-                  {/* TABLES DESIGN HAUT DE GAMME */}
                   {tables.map((table) => {
                     const tableGuests = guests.filter(g => g.table_id === table.id);
                     const currentOccupancy = getTableOccupancy(table.id);
@@ -384,11 +407,9 @@ export default function SeatingPlannerV24() {
                         style={{ x: table.position_x || 200, y: table.position_y || 200 }}
                         className="absolute z-10 group"
                       >
-                        {/* CONTENEUR TABLE */}
                         <div className={`relative p-1 rounded-full transition-all duration-300 ${table.is_vip ? 'gold-vip-border p-1.5' : ''}`}>
                           <div className={`bg-white border-2 shadow-2xl flex flex-col items-center justify-between p-5 rounded-full w-72 h-72 cursor-grab active:cursor-grabbing transition-all ${table.is_vip ? 'border-amber-400 bg-amber-50/20' : 'border-amber-200 hover:border-amber-400'}`}>
                             
-                            {/* BOUTON VIP DYNAMIQUE */}
                             <button 
                               onClick={() => toggleVipStatus(table.id, table.is_vip)} 
                               title="Basculer statut VIP (Or)"
@@ -397,12 +418,10 @@ export default function SeatingPlannerV24() {
                               <Crown size={14} />
                             </button>
 
-                            {/* BOUTON SUPPRESSION */}
                             <button onClick={() => deleteTable(table.id)} className="absolute top-2 right-2 bg-white text-red-500 hover:bg-red-50 p-2 rounded-full shadow-md border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                               <Trash2 size={13} />
                             </button>
 
-                            {/* EN-TÊTE DE TABLE */}
                             <div className="text-center mt-2 px-4 w-full">
                               {table.is_vip && (
                                 <span className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm inline-flex items-center gap-1 mb-0.5">
@@ -419,7 +438,6 @@ export default function SeatingPlannerV24() {
                               </span>
                             </div>
 
-                            {/* LISTE DES OCCUPANTS AU CENTRE DU CERCLE */}
                             <div className="w-full flex-1 overflow-y-auto my-2 space-y-1 custom-scrollbar px-3 max-h-[105px]">
                               {tableGuests.length === 0 ? (
                                 <div className="h-full flex items-center justify-center">
@@ -440,7 +458,6 @@ export default function SeatingPlannerV24() {
                               )}
                             </div>
 
-                            {/* BARRE DE PROGRESSION EN BAS */}
                             <div className="w-4/5 bg-slate-100 h-2 rounded-full overflow-hidden mb-1 border border-slate-200">
                               <div className={`h-full transition-all duration-300 ${table.is_vip ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (currentOccupancy / table.capacity) * 100)}%` }} />
                             </div>
@@ -469,7 +486,6 @@ export default function SeatingPlannerV24() {
                         table.is_vip ? 'border-amber-400 ring-2 ring-amber-100/80 bg-amber-50/10' : 'border-slate-100'
                       }`}
                     >
-                      {/* BOUTONS D'ACTION (VIP et Suppression) */}
                       <div className="absolute -top-3 -right-3 flex gap-2">
                         <button 
                           onClick={() => toggleVipStatus(table.id, table.is_vip)} 
@@ -483,7 +499,6 @@ export default function SeatingPlannerV24() {
                         </button>
                       </div>
 
-                      {/* EN-TÊTE DE LA CARTE */}
                       <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 mt-2">
                         <div className="flex items-center gap-2">
                           {table.is_vip && <Crown size={18} className="text-amber-500" />}
@@ -500,7 +515,6 @@ export default function SeatingPlannerV24() {
                         </span>
                       </div>
 
-                      {/* LISTE DES INVITÉS AVEC CÔTÉ & CATÉGORIE */}
                       <div className="space-y-2.5">
                         {tableGuests.length === 0 ? (
                           <p className="text-xs text-slate-400 italic text-center py-4">Aucun invité assigné à cette table</p>
@@ -515,12 +529,10 @@ export default function SeatingPlannerV24() {
                                 <span className="font-bold text-slate-800 uppercase tracking-wide">{g.name || g.nom}</span>
                                 
                                 <div className="flex items-center gap-1.5">
-                                  {/* BOUTON SUPPRIMER INVITÉ DE LA TABLE */}
                                   <button onClick={() => assignGuest(g.id, null)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity mr-1">
                                     <X size={12} />
                                   </button>
 
-                                  {/* BADGE CÔTÉ (Marié / Mariée) */}
                                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase border ${
                                     isMarie 
                                       ? 'bg-blue-50 text-blue-700 border-blue-200' 
@@ -531,7 +543,6 @@ export default function SeatingPlannerV24() {
                                     {sideLabel}
                                   </span>
 
-                                  {/* BADGE CATÉGORIE */}
                                   <span className="text-[9px] font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md">
                                     {getGuestCategory(g)}
                                   </span>
@@ -550,7 +561,7 @@ export default function SeatingPlannerV24() {
         </main>
       </div>
 
-      {/* DOCUMENT IMPRESSION PCO */}
+      {/* DOCUMENT IMPRESSION PCO DECOUPE DE PAGE */}
       <div id="pco-print-zone" className="hidden p-8 bg-white font-ui text-black">
         <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
           <div>
@@ -563,41 +574,51 @@ export default function SeatingPlannerV24() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6 items-start">
           {tables.map(table => {
             const tableGuests = guests.filter(g => g.table_id === table.id);
             const currentOccupancy = getTableOccupancy(table.id);
 
             return (
-              <div key={table.id} className="border border-slate-400 rounded-lg p-4 break-inside-avoid">
-                <div className="flex justify-between items-center border-b border-slate-300 pb-2 mb-3">
-                  <h3 className="font-bold text-base flex items-center gap-1.5">
+              <div 
+                key={table.id} 
+                className="print-card border border-slate-300 rounded-2xl p-5 bg-white shadow-xs"
+                style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+              >
+                <div className="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
+                  <h3 className="font-bold text-base flex items-center gap-1.5 text-slate-900">
                     {table.is_vip && "⭐ [VIP] "}
                     {table.name}
                   </h3>
-                  <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                  <span className="text-xs font-extrabold bg-slate-100 text-slate-800 px-3 py-1 rounded-full border border-slate-200">
                     {currentOccupancy} / {table.capacity} Couverts
                   </span>
                 </div>
 
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-1">Nom / Groupe</th>
-                      <th className="py-1">Catégorie</th>
-                      <th className="py-1">Côté</th>
-                      <th className="py-1 text-right">Couverts</th>
+                    <tr className="border-b border-slate-200 text-slate-500 font-semibold">
+                      <th className="py-2 pr-2">Nom / Groupe</th>
+                      <th className="py-2 px-2">Catégorie</th>
+                      <th className="py-2 px-2">Côté</th>
+                      <th className="py-2 pl-2 text-right">Couverts</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tableGuests.map(g => (
-                      <tr key={g.id} className="border-b border-slate-100">
-                        <td className="py-1.5 font-bold">{g.name || g.nom}</td>
-                        <td className="py-1.5">{getGuestCategory(g)}</td>
-                        <td className="py-1.5">{getSideLabel(g.side)}</td>
-                        <td className="py-1.5 text-right font-bold">{g.guests_count || 1}</td>
+                    {tableGuests.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-3 text-center text-slate-400 italic">Aucun invité assigné</td>
                       </tr>
-                    ))}
+                    ) : (
+                      tableGuests.map(g => (
+                        <tr key={g.id} className="border-b border-slate-100">
+                          <td className="py-2 pr-2 font-bold text-slate-900">{g.name || g.nom}</td>
+                          <td className="py-2 px-2 text-slate-600">{getGuestCategory(g)}</td>
+                          <td className="py-2 px-2 text-slate-600">{getSideLabel(g.side)}</td>
+                          <td className="py-2 pl-2 text-right font-bold text-slate-900">{g.guests_count || 1}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
