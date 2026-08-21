@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Trash2, Search, Calendar, Loader2, ZoomIn, ZoomOut, Crown,
+  Plus, Trash2, Search, Loader2, ZoomIn, ZoomOut, Crown,
   AlertCircle, X, ArrowLeft, Printer, Users, Grid, Layout,
-  Disc, Compass, Star
+  Disc, Compass
 } from 'lucide-react';
 
 export default function SeatingPlannerV24() {
@@ -308,7 +308,7 @@ export default function SeatingPlannerV24() {
           </div>
         </aside>
 
-        {/* CANEVAS INTERACTIF HAUT DE GAMME */}
+        {/* CANEVAS INTERACTIF HAUT DE GAMME ET VUE CARTES */}
         <main className="flex-1 bg-[#F7F5EF] relative overflow-hidden flex flex-col">
           {viewMode === 'canvas' && (
             <>
@@ -384,7 +384,7 @@ export default function SeatingPlannerV24() {
                         style={{ x: table.position_x || 200, y: table.position_y || 200 }}
                         className="absolute z-10 group"
                       >
-                        {/* CONTENEUR TABLE (Ronde avec style VIP Or possible) */}
+                        {/* CONTENEUR TABLE */}
                         <div className={`relative p-1 rounded-full transition-all duration-300 ${table.is_vip ? 'gold-vip-border p-1.5' : ''}`}>
                           <div className={`bg-white border-2 shadow-2xl flex flex-col items-center justify-between p-5 rounded-full w-72 h-72 cursor-grab active:cursor-grabbing transition-all ${table.is_vip ? 'border-amber-400 bg-amber-50/20' : 'border-amber-200 hover:border-amber-400'}`}>
                             
@@ -456,29 +456,90 @@ export default function SeatingPlannerV24() {
           )}
 
           {viewMode === 'grid' && (
-            <div className="p-8 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            <div className="p-8 overflow-y-auto h-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto pb-20">
                 {tables.map(table => {
                   const tableGuests = guests.filter(g => g.table_id === table.id);
                   const currentOccupancy = getTableOccupancy(table.id);
+                  
                   return (
-                    <div key={table.id} className={`bg-white rounded-2xl border shadow-sm p-5 relative ${table.is_vip ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200'}`}>
-                      <div className="flex justify-between items-center border-b pb-3 mb-3">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => toggleVipStatus(table.id, table.is_vip)} className={`p-1.5 rounded-lg ${table.is_vip ? 'bg-amber-100 text-amber-600' : 'text-slate-300'}`}>
-                            <Crown size={16} />
-                          </button>
-                          <h3 className="font-luxury font-bold text-slate-800 text-lg">{table.name}</h3>
-                        </div>
-                        <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md">{currentOccupancy} / {table.capacity} p.</span>
+                    <div 
+                      key={table.id} 
+                      className={`bg-white rounded-3xl border shadow-sm p-6 relative transition-all ${
+                        table.is_vip ? 'border-amber-400 ring-2 ring-amber-100/80 bg-amber-50/10' : 'border-slate-100'
+                      }`}
+                    >
+                      {/* BOUTONS D'ACTION (VIP et Suppression) */}
+                      <div className="absolute -top-3 -right-3 flex gap-2">
+                        <button 
+                          onClick={() => toggleVipStatus(table.id, table.is_vip)} 
+                          title="Basculer VIP"
+                          className={`p-2 rounded-full shadow-md transition-all ${table.is_vip ? 'bg-amber-400 text-amber-950' : 'bg-white border border-slate-200 text-slate-400 hover:text-amber-500'}`}
+                        >
+                          <Crown size={14} />
+                        </button>
+                        <button onClick={() => deleteTable(table.id)} className="p-2 rounded-full shadow-md bg-white border border-slate-200 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
-                      <div className="space-y-2">
-                        {tableGuests.map(g => (
-                          <div key={g.id} className="text-xs p-2.5 bg-slate-50 rounded-xl flex justify-between items-center">
-                            <span className="font-bold text-slate-700">{g.name || g.nom}</span>
-                            <span className="font-bold text-amber-800 bg-amber-100/60 px-2 py-0.5 rounded text-[10px]">{getGuestCategory(g)}</span>
-                          </div>
-                        ))}
+
+                      {/* EN-TÊTE DE LA CARTE */}
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 mt-2">
+                        <div className="flex items-center gap-2">
+                          {table.is_vip && <Crown size={18} className="text-amber-500" />}
+                          <h3 className={`font-luxury font-bold text-xl ${
+                            table.is_vip 
+                              ? 'bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 bg-clip-text text-transparent' 
+                              : 'text-amber-600'
+                          }`}>
+                            {table.name}
+                          </h3>
+                        </div>
+                        <span className="text-xs font-extrabold text-amber-800 bg-amber-100/70 px-3 py-1 rounded-full">
+                          {currentOccupancy} / {table.capacity} p.
+                        </span>
+                      </div>
+
+                      {/* LISTE DES INVITÉS AVEC CÔTÉ & CATÉGORIE */}
+                      <div className="space-y-2.5">
+                        {tableGuests.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic text-center py-4">Aucun invité assigné à cette table</p>
+                        ) : (
+                          tableGuests.map(g => {
+                            const sideLabel = getSideLabel(g.side);
+                            const isMarie = g.side === 'partenaire_1';
+                            const isMariee = g.side === 'partenaire_2';
+
+                            return (
+                              <div key={g.id} className="text-xs p-3 bg-slate-50/80 rounded-2xl flex justify-between items-center hover:bg-slate-100/80 transition-all group">
+                                <span className="font-bold text-slate-800 uppercase tracking-wide">{g.name || g.nom}</span>
+                                
+                                <div className="flex items-center gap-1.5">
+                                  {/* BOUTON SUPPRIMER INVITÉ DE LA TABLE */}
+                                  <button onClick={() => assignGuest(g.id, null)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity mr-1">
+                                    <X size={12} />
+                                  </button>
+
+                                  {/* BADGE CÔTÉ (Marié / Mariée) */}
+                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase border ${
+                                    isMarie 
+                                      ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                      : isMariee 
+                                      ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                                  }`}>
+                                    {sideLabel}
+                                  </span>
+
+                                  {/* BADGE CATÉGORIE */}
+                                  <span className="text-[9px] font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md">
+                                    {getGuestCategory(g)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   );
