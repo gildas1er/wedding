@@ -1,15 +1,15 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Trash2, Search, Calendar, Loader2, ZoomIn, ZoomOut, Sparkles, 
-  AlertCircle, X, ArrowLeft, Printer, Users, Tag, Grid, Layout, UserPlus,
-  Move, Disc, Compass
+  Plus, Trash2, Search, Calendar, Loader2, ZoomIn, ZoomOut, Crown,
+  AlertCircle, X, ArrowLeft, Printer, Users, Grid, Layout,
+  Disc, Compass, Star
 } from 'lucide-react';
 
-export default function SeatingPlannerV23() {
+export default function SeatingPlannerV24() {
   const router = useRouter();
   const [tables, setTables] = useState<any[]>([]);
   const [guests, setGuests] = useState<any[]>([]);
@@ -17,10 +17,10 @@ export default function SeatingPlannerV23() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'canvas'>('canvas');
   
-  const [zoom, setZoom] = useState(0.8);
+  const [zoom, setZoom] = useState(0.85);
   const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [danceFloor, setDanceFloor] = useState({ x: 650, y: 350, width: 300, height: 200 });
+  const [danceFloor, setDanceFloor] = useState({ x: 700, y: 380, width: 320, height: 180 });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSide, setFilterSide] = useState<string>("all");
@@ -28,7 +28,7 @@ export default function SeatingPlannerV23() {
   
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState<{show: boolean, shape: 'circle' | 'rectangle'}>({ show: false, shape: 'circle' });
-  const [newTableData, setNewTableData] = useState({ name: '', capacity: 10 });
+  const [newTableData, setNewTableData] = useState({ name: '', capacity: 10, is_vip: false });
 
   useEffect(() => { loadData(); }, []);
 
@@ -76,6 +76,12 @@ export default function SeatingPlannerV23() {
       .reduce((sum, g) => sum + (parseInt(g.guests_count) || 1), 0);
   };
 
+  const toggleVipStatus = async (tableId: string, currentStatus: boolean) => {
+    const nextStatus = !currentStatus;
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, is_vip: nextStatus } : t));
+    await supabase.from('tables').update({ is_vip: nextStatus }).eq('id', tableId);
+  };
+
   const assignGuest = async (guestId: string, tableId: string | null) => {
     if (tableId) {
         const table = tables.find(t => t.id === tableId);
@@ -101,18 +107,14 @@ export default function SeatingPlannerV23() {
     }
   };
 
-  // ALGORITHME DE DISPOSITION DE SALLE
-  const applyLayoutPreset = async (preset: 'U' | 'square' | 'banquet' | 'double_line') => {
-    if (tables.length === 0) {
-      setError("Veuillez d'abord créer des tables avant d'appliquer une disposition.");
-      return;
-    }
+  const applyLayoutPreset = async (preset: 'U' | 'square' | 'double_line') => {
+    if (tables.length === 0) return;
 
     const updatedTables = [...tables];
-    const centerX = 800;
-    const centerY = 450;
-    const spacingX = 260;
-    const spacingY = 220;
+    const centerX = 850;
+    const centerY = 470;
+    const spacingX = 320;
+    const spacingY = 280;
 
     if (preset === 'U') {
       const count = updatedTables.length;
@@ -120,34 +122,31 @@ export default function SeatingPlannerV23() {
       const sideCount = Math.floor((count - topCount) / 2);
 
       let index = 0;
-      // Haut du U
       for (let i = 0; i < topCount && index < count; i++) {
         updatedTables[index].position_x = centerX - ((topCount - 1) * spacingX) / 2 + i * spacingX;
-        updatedTables[index].position_y = centerY - 250;
+        updatedTables[index].position_y = centerY - 320;
         index++;
       }
-      // Branche Gauche
       for (let i = 0; i < sideCount && index < count; i++) {
         updatedTables[index].position_x = centerX - ((topCount - 1) * spacingX) / 2;
-        updatedTables[index].position_y = centerY - 250 + (i + 1) * spacingY;
+        updatedTables[index].position_y = centerY - 320 + (i + 1) * spacingY;
         index++;
       }
-      // Branche Droite
       for (let i = 0; i < sideCount && index < count; i++) {
         updatedTables[index].position_x = centerX + ((topCount - 1) * spacingX) / 2;
-        updatedTables[index].position_y = centerY - 250 + (i + 1) * spacingY;
+        updatedTables[index].position_y = centerY - 320 + (i + 1) * spacingY;
         index++;
       }
-      setDanceFloor({ x: centerX - 125, y: centerY - 50, width: 250, height: 180 });
+      setDanceFloor({ x: centerX - 160, y: centerY - 60, width: 320, height: 220 });
 
     } else if (preset === 'square') {
-      const radius = Math.max(320, updatedTables.length * 45);
+      const radius = Math.max(380, updatedTables.length * 52);
       updatedTables.forEach((t, i) => {
         const angle = (i / updatedTables.length) * 2 * Math.PI;
         t.position_x = centerX + radius * Math.cos(angle);
         t.position_y = centerY + radius * Math.sin(angle);
       });
-      setDanceFloor({ x: centerX - 140, y: centerY - 100, width: 280, height: 200 });
+      setDanceFloor({ x: centerX - 160, y: centerY - 110, width: 320, height: 220 });
 
     } else if (preset === 'double_line') {
       const half = Math.ceil(updatedTables.length / 2);
@@ -155,14 +154,12 @@ export default function SeatingPlannerV23() {
         const row = i < half ? 0 : 1;
         const col = i % half;
         t.position_x = centerX - ((half - 1) * spacingX) / 2 + col * spacingX;
-        t.position_y = row === 0 ? centerY - 280 : centerY + 280;
+        t.position_y = row === 0 ? centerY - 300 : centerY + 300;
       });
-      setDanceFloor({ x: centerX - 180, y: centerY - 80, width: 360, height: 160 });
+      setDanceFloor({ x: centerX - 200, y: centerY - 90, width: 400, height: 180 });
     }
 
     setTables(updatedTables);
-
-    // Sauvegarde des nouvelles positions
     for (const t of updatedTables) {
       await supabase.from('tables').update({ position_x: t.position_x, position_y: t.position_y }).eq('id', t.id);
     }
@@ -170,26 +167,30 @@ export default function SeatingPlannerV23() {
 
   const getGuestCategory = (guest: any) => guest.category || guest.relation || guest.group || 'Invité';
   const getSideLabel = (side: string) => side === 'partenaire_1' ? 'Marié' : side === 'partenaire_2' ? 'Mariée' : 'Commun';
-  
   const categoriesList = Array.from(new Set(guests.map(g => getGuestCategory(g))));
 
   if (loading) {
     return (
-      <div className="h-screen w-screen bg-[#FAF8F5] flex flex-col items-center justify-center gap-4">
+      <div className="h-screen w-screen bg-[#FCFBF7] flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-amber-600" size={40} />
-        <p className="font-luxury italic text-xl text-slate-800">Chargement de la gestion des tables...</p>
+        <p className="font-luxury italic text-xl text-slate-800">Mise à jour du design VIP...</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-[#FAF8F5] flex flex-col font-ui overflow-hidden">
+    <div className="h-screen bg-[#FCFBF7] flex flex-col font-ui overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
         .font-luxury { font-family: 'Playfair Display', serif; }
         .font-ui { font-family: 'Montserrat', sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
+        
+        .gold-vip-border {
+          background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 25%, #B38728 50%, #FBF5B7 75%, #AA771C 100%);
+          box-shadow: 0 12px 30px -5px rgba(212, 175, 55, 0.4);
+        }
         
         @media print {
           body * { visibility: hidden; }
@@ -199,18 +200,7 @@ export default function SeatingPlannerV23() {
         }
       `}} />
 
-      {/* ALERTE */}
-      <AnimatePresence>
-        {error && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed top-6 right-6 z-[200] flex items-center gap-3 bg-red-600 text-white px-5 py-4 rounded-2xl shadow-2xl no-print">
-            <AlertCircle size={20} />
-            <p className="text-xs font-bold">{error}</p>
-            <button onClick={() => setError(null)}><X size={16} /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* HEADER PRINCIPAL */}
+      {/* HEADER */}
       <header className="bg-white border-b border-amber-100/80 px-8 py-4 flex justify-between items-center z-30 shadow-sm shrink-0 no-print">
         <div className="flex items-center gap-5">
           <button onClick={() => router.push('/dashboard')} className="p-2.5 bg-slate-50 text-slate-500 hover:text-amber-600 rounded-xl transition-all border border-slate-200">
@@ -227,11 +217,10 @@ export default function SeatingPlannerV23() {
           </div>
         </div>
 
-        {/* SWITCHER DE VUES + ACTIONS */}
         <div className="flex items-center gap-4">
           <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
             <button onClick={() => setViewMode('canvas')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'canvas' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-              <Layout size={15} /> Plan Visuel (Salle)
+              <Layout size={15} /> Plan Visuel Luxe
             </button>
             <button onClick={() => setViewMode('grid')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'grid' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               <Grid size={15} /> Vue Cartes
@@ -243,18 +232,18 @@ export default function SeatingPlannerV23() {
           </button>
 
           <button onClick={() => setShowAddModal({ show: true, shape: 'circle' })} className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-md">
-            <Plus size={16} /> Ajouter Table
+            <Plus size={16} /> Nouvelle Table
           </button>
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL */}
+      {/* CONTENU */}
       <div className="flex-1 flex overflow-hidden no-print">
-        {/* PANNEAU GAUCHE : INVITÉS NON PLACÉS */}
+        {/* PANEL GAUCHE */}
         <aside className="w-96 bg-white border-r border-amber-100 flex flex-col shrink-0">
           <div className="p-5 border-b border-amber-50 bg-slate-50/50">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Non placés</h3>
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Invités non placés</h3>
               <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
                 {guests.filter(g => !g.table_id).length} fiche(s)
               </span>
@@ -262,7 +251,7 @@ export default function SeatingPlannerV23() {
 
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-              <input className="w-full pl-9 pr-3 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium outline-none focus:border-amber-400" placeholder="Rechercher par nom..." onChange={(e) => setSearchTerm(e.target.value)} />
+              <input className="w-full pl-9 pr-3 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium outline-none focus:border-amber-400" placeholder="Rechercher..." onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
 
             <div className="space-y-2">
@@ -289,10 +278,10 @@ export default function SeatingPlannerV23() {
             ).map(guest => {
               const groupSize = parseInt(guest.guests_count) || 1;
               return (
-                <div key={guest.id} className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-300 transition-all">
-                  <div className="flex items-center justify-between mb-2">
+                <div key={guest.id} className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-300 transition-all">
+                  <div className="flex items-center justify-between mb-1.5">
                     <p className="font-bold text-xs text-slate-800">{guest.name || guest.nom}</p>
-                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[8px] font-bold border border-slate-200">
+                    <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[8px] font-bold border border-amber-200">
                       {getGuestCategory(guest)}
                     </span>
                   </div>
@@ -307,7 +296,7 @@ export default function SeatingPlannerV23() {
                         const remaining = t.capacity - getTableOccupancy(t.id);
                         return (
                           <option key={t.id} value={t.id} disabled={remaining < groupSize}>
-                            {t.name} ({remaining} p. libres)
+                            {t.is_vip ? '⭐ ' : ''}{t.name} ({remaining} p. libres)
                           </option>
                         );
                       })}
@@ -319,24 +308,24 @@ export default function SeatingPlannerV23() {
           </div>
         </aside>
 
-        {/* ZONE DE CANVAS VISUEL AVEC DISPOSITIONS AUTOMATIQUES */}
-        <main className="flex-1 bg-[#F5F2EB] relative overflow-hidden flex flex-col">
+        {/* CANEVAS INTERACTIF HAUT DE GAMME */}
+        <main className="flex-1 bg-[#F7F5EF] relative overflow-hidden flex flex-col">
           {viewMode === 'canvas' && (
             <>
-              {/* BARRE D'OUTILS DISPOSITIONS ET ZOOM */}
+              {/* TOOLBAR DISPOSITIONS */}
               <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-center pointer-events-none">
                 <div className="bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-amber-100/80 flex items-center gap-2 pointer-events-auto">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 px-2 flex items-center gap-1">
                     <Compass size={12} className="text-amber-500" /> Dispositions :
                   </span>
                   <button onClick={() => applyLayoutPreset('U')} className="px-3 py-1.5 bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 rounded-xl text-xs font-bold transition-all">
-                    Disposition en U
+                    En U
                   </button>
                   <button onClick={() => applyLayoutPreset('square')} className="px-3 py-1.5 bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 rounded-xl text-xs font-bold transition-all">
-                    Autour du Bal
+                    En Cercle
                   </button>
                   <button onClick={() => applyLayoutPreset('double_line')} className="px-3 py-1.5 bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 rounded-xl text-xs font-bold transition-all">
-                    Lignes Parallèles
+                    Parallèle
                   </button>
                 </div>
 
@@ -347,9 +336,9 @@ export default function SeatingPlannerV23() {
                 </div>
               </div>
 
-              {/* CANEVAS INTERACTIF */}
+              {/* ZONE DE DESSIN */}
               <div 
-                className={`flex-1 w-full h-full relative cursor-grab active:cursor-grabbing overflow-hidden`}
+                className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing overflow-hidden"
                 onMouseDown={(e) => { if (e.button === 0 && (e.target as HTMLElement).tagName === 'DIV') setIsPanning(true); }}
                 onMouseMove={(e) => { if (isPanning) setCameraPos(p => ({ x: p.x + e.movementX, y: p.y + e.movementY })); }}
                 onMouseUp={() => setIsPanning(false)}
@@ -358,25 +347,25 @@ export default function SeatingPlannerV23() {
                   style={{ 
                     transform: `translate(${cameraPos.x}px, ${cameraPos.y}px) scale(${zoom})`,
                     transformOrigin: '0 0',
-                    backgroundImage: 'radial-gradient(#D4AF37 0.7px, transparent 0.7px)',
-                    backgroundSize: '40px 40px'
+                    backgroundImage: 'radial-gradient(#C5A059 0.8px, transparent 0.8px)',
+                    backgroundSize: '45px 45px'
                   }}
-                  className="w-[4000px] h-[3000px] absolute top-0 left-0 transition-transform duration-75"
+                  className="w-[4500px] h-[3500px] absolute top-0 left-0 transition-transform duration-75"
                 >
-                  {/* PISTE DE DANSE */}
+                  {/* PISTE DE DANSE ELEGANTE */}
                   <motion.div 
                     drag 
                     dragMomentum={false}
                     onDragEnd={(e, info) => setDanceFloor(prev => ({ ...prev, x: prev.x + info.delta.x, y: prev.y + info.delta.y }))}
                     style={{ x: danceFloor.x, y: danceFloor.y, width: danceFloor.width, height: danceFloor.height }}
-                    className="absolute z-0 bg-gradient-to-br from-amber-100/80 via-amber-200/50 to-amber-100/80 border-2 border-dashed border-amber-400/80 rounded-3xl shadow-inner flex flex-col items-center justify-center p-4 cursor-move backdrop-blur-xs"
+                    className="absolute z-0 bg-gradient-to-br from-amber-100/90 via-amber-50/70 to-amber-200/80 border-2 border-dashed border-amber-400 rounded-3xl shadow-xl flex flex-col items-center justify-center p-4 cursor-move backdrop-blur-md"
                   >
-                    <Disc size={28} className="text-amber-600 mb-1 animate-spin-slow" />
-                    <p className="font-luxury font-bold text-amber-900 text-sm tracking-wider uppercase">Piste de Danse</p>
-                    <span className="text-[9px] font-bold text-amber-700/70 uppercase">Espace Réception</span>
+                    <Disc size={32} className="text-amber-600 mb-1 animate-spin-slow" />
+                    <p className="font-luxury font-bold text-amber-950 text-base tracking-widest uppercase">Piste de Danse</p>
+                    <span className="text-[9px] font-extrabold text-amber-700/80 uppercase tracking-wider">Espace Réception & Bal</span>
                   </motion.div>
 
-                  {/* TABLES SUR LE PLAN */}
+                  {/* TABLES DESIGN HAUT DE GAMME */}
                   {tables.map((table) => {
                     const tableGuests = guests.filter(g => g.table_id === table.id);
                     const currentOccupancy = getTableOccupancy(table.id);
@@ -395,30 +384,67 @@ export default function SeatingPlannerV23() {
                         style={{ x: table.position_x || 200, y: table.position_y || 200 }}
                         className="absolute z-10 group"
                       >
-                        <div className={`bg-white/95 backdrop-blur-md border-2 border-amber-200/90 shadow-xl flex flex-col items-center justify-between p-4 cursor-grab active:cursor-grabbing hover:border-amber-400 transition-all ${table.shape === 'circle' ? 'rounded-full w-64 h-64' : 'rounded-3xl w-72 h-52'}`}>
-                          
-                          <button onClick={() => deleteTable(table.id)} className="absolute -top-2 -right-2 bg-white text-red-500 hover:bg-red-50 p-1.5 rounded-full shadow-md border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Trash2 size={13} />
-                          </button>
+                        {/* CONTENEUR TABLE (Ronde avec style VIP Or possible) */}
+                        <div className={`relative p-1 rounded-full transition-all duration-300 ${table.is_vip ? 'gold-vip-border p-1.5' : ''}`}>
+                          <div className={`bg-white border-2 shadow-2xl flex flex-col items-center justify-between p-5 rounded-full w-72 h-72 cursor-grab active:cursor-grabbing transition-all ${table.is_vip ? 'border-amber-400 bg-amber-50/20' : 'border-amber-200 hover:border-amber-400'}`}>
+                            
+                            {/* BOUTON VIP DYNAMIQUE */}
+                            <button 
+                              onClick={() => toggleVipStatus(table.id, table.is_vip)} 
+                              title="Basculer statut VIP (Or)"
+                              className={`absolute top-2 left-2 p-2 rounded-full shadow-md transition-all z-20 ${table.is_vip ? 'bg-amber-400 text-amber-950 scale-110 ring-2 ring-amber-200' : 'bg-slate-100 text-slate-400 hover:text-amber-500'}`}
+                            >
+                              <Crown size={14} />
+                            </button>
 
-                          <div className="text-center mt-1">
-                            <input className="font-luxury font-bold text-slate-800 text-sm text-center bg-transparent outline-none" defaultValue={table.name} onBlur={(e) => supabase.from('tables').update({ name: e.target.value }).eq('id', table.id)} />
-                            <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block">
-                              {currentOccupancy} / {table.capacity} places
-                            </span>
-                          </div>
+                            {/* BOUTON SUPPRESSION */}
+                            <button onClick={() => deleteTable(table.id)} className="absolute top-2 right-2 bg-white text-red-500 hover:bg-red-50 p-2 rounded-full shadow-md border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                              <Trash2 size={13} />
+                            </button>
 
-                          <div className="w-full flex-1 overflow-y-auto my-2 space-y-1 custom-scrollbar px-1">
-                            {tableGuests.map(g => (
-                              <div key={g.id} className="text-[9px] font-bold bg-amber-50/80 border border-amber-100 text-slate-700 px-2 py-1 rounded-lg flex justify-between items-center">
-                                <span className="truncate max-w-[110px]">{g.name || g.nom}</span>
-                                <span className="text-[7px] text-amber-800 font-extrabold bg-amber-200/50 px-1 rounded">{getGuestCategory(g)}</span>
-                              </div>
-                            ))}
-                          </div>
+                            {/* EN-TÊTE DE TABLE */}
+                            <div className="text-center mt-2 px-4 w-full">
+                              {table.is_vip && (
+                                <span className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm inline-flex items-center gap-1 mb-0.5">
+                                  <Crown size={9} /> Table VIP
+                                </span>
+                              )}
+                              <input 
+                                className="font-luxury font-bold text-slate-900 text-base text-center bg-transparent outline-none w-full" 
+                                defaultValue={table.name} 
+                                onBlur={(e) => supabase.from('tables').update({ name: e.target.value }).eq('id', table.id)} 
+                              />
+                              <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${currentOccupancy > table.capacity ? 'text-red-500' : 'text-amber-700'}`}>
+                                {currentOccupancy} / {table.capacity} PLACES
+                              </span>
+                            </div>
 
-                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-amber-500 h-full transition-all duration-300" style={{ width: `${Math.min(100, (currentOccupancy / table.capacity) * 100)}%` }} />
+                            {/* LISTE DES OCCUPANTS AU CENTRE DU CERCLE */}
+                            <div className="w-full flex-1 overflow-y-auto my-2 space-y-1 custom-scrollbar px-3 max-h-[105px]">
+                              {tableGuests.length === 0 ? (
+                                <div className="h-full flex items-center justify-center">
+                                  <p className="text-[10px] font-bold text-slate-300 italic">Aucun invité placé</p>
+                                </div>
+                              ) : (
+                                tableGuests.map(g => (
+                                  <div key={g.id} className="text-[9px] font-bold bg-white/90 border border-slate-100 shadow-2xs text-slate-800 px-2.5 py-1 rounded-lg flex justify-between items-center group/item">
+                                    <span className="truncate max-w-[110px]">{g.name || g.nom}</span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[7px] text-amber-800 font-extrabold bg-amber-100 px-1 rounded">{getGuestCategory(g)}</span>
+                                      <button onClick={() => assignGuest(g.id, null)} className="text-slate-300 hover:text-red-500 hidden group-hover/item:block">
+                                        <X size={10} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            {/* BARRE DE PROGRESSION EN BAS */}
+                            <div className="w-4/5 bg-slate-100 h-2 rounded-full overflow-hidden mb-1 border border-slate-200">
+                              <div className={`h-full transition-all duration-300 ${table.is_vip ? 'bg-gradient-to-r from-amber-400 to-yellow-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (currentOccupancy / table.capacity) * 100)}%` }} />
+                            </div>
+
                           </div>
                         </div>
                       </motion.div>
@@ -436,16 +462,21 @@ export default function SeatingPlannerV23() {
                   const tableGuests = guests.filter(g => g.table_id === table.id);
                   const currentOccupancy = getTableOccupancy(table.id);
                   return (
-                    <div key={table.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                      <div className="flex justify-between items-center border-b pb-2 mb-3">
-                        <h3 className="font-luxury font-bold text-slate-800">{table.name}</h3>
-                        <span className="text-xs font-bold text-amber-600">{currentOccupancy} / {table.capacity} p.</span>
+                    <div key={table.id} className={`bg-white rounded-2xl border shadow-sm p-5 relative ${table.is_vip ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200'}`}>
+                      <div className="flex justify-between items-center border-b pb-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleVipStatus(table.id, table.is_vip)} className={`p-1.5 rounded-lg ${table.is_vip ? 'bg-amber-100 text-amber-600' : 'text-slate-300'}`}>
+                            <Crown size={16} />
+                          </button>
+                          <h3 className="font-luxury font-bold text-slate-800 text-lg">{table.name}</h3>
+                        </div>
+                        <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md">{currentOccupancy} / {table.capacity} p.</span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {tableGuests.map(g => (
-                          <div key={g.id} className="text-xs p-2 bg-slate-50 rounded-lg flex justify-between">
-                            <span>{g.name || g.nom}</span>
-                            <span className="font-bold text-amber-700">{getGuestCategory(g)}</span>
+                          <div key={g.id} className="text-xs p-2.5 bg-slate-50 rounded-xl flex justify-between items-center">
+                            <span className="font-bold text-slate-700">{g.name || g.nom}</span>
+                            <span className="font-bold text-amber-800 bg-amber-100/60 px-2 py-0.5 rounded text-[10px]">{getGuestCategory(g)}</span>
                           </div>
                         ))}
                       </div>
@@ -458,7 +489,7 @@ export default function SeatingPlannerV23() {
         </main>
       </div>
 
-      {/* DOCUMENT D'IMPRESSION PCO */}
+      {/* DOCUMENT IMPRESSION PCO */}
       <div id="pco-print-zone" className="hidden p-8 bg-white font-ui text-black">
         <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
           <div>
@@ -479,7 +510,10 @@ export default function SeatingPlannerV23() {
             return (
               <div key={table.id} className="border border-slate-400 rounded-lg p-4 break-inside-avoid">
                 <div className="flex justify-between items-center border-b border-slate-300 pb-2 mb-3">
-                  <h3 className="font-bold text-base">{table.name}</h3>
+                  <h3 className="font-bold text-base flex items-center gap-1.5">
+                    {table.is_vip && "⭐ [VIP] "}
+                    {table.name}
+                  </h3>
                   <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                     {currentOccupancy} / {table.capacity} Couverts
                   </span>
@@ -521,11 +555,23 @@ export default function SeatingPlannerV23() {
                 <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none" placeholder="Nom de la table (ex: Table Orchidée)" value={newTableData.name} onChange={(e) => setNewTableData({...newTableData, name: e.target.value})} />
                 <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none" placeholder="Capacité (ex: 10)" value={newTableData.capacity || ''} onChange={(e) => setNewTableData({...newTableData, capacity: parseInt(e.target.value) || 0})} />
                 
+                <label className="flex items-center gap-3 p-3 bg-amber-50/60 rounded-xl cursor-pointer border border-amber-200">
+                  <input 
+                    type="checkbox" 
+                    checked={newTableData.is_vip} 
+                    onChange={(e) => setNewTableData({ ...newTableData, is_vip: e.target.checked })} 
+                    className="w-4 h-4 accent-amber-500 rounded"
+                  />
+                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <Crown size={14} className="text-amber-600" /> Marquer cette table comme VIP (Or)
+                  </span>
+                </label>
+
                 <div className="flex gap-3 pt-4">
                   <button onClick={() => setShowAddModal({ show: false, shape: 'circle' })} className="flex-1 py-3 text-xs font-bold text-slate-400">Annuler</button>
                   <button onClick={async () => {
                     const cap = newTableData.capacity <= 0 ? 10 : newTableData.capacity;
-                    const { data } = await supabase.from('tables').insert([{ marriage_id: marriage.id, name: newTableData.name || `Table ${tables.length + 1}`, capacity: cap, shape: showAddModal.shape, position_x: 750, position_y: 200 }]).select().single();
+                    const { data } = await supabase.from('tables').insert([{ marriage_id: marriage.id, name: newTableData.name || `Table ${tables.length + 1}`, capacity: cap, shape: showAddModal.shape, is_vip: newTableData.is_vip, position_x: 850, position_y: 200 }]).select().single();
                     if (data) { setTables([...tables, data]); setShowAddModal({ show: false, shape: 'circle' }); }
                   }} className="flex-1 bg-amber-500 text-white py-3 rounded-xl text-xs font-bold shadow-md">Créer la table</button>
                 </div>
