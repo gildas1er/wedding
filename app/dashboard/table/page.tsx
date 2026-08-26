@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Plus, Trash2, Search, Loader2, ZoomIn, ZoomOut, Crown,
   X, ArrowLeft, Printer, Users, Grid, Layout,
-  Disc, Compass
+  Disc, Compass, FileText
 } from 'lucide-react';
 
 export default function SeatingPlannerV24() {
@@ -165,6 +165,89 @@ export default function SeatingPlannerV24() {
     }
   };
 
+  const downloadWordPCO = () => {
+    let tablesContentHtml = '';
+
+    tables.forEach(table => {
+      const tableGuests = guests.filter(g => g.table_id === table.id);
+      const currentOccupancy = getTableOccupancy(table.id);
+
+      let rowsHtml = '';
+      if (tableGuests.length === 0) {
+        rowsHtml = `
+          <tr>
+            <td colspan="4" style="padding: 8px; text-align: center; color: #888888; font-style: italic; border: 1px solid #dddddd;">Aucun invité assigné</td>
+          </tr>
+        `;
+      } else {
+        tableGuests.forEach(g => {
+          rowsHtml += `
+            <tr>
+              <td style="padding: 8px; font-weight: bold; border: 1px solid #dddddd; color: #111827;">${g.name || g.nom || ''}</td>
+              <td style="padding: 8px; border: 1px solid #dddddd; color: #4b5563;">${getGuestCategory(g)}</td>
+              <td style="padding: 8px; border: 1px solid #dddddd; color: #4b5563;">${getSideLabel(g.side)}</td>
+              <td style="padding: 8px; text-align: right; font-weight: bold; border: 1px solid #dddddd; color: #111827;">${g.guests_count || 1}</td>
+            </tr>
+          `;
+        });
+      }
+
+      tablesContentHtml += `
+        <div style="margin-bottom: 30px; page-break-inside: avoid;">
+          <h2 style="font-size: 14pt; color: #0f172a; margin-bottom: 5px; font-family: Arial, sans-serif;">
+            ${table.is_vip ? '⭐ [VIP] ' : ''}${table.name} 
+            <span style="font-size: 10pt; font-weight: normal; color: #475569;">(${currentOccupancy} / ${table.capacity} Couverts)</span>
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 10pt;">
+            <thead>
+              <tr style="background-color: #f1f5f9; text-align: left;">
+                <th style="padding: 8px; border: 1px solid #dddddd; color: #334155;">Nom / Groupe</th>
+                <th style="padding: 8px; border: 1px solid #dddddd; color: #334155;">Catégorie</th>
+                <th style="padding: 8px; border: 1px solid #dddddd; color: #334155;">Côté</th>
+                <th style="padding: 8px; border: 1px solid #dddddd; color: #334155; text-align: right;">Couverts</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+
+    const fileContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Feuille PCO</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #0f172a; font-size: 18pt; text-transform: uppercase; margin-bottom: 2px; }
+          p { color: #475569; font-size: 11pt; margin-top: 0; }
+          hr { border: none; border-top: 2px solid #0f172a; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <h1>Feuille de Route PCO - Plan de Table</h1>
+        <p><strong>Mariage :</strong> ${marriage?.partner_1_name || ''} & ${marriage?.partner_2_name || ''}</p>
+        <p><strong>Date :</strong> ${marriage?.wedding_date || 'N/A'} | <strong>Total Réception :</strong> ${totalReceptionGuests} Invités</p>
+        <hr />
+        ${tablesContentHtml}
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff', fileContent], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Feuille_PCO_${marriage?.partner_1_name || 'Mariage'}_${marriage?.partner_2_name || ''}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const getGuestCategory = (guest: any) => guest.category || guest.relation || guest.group || 'Invité';
   const getSideLabel = (side: string) => side === 'partenaire_1' ? 'Marié' : side === 'partenaire_2' ? 'Mariée' : 'Commun';
   const categoriesList = Array.from(new Set(guests.map(g => getGuestCategory(g))));
@@ -252,8 +335,12 @@ export default function SeatingPlannerV24() {
             </button>
           </div>
 
+          <button onClick={downloadWordPCO} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md">
+            <FileText size={15} /> Word PCO
+          </button>
+
           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-md">
-            <Printer size={15} /> Feuille PCO
+            <Printer size={15} /> Imprimer PCO
           </button>
 
           <button onClick={() => setShowAddModal({ show: true, shape: 'circle' })} className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-md">
