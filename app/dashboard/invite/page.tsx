@@ -12,7 +12,7 @@ import {
   Users as UsersIcon, X, LayoutDashboard,
   MessageSquare, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
-  MessageCircle, Crown, Home, Briefcase, Smile, Printer, FileSpreadsheet,
+  MessageCircle, Crown, Home, Briefcase, Smile, FileSpreadsheet,
   Landmark, Cross, GlassWater, Filter, MessageSquareQuote
 } from 'lucide-react';
 
@@ -21,8 +21,8 @@ import {
 
 function BentoStatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm">
-      <div className={`font-display text-3xl tabular-nums leading-none ${color}`}>{value}</div>
+    <div className="min-w-[7.25rem] shrink-0 snap-start rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm lg:min-w-0">
+      <div className={`font-display text-2xl tabular-nums leading-none sm:text-3xl ${color}`}>{value}</div>
       <div className="mt-2 text-xs font-medium text-slate-500">{label}</div>
     </div>
   );
@@ -34,26 +34,26 @@ function StatusPill({ guest }: { guest: any }) {
   if (status === 'confirmé') {
     return (
       <div className="flex flex-col items-start gap-1.5">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-emerald-50 text-emerald-600 border border-emerald-100">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
           <CheckCircle2 size={12} strokeWidth={3} />
-          CONFIRMÉ PRÉSENT
+          Confirmé
         </span>
 
         <div className="flex items-center gap-1 flex-wrap mt-0.5">
           {guest.attending_civil && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-100/60" title="Présent à la Mairie">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-100/60" title="Présent à la Mairie">
               <Landmark size={11} /> Mairie
             </span>
           )}
 
           {guest.attending_church && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100/60" title="Présent à l'Église">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-600 border border-blue-100/60" title="Présent à l'Église">
               <Cross size={11} /> Église
             </span>
           )}
 
           {guest.attending_reception && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100/60" title="Présent au Dîner/Réception">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-100/60" title="Présent au Dîner/Réception">
               <GlassWater size={11} /> Dîner
             </span>
           )}
@@ -64,15 +64,15 @@ function StatusPill({ guest }: { guest: any }) {
 
   if (status === 'décliné') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-rose-50 text-rose-600 border border-rose-100">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-100">
         <XCircle size={12} strokeWidth={3} />
-        Absent/Décliné
+        Décliné
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-amber-50 text-amber-600 border border-amber-100">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-100">
       <Clock size={12} strokeWidth={3} />
       En attente
     </span>
@@ -356,6 +356,7 @@ export default function GuestPage() {
   const [rsvpFilter, setRsvpFilter] = useState("all");
   const [messageFilter, setMessageFilter] = useState("all");
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -378,8 +379,8 @@ export default function GuestPage() {
 
   // FILTRAGE MULTI-CRITÈRES
   const filteredGuests = guests.filter(g => {
-    const matchesSearch = g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          g.phone.includes(searchTerm) || 
+    const matchesSearch = (g.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (g.phone || '').includes(searchTerm) || 
                           (g.notes && g.notes.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesCategory = categoryFilter === "all" || g.category === categoryFilter;
@@ -403,9 +404,7 @@ export default function GuestPage() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   
-  const currentGuests = typeof window !== 'undefined' && window.matchMedia('print').matches 
-    ? filteredGuests 
-    : filteredGuests.slice(indexOfFirstItem, indexOfLastItem);
+  const currentGuests = filteredGuests.slice(indexOfFirstItem, indexOfLastItem);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -556,10 +555,6 @@ export default function GuestPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const resetFilters = () => {
     setCategoryFilter("all");
     setAccompanistFilter("all");
@@ -568,79 +563,82 @@ export default function GuestPage() {
     setSearchTerm("");
   };
 
+  const openAdd = () => { setSelectedGuest(null); setIsModalOpen(true); };
+  const openEdit = (guest: any) => { setSelectedGuest(guest); setIsModalOpen(true); };
+
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-white">
-      <div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" />
-      <p className="mt-4 font-bold text-rose-500">Ouverture du registre...</p>
+    <div className="flex h-[60vh] flex-col items-center justify-center">
+      <Loader2 className="h-7 w-7 animate-spin text-rose-500" />
+      <p className="mt-3 text-sm text-slate-500">Ouverture de la liste…</p>
     </div>
   );
 
+  const totalPersons = guests.reduce((acc, g) => acc + (g.guests_count || 1), 0);
+  const sentCount = guests.filter(g => g.invitation_sent).length;
+  const sentPct = guests.length ? Math.round((sentCount / guests.length) * 100) : 0;
+  const activeFilters = [categoryFilter, accompanistFilter, rsvpFilter, messageFilter].filter(v => v !== 'all').length;
+  const selectClass = "min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-ink outline-none focus:border-amber-400 lg:w-auto";
+
   return (
     <div className="min-h-screen bg-ivory text-ink">
-      
-      <style jsx global>{`
-        @media print {
-          body { background: white !important; color: black !important; }
-          aside, header button, .bento-cards, .search-container, .pagination-container, td:last-child, th:last-child {
-            display: none !important;
-          }
-          main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
-          .bg-white { border: none !important; shadow: none !important; }
-          table { width: 100% !important; border-collapse: collapse !important; }
-          th, td { padding: 12px !important; border-bottom: 1px solid #e2e8f0 !important; }
-          tr { page-break-inside: avoid !important; }
-        }
-      `}</style>
-
-
-      {/* MAIN CONTENT */}
-      <main className="max-w-7xl mx-auto p-4 sm:p-8 lg:p-12">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 sm:mb-12 gap-6 relative">
-          <div className="space-y-2">
+      <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pb-12 lg:pt-12">
+        {/* ── EN-TÊTE ── */}
+        <header className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+          <div className="min-w-0">
             <p className="eyebrow">Vos invités</p>
-            <h1 className="text-3xl sm:text-4xl font-normal tracking-tight">La liste <span className="text-rose-500 italic">des invités</span></h1>
+            <h1 className="mt-1 text-3xl font-normal tracking-tight sm:text-4xl">La liste <span className="italic text-rose-500">des invités</span></h1>
+            <p className="mt-1 text-sm text-slate-500">{guests.length} fiche{guests.length > 1 ? 's' : ''} · {totalPersons} personne{totalPersons > 1 ? 's' : ''}</p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+
+          <div className="flex shrink-0 items-center gap-2">
             <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
-            
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               disabled={importing}
-              className="flex items-center justify-center gap-2 bg-white border-2 border-slate-200 text-slate-700 px-6 py-3 rounded-full hover:bg-slate-50 hover:border-slate-300 transition-all font-bold text-sm shadow-sm disabled:opacity-50"
+              aria-label="Importer un fichier CSV"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50 sm:px-4"
             >
-              {importing ? (
-                <Loader2 size={16} className="animate-spin text-emerald-500" />
-              ) : (
-                <FileSpreadsheet size={16} className="text-emerald-600" />
-              )}
-              <span>{importing ? "Importation..." : "Importer un CSV"}</span>
+              {importing ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} className="text-emerald-600" />}
+              <span className="hidden sm:inline">{importing ? 'Importation…' : 'Importer un CSV'}</span>
             </button>
-
-            <button onClick={() => { setSelectedGuest(null); setIsModalOpen(true); }} className="flex items-center justify-between gap-4 bg-slate-900 text-white pl-6 pr-2 py-2 rounded-full hover:bg-rose-500 transition-all shadow-xl">
-              <span className="font-bold text-sm">Ajouter un proche</span>
-              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><Plus size={20} strokeWidth={3} /></div>
+            {/* Sur ordinateur : bouton classique ; sur mobile : bouton flottant en bas à droite */}
+            <button onClick={openAdd} className="hidden min-h-[44px] items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-700 lg:inline-flex">
+              <Plus size={16} /> Ajouter un proche
             </button>
           </div>
         </header>
 
-        {/* BENTO STATS AVEC DÉTAIL DES CÉRÉMONIES */}
-        <div className="bento-cards grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 mb-8 sm:mb-12">
-          <BentoStatCard label="Total Invités" value={guests.reduce((acc, g) => acc + (g.guests_count || 1), 0)} color="text-ink" />
-          <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} color="text-emerald-500" />
-          <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} color="text-amber-500" />
-          <BentoStatCard label="Invités VIP" value={guests.filter(g => g.is_vip).length} color="text-amber-600" />
+        {/* ── CHIFFRES CLÉS (défilent sur mobile) ── */}
+        <div className="-mx-4 mb-6 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-7 lg:overflow-visible">
+          <BentoStatCard label="Personnes" value={totalPersons} color="text-ink" />
+          <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} color="text-emerald-600" />
+          <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} color="text-amber-600" />
+          <BentoStatCard label="VIP" value={guests.filter(g => g.is_vip).length} color="text-amber-600" />
           <BentoStatCard label="Mairie" value={totalCivil} color="text-rose-600" />
           <BentoStatCard label="Église" value={totalChurch} color="text-blue-600" />
           <BentoStatCard label="Dîner" value={totalReception} color="text-amber-700" />
         </div>
 
+        {/* ── INVITATIONS WHATSAPP ── */}
+        <div className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm font-semibold text-ink"><MessageCircle size={15} className="mr-1.5 inline text-emerald-600" />Invitations WhatsApp</p>
+            <p className="text-sm text-slate-500"><span className="font-semibold text-ink">{sentCount}</span> / {guests.length} envoyées</p>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${sentPct}%` }} />
+          </div>
+          {guests.length - sentCount > 0 && (
+            <button onClick={() => setMessageFilter('pending')} className="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-700">
+              Voir les {guests.length - sentCount} invitation{guests.length - sentCount > 1 ? 's' : ''} à envoyer →
+            </button>
+          )}
+        </div>
+
         <AnimatePresence>
           {importNotice && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6">
-              <div className={`p-4 rounded-2xl border flex items-center gap-3 text-sm font-bold ${
-                importNotice.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'
-              }`}>
+              <div className={`flex items-center gap-3 rounded-2xl border p-4 text-sm font-medium ${importNotice.type === 'success' ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'}`}>
                 {importNotice.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                 <span>{importNotice.message}</span>
               </div>
@@ -648,283 +646,181 @@ export default function GuestPage() {
           )}
         </AnimatePresence>
 
-        {/* BARRE DE RECHERCHE ET BARRE DE FILTRES AVANCÉS */}
-        <div className="search-container bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[1.75rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
-          <div className="flex flex-col md:flex-row gap-4 items-stretch">
+        {/* ── RECHERCHE & FILTRES ── */}
+        <div className="mb-4 space-y-3">
+          <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-              <input 
-                type="text" 
-                placeholder="Rechercher un nom, téléphone, notes..." 
-                className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-slate-300 transition-all text-sm" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="search"
+                placeholder="Rechercher un nom, un numéro, une note…"
+                aria-label="Rechercher un invité"
+                className="min-h-[48px] w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-[15px] text-ink outline-none transition-colors placeholder:text-slate-400 focus:border-amber-400"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-
-            <button 
-              onClick={handlePrint} 
-              className="px-6 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-rose-600 transition-all shadow-md flex items-center justify-center gap-2 text-sm shrink-0" 
-              title="Imprimer la liste filtrée"
+            <button
+              onClick={() => setFiltersOpen(v => !v)}
+              aria-expanded={filtersOpen}
+              className={`relative inline-flex min-h-[48px] items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors lg:hidden ${filtersOpen || activeFilters ? 'border-ink bg-ink text-white' : 'border-slate-200 bg-white text-ink'}`}
             >
-              <Printer size={18} />
-              <span>Imprimer</span>
+              <Filter size={16} /> Filtres{activeFilters ? ` (${activeFilters})` : ''}
             </button>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs font-black text-slate-400 uppercase tracking-wider mr-2">
-              <Filter size={14} className="text-rose-500" /> Filtres :
-            </div>
-
-            <select 
-              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
-              value={categoryFilter} 
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all"> Catégorie : Toutes</option>
+          <div className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 lg:flex lg:flex-wrap lg:items-center lg:border-0 lg:bg-transparent lg:p-0`}>
+            <select aria-label="Catégorie" className={selectClass} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="all">Toutes catégories</option>
               <option value="amis">Amis</option>
               <option value="parents">Parents</option>
               <option value="collègues">Collègues</option>
             </select>
-
-            <select 
-              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
-              value={accompanistFilter} 
-              onChange={(e) => setAccompanistFilter(e.target.value)}
-            >
-              <option value="all"> Accompagnants : Tous</option>
-              <option value="single">Seul (x1)</option>
-              <option value="accompanied">Accompagné (x2+)</option>
+            <select aria-label="Accompagnants" className={selectClass} value={accompanistFilter} onChange={(e) => setAccompanistFilter(e.target.value)}>
+              <option value="all">Seuls et accompagnés</option>
+              <option value="single">Seuls</option>
+              <option value="accompanied">Accompagnés</option>
             </select>
-
-            <select 
-              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
-              value={rsvpFilter} 
-              onChange={(e) => setRsvpFilter(e.target.value)}
-            >
-              <option value="all"> RSVP : Tous les statuts</option>
-              <option value="confirmé">Confirmé présent</option>
-              <option value="en_attente">En attente ⏳</option>
-              <option value="décliné">Absent / Décliné</option>
+            <select aria-label="Réponse" className={selectClass} value={rsvpFilter} onChange={(e) => setRsvpFilter(e.target.value)}>
+              <option value="all">Toutes les réponses</option>
+              <option value="confirmé">Confirmés</option>
+              <option value="en_attente">En attente</option>
+              <option value="décliné">Déclinés</option>
             </select>
-
-            <select 
-              className="bg-slate-50 border border-slate-200/80 font-bold text-xs rounded-xl px-3.5 py-2.5 outline-none text-slate-700 hover:border-slate-300 cursor-pointer transition-all"
-              value={messageFilter} 
-              onChange={(e) => setMessageFilter(e.target.value)}
-            >
-              <option value="all"> Message WhatsApp : Tous</option>
-              <option value="sent">Message envoyé</option>
-              <option value="pending">Message à envoyer ⏳</option>
+            <select aria-label="Invitation WhatsApp" className={selectClass} value={messageFilter} onChange={(e) => setMessageFilter(e.target.value)}>
+              <option value="all">Invitations : toutes</option>
+              <option value="sent">Invitation envoyée</option>
+              <option value="pending">Invitation à envoyer</option>
             </select>
-
-            {(categoryFilter !== "all" || accompanistFilter !== "all" || rsvpFilter !== "all" || messageFilter !== "all" || searchTerm !== "") && (
-              <button 
-                onClick={resetFilters} 
-                className="text-xs font-bold text-rose-500 hover:text-rose-700 px-2 py-1 transition-colors underline ml-auto"
-              >
+            {(activeFilters > 0 || searchTerm) && (
+              <button onClick={resetFilters} className="col-span-2 min-h-[40px] text-sm font-semibold text-rose-600 hover:text-rose-700 lg:ml-auto">
                 Réinitialiser
               </button>
             )}
           </div>
         </div>
 
-        <div className="bg-white p-6 border border-slate-100 rounded-3xl shadow-sm space-y-4 mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Progression des invitations WhatsApp</h3>
-              <p className="text-sm font-black text-slate-900 mt-0.5">
-                {guests.filter(g => g.invitation_sent).length} sur {guests.length} proches contactés
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-lg font-black text-slate-900">
-                {guests.length > 0 ? Math.round((guests.filter(g => g.invitation_sent).length / guests.length) * 100) : 0}%
-              </span>
-            </div>
+        <p className="mb-3 text-sm text-slate-500">{filteredGuests.length} résultat{filteredGuests.length > 1 ? 's' : ''}</p>
+
+        {guests.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+            <Users className="h-9 w-9 text-amber-500" strokeWidth={1.4} />
+            <p className="font-display text-xl text-ink">Votre liste est encore vide</p>
+            <p className="max-w-sm text-sm text-slate-500">Ajoutez vos proches un par un, ou importez un fichier CSV.</p>
+            <button onClick={openAdd} className="mt-1 inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700">
+              <Plus size={16} /> Ajouter un proche
+            </button>
           </div>
-
-          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
-            <div 
-              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500 ease-out shadow-inner"
-              style={{ width: `${guests.length > 0 ? (guests.filter(g => g.invitation_sent).length / guests.length) * 100 : 0}%` }}
-            />
+        ) : filteredGuests.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200/80 bg-white px-6 py-10 text-center text-sm text-slate-500">
+            Aucun invité ne correspond. <button onClick={resetFilters} className="font-semibold text-rose-600">Réinitialiser les filtres</button>
           </div>
+        ) : (
+          <>
+            {/* ── MOBILE : une carte par invité ── */}
+            <ul className="space-y-3 md:hidden">
+              {currentGuests.map((guest) => (
+                <GuestCard key={guest.id} guest={guest} onInvite={() => sendWhatsAppInvitation(guest)} onEdit={() => openEdit(guest)} onDelete={() => handleDelete(guest.id)} />
+              ))}
+            </ul>
 
-          <div className="grid grid-cols-2 gap-4 pt-2 text-center border-t border-slate-50">
-            <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100/30">
-              <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Restants à envoyer</div>
-              <div className="text-base font-black text-amber-700 mt-0.5">
-                {guests.filter(g => !g.invitation_sent).length} fiches
-              </div>
-            </div>
-            <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/30">
-              <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Invitations délivrées</div>
-              <div className="text-base font-black text-emerald-700 mt-0.5">
-                {guests.filter(g => g.invitation_sent).length} envoyées
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* TABLEAU DES INVITÉS */}
-        <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-left border-separate border-spacing-0">
-            <thead className="bg-slate-50/80 border-b border-slate-200">
-              <tr className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                <th className="px-8 py-5 border-b border-slate-100">Invité</th>
-                <th className="px-8 py-5 text-center border-b border-slate-100">Catégorie</th>
-                <th className="px-8 py-5 text-center border-b border-slate-100">Accompagnants</th>
-                <th className="px-8 py-5 border-b border-slate-100">Statut RSVP</th>
-                <th className="px-8 py-5 border-b border-slate-100">Notes / Vœux</th>
-                <th className="px-8 py-5 text-right border-b border-slate-100">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {currentGuests.map((guest) => {
-                const isConfirmed = guest.status === 'confirmé';
-
-                return (
-                  <tr 
-                    key={guest.id} 
-                    className={`transition-all group border-l-4 ${
-                      isConfirmed 
-                        ? 'bg-[#f0fdf4]/80 hover:bg-[#e6f7ec] border-l-emerald-500' 
-                        : guest.invitation_sent 
-                        ? 'bg-emerald-50/10 hover:bg-emerald-50/20 border-l-transparent' 
-                        : 'hover:bg-slate-50/50 border-l-transparent'
-                    }`}
-                  >
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col">
-                        <div className="font-bold text-slate-800 flex flex-wrap items-center gap-2">
-                          {guest.is_vip && (
-                            <span title="VIP">
-                              <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
-                            </span>
-                          )}
-                          <span className={guest.is_vip ? "text-amber-900 font-extrabold" : ""}>{guest.name}</span>
-                          
-                          <span className={`text-[9px] px-2 py-0.5 rounded-md border ${
-                            guest.side === 'partenaire_2' 
-                              ? 'bg-rose-50 border-rose-100 text-rose-500' 
-                              : guest.side === 'partenaire_1'
-                              ? 'bg-indigo-50 border-indigo-100 text-indigo-500'
-                              : 'bg-purple-50 border-purple-100 text-purple-500'
-                          }`}>
-                            {guest.side === 'partenaire_1' ? 'Marié' : guest.side === 'partenaire_2' ? 'Mariée' : 'Commun'}
+            {/* ── TABLETTE / ORDINATEUR : tableau ── */}
+            <div className="hidden overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm md:block">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[860px] text-left">
+                  <thead className="border-b border-slate-200 bg-ivory/70">
+                    <tr className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      <th className="px-5 py-3.5">Invité</th>
+                      <th className="px-5 py-3.5">Catégorie</th>
+                      <th className="px-5 py-3.5 text-center">Pers.</th>
+                      <th className="px-5 py-3.5">Réponse</th>
+                      <th className="px-5 py-3.5">Notes</th>
+                      <th className="px-5 py-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {currentGuests.map((guest) => (
+                      <tr key={guest.id} className="group transition-colors hover:bg-ivory/60">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar guest={guest} />
+                            <div className="min-w-0">
+                              <p className="flex items-center gap-1.5 font-semibold text-ink">
+                                {guest.is_vip && <Crown size={14} className="shrink-0 text-amber-500" />}
+                                <span className="truncate">{guest.name}</span>
+                              </p>
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                                <span className="whitespace-nowrap">{guest.phone}</span>
+                                <SentBadge sent={guest.invitation_sent} />
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
+                            {getCategoryIcon(guest.category)} <span className="capitalize">{guest.category || 'amis'}</span>
                           </span>
-
-                          {guest.invitation_sent ? (
-                            <span className="bg-emerald-100/70 text-emerald-800 border-emerald-200/50 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border">
-                              Envoyé
-                            </span>
-                          ) : (
-                            <span className="bg-amber-50 text-amber-600 border-amber-200/60 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border italic">
-                              ⏳ À envoyer
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
-                          <Phone size={10} className="text-slate-300"/> {guest.phone}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100/80 rounded-lg text-[10px] font-black uppercase text-slate-600 border border-slate-200/60">
-                        {getCategoryIcon(guest.category)}
-                        {guest.category || 'amis'}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5 text-center">
-                      <span className="inline-block px-3 py-1 bg-slate-100/80 rounded-lg font-black text-slate-700 text-sm">
-                        x{guest.guests_count || 1}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <StatusPill guest={guest} />
-                    </td>
-                    <td className="px-8 py-5 max-w-xs">
-                      {guest.notes ? (
-                        <div className="flex items-start gap-2 bg-rose-50/60 border border-rose-100 p-3 rounded-2xl text-xs text-slate-700">
-                          <MessageSquareQuote size={16} className="text-rose-400 shrink-0 mt-0.5" />
-                          <p className="italic font-medium leading-relaxed break-words">{guest.notes}</p>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-300 italic">Aucune note</span>
-                      )}
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all transform lg:translate-x-2 lg:group-hover:translate-x-0">
-                        <button 
-                          onClick={() => sendWhatsAppInvitation(guest)} 
-                          className={`p-2.5 rounded-xl transition-all shadow-sm ${
-                            guest.invitation_sent 
-                              ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' 
-                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'
-                          }`}
-                          title={guest.invitation_sent ? "Renvoyer l'invitation" : "Inviter via WhatsApp"}
-                        >
-                          <MessageCircle size={16}/>
-                        </button>
-                        <button onClick={() => { setSelectedGuest(guest); setIsModalOpen(true); }} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm">
-                          <Edit3 size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(guest.id)} className="p-2.5 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-
-          <div className="pagination-container px-4 sm:px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Page {currentPage} sur {totalPages || 1} ({filteredGuests.length} résultat{filteredGuests.length > 1 ? 's' : ''})
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronLeft size={18} className="text-slate-600" />
-              </button>
-
-              <div className="flex gap-1">
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
-                      currentPage === i + 1 
-                        ? 'bg-slate-900 text-white shadow-md' 
-                        : 'bg-white border border-slate-200 text-slate-400 hover:border-slate-300'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                          <p className="mt-0.5 text-xs text-slate-400">{sideName(guest.side)}</p>
+                        </td>
+                        <td className="px-5 py-4 text-center font-display text-lg text-ink">{guest.guests_count || 1}</td>
+                        <td className="px-5 py-4"><StatusPill guest={guest} /></td>
+                        <td className="max-w-xs px-5 py-4">
+                          {guest.notes
+                            ? <p className="line-clamp-2 text-sm italic text-slate-600" title={guest.notes}>« {guest.notes} »</p>
+                            : <span className="text-sm text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex justify-end gap-1.5">
+                            <IconAction label={guest.invitation_sent ? "Renvoyer l'invitation WhatsApp" : 'Inviter via WhatsApp'} onClick={() => sendWhatsAppInvitation(guest)} tone={guest.invitation_sent ? 'neutral' : 'whatsapp'}>
+                              <MessageCircle size={16} />
+                            </IconAction>
+                            <IconAction label="Modifier" onClick={() => openEdit(guest)}><Edit3 size={16} /></IconAction>
+                            <IconAction label="Supprimer" onClick={() => handleDelete(guest.id)} tone="danger"><Trash2 size={16} /></IconAction>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              <button 
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronRight size={18} className="text-slate-600" />
-              </button>
             </div>
-          </div>
-        </div>
+
+            {/* ── PAGINATION ── */}
+            {totalPages > 1 && (
+              <nav className="mt-4 flex items-center justify-between gap-3" aria-label="Pagination">
+                <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}
+                  className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink disabled:opacity-30">
+                  <ChevronLeft size={16} /> <span className="hidden sm:inline">Précédent</span>
+                </button>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-slate-500 sm:hidden">Page {currentPage} / {totalPages}</span>
+                  {pageWindow(currentPage, totalPages).map((p, i) => p === '…'
+                    ? <span key={`e${i}`} className="hidden px-1 text-slate-400 sm:inline">…</span>
+                    : (
+                      <button key={p} onClick={() => setCurrentPage(p)} aria-current={p === currentPage ? 'page' : undefined}
+                        className={`hidden h-10 min-w-10 rounded-xl px-2 text-sm font-semibold transition-colors sm:inline-block ${p === currentPage ? 'bg-ink text-white' : 'border border-slate-200 bg-white text-slate-600 hover:border-ink'}`}>
+                        {p}
+                      </button>
+                    ))}
+                </div>
+                <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}
+                  className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink disabled:opacity-30">
+                  <span className="hidden sm:inline">Suivant</span> <ChevronRight size={16} />
+                </button>
+              </nav>
+            )}
+          </>
+        )}
       </main>
+
+      {/* Bouton d'ajout flottant (mobile et tablette) */}
+      <button
+        onClick={openAdd}
+        aria-label="Ajouter un proche"
+        className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-rose-500 text-white shadow-xl shadow-rose-500/30 transition-transform active:scale-95 lg:hidden"
+      >
+        <Plus size={26} strokeWidth={2.2} />
+      </button>
 
       <GuestModal 
         isOpen={isModalOpen} 
@@ -934,5 +830,99 @@ export default function GuestPage() {
         guestToEdit={selectedGuest} 
       />
     </div>
+  );
+}
+
+/* ─────────── Éléments d'affichage ─────────── */
+
+const sideName = (side?: string) => side === 'partenaire_1' ? 'Côté marié' : side === 'partenaire_2' ? 'Côté mariée' : 'Commun';
+
+// Pages affichées : 1 … 4 5 6 … 12
+function pageWindow(current: number, total: number): (number | '…')[] {
+  const pages = new Set([1, total, current - 1, current, current + 1].filter(p => p >= 1 && p <= total));
+  const sorted = [...pages].sort((a, b) => a - b);
+  return sorted.flatMap((p, i) => (i > 0 && p - sorted[i - 1] > 1 ? ['…' as const, p] : [p]));
+}
+
+function Avatar({ guest }: { guest: any }) {
+  const initials = String(guest.name || '?').split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+  const tone = guest.side === 'partenaire_2' ? 'bg-rose-50 text-rose-600' : guest.side === 'partenaire_1' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-600';
+  return <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold ${tone}`} aria-hidden>{initials}</span>;
+}
+
+function SentBadge({ sent }: { sent: boolean }) {
+  return sent
+    ? <span className="inline-flex items-center gap-1 whitespace-nowrap text-emerald-600"><Check size={12} /> Invitée</span>
+    : <span className="inline-flex items-center gap-1 whitespace-nowrap text-amber-700"><Clock size={12} /> À inviter</span>;
+}
+
+function IconAction({ label, onClick, tone = 'neutral', children }: { label: string; onClick: () => void; tone?: 'neutral' | 'whatsapp' | 'danger'; children: React.ReactNode }) {
+  const tones = {
+    neutral: 'border-slate-200 text-slate-600 hover:border-ink hover:text-ink',
+    whatsapp: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white',
+    danger: 'border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600',
+  };
+  return (
+    <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border bg-white transition-colors ${tones[tone]}`}>
+      {children}
+    </button>
+  );
+}
+
+const STATUS = {
+  'confirmé': { label: 'Confirmé', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', Icon: CheckCircle2 },
+  'en_attente': { label: 'En attente', cls: 'bg-amber-50 text-amber-800 ring-amber-200', Icon: Clock },
+  'décliné': { label: 'Décliné', cls: 'bg-rose-50 text-rose-700 ring-rose-200', Icon: XCircle },
+} as const;
+
+// Carte d'un invité sur mobile : l'essentiel d'un coup d'œil, actions à portée de pouce
+function GuestCard({ guest, onInvite, onEdit, onDelete }: { guest: any; onInvite: () => void; onEdit: () => void; onDelete: () => void }) {
+  const status = STATUS[guest.status as keyof typeof STATUS] ?? STATUS.en_attente;
+  const n = guest.guests_count || 1;
+  const confirmed = guest.status === 'confirmé';
+  return (
+    <li className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Avatar guest={guest} />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 font-semibold text-ink">
+            {guest.is_vip && <Crown size={14} className="shrink-0 text-amber-500" />}
+            <span className="truncate">{guest.name}</span>
+          </p>
+          <a href={`tel:${guest.phone}`} className="mt-0.5 inline-flex items-center gap-1 text-sm text-slate-500">
+            <Phone size={12} /> {guest.phone}
+          </a>
+        </div>
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${status.cls}`}>
+          <status.Icon size={12} /> {status.label}
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{sideName(guest.side)}</span>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 capitalize text-slate-600">{guest.category || 'amis'}</span>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{n} pers.</span>
+        {confirmed && guest.attending_civil && <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><Landmark size={11} /> Mairie</span>}
+        {confirmed && guest.attending_church && <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-blue-700"><Cross size={11} /> Église</span>}
+        {confirmed && guest.attending_reception && <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-amber-800"><GlassWater size={11} /> Dîner</span>}
+      </div>
+
+      {guest.notes && (
+        <p className="mt-3 line-clamp-3 rounded-xl bg-ivory px-3 py-2 text-sm italic text-slate-600">« {guest.notes} »</p>
+      )}
+
+      <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
+        <button
+          onClick={onInvite}
+          className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
+            guest.invitation_sent ? 'border border-slate-200 bg-white text-slate-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+          }`}
+        >
+          <MessageCircle size={16} /> {guest.invitation_sent ? 'Renvoyer' : 'Inviter sur WhatsApp'}
+        </button>
+        <IconAction label="Modifier" onClick={onEdit}><Edit3 size={16} /></IconAction>
+        <IconAction label="Supprimer" onClick={onDelete} tone="danger"><Trash2 size={16} /></IconAction>
+      </div>
+    </li>
   );
 }
