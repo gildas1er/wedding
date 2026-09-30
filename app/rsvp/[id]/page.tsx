@@ -11,6 +11,7 @@ import confetti from 'canvas-confetti';
 import { supabase } from '../../lib/supabase';
 import { formatDateFr, formatHourFr } from '../../../lib/event-datetime';
 import { ceremonyFlags, mapsUrl } from '../../../lib/ceremonies';
+import { rsvpThemeStyle, resolveAccent } from '../../../lib/palettes';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -123,16 +124,18 @@ function RSVPContent() {
       });
     }
 
-    fire(0.25, { spread: 26, startVelocity: 55, colors: ['#f43f5e', '#fb7185', '#fda4af'] });
-    fire(0.2, { spread: 60, colors: ['#f59e0b', '#fbbf24', '#fde68a'] });
+    const primary = m.primary_color || '#9e3a55';
+    const accent = resolveAccent(m.primary_color, m.accent_color);
+    fire(0.25, { spread: 26, startVelocity: 55, colors: [primary, accent, '#ffffff'] });
+    fire(0.2, { spread: 60, colors: [accent, primary] });
     fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
-    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, colors: ['#e11d48', '#be123c'] });
+    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, colors: [primary, accent] });
     fire(0.1, { spread: 120, startVelocity: 45 });
   };
 
   const mBase = marriage || {
     partner_1_name: "Sarah", partner_2_name: "Marc",
-    primary_color: "#f43f5e", invitation_text: "VOUS ÊTES INVITÉS",
+    primary_color: "#9e3a55", invitation_text: "VOUS ÊTES INVITÉS",
     wedding_date: new Date(), 
     mairie_date: "", mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
     religious_date: "", religious_hour: "", religious_location: "",
@@ -233,7 +236,7 @@ function RSVPContent() {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 flex justify-center relative">
+    <div className="min-h-screen bg-rose-50 flex justify-center relative" style={rsvpThemeStyle(m.primary_color, m.accent_color)}>
       
       {/* LECTEUR AUDIO CACHÉ ET BOUTON DE CONTRÔLE FLOTTANT */}
       <audio 
@@ -279,6 +282,7 @@ function RSVPContent() {
             transition={{ duration: 2, ease: "easeOut" }}
             src={m.bg_image_url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80"} 
             className="w-full h-full object-cover" 
+            style={{ objectPosition: (m.bg_image_url && m.bg_image_position) || 'center' }}
             alt="Wedding" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/40" />
@@ -342,7 +346,7 @@ function RSVPContent() {
                   title="La Cérémonie Religieuse" 
                   time={[m.religious_date && formatDateFr(m.religious_date, { withYear: false }), formatHourFr(m.religious_hour)].filter(Boolean).join(' · ')} 
                   loc={m.religious_location} 
-                  color="blue"
+                  color="amber"
                   maps={mapsUrl(m.religious_maps_url, m.religious_location)}
               />
             )}
@@ -353,7 +357,7 @@ function RSVPContent() {
                   title="Le Cocktail & Dîner" 
                   time={formatHourFr(m.reception_hour)} 
                   loc={m.reception_location} 
-                  color="amber"
+                  color="neutral"
                   maps={mapsUrl(m.reception_maps_url, m.reception_location)}
               />
             )}
@@ -501,7 +505,7 @@ function RSVPContent() {
                       type="submit" 
                       disabled={sending || (!guestId && !isPreview)}
                       className="w-full py-5 rounded-full text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                      style={{ backgroundColor: m.primary_color }}
+                      style={{ backgroundColor: 'var(--wed-primary)', color: 'var(--wed-on-primary)' }}
                     >
                       {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                       Valider ma réponse
@@ -520,7 +524,7 @@ function RSVPContent() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring" }}
-                  className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-md"
+                  className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto shadow-md"
                 >
                     <CheckCircle2 className="w-10 h-10" />
                 </motion.div>
@@ -576,6 +580,7 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
     const colors: any = {
         rose: "text-rose-500 bg-rose-50",
         blue: "text-blue-600 bg-blue-50",
+        neutral: "text-slate-700 bg-slate-100",
         amber: "text-amber-600 bg-amber-50"
     };
 

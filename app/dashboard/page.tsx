@@ -331,7 +331,13 @@ export default function WeddingDashboard() {
 
         {/* HÉRO — COUPLE & COMPTE À REBOURS */}
         <section className="relative mb-8 overflow-hidden rounded-[1.75rem] bg-ink shadow-xl sm:mb-10">
-          <img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1600" className="absolute inset-0 h-full w-full object-cover opacity-60" alt="" />
+          {/* Photo de couverture du couple (studio), sinon image par défaut */}
+          <img
+            src={marriage?.bg_image_url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1600"}
+            style={{ objectPosition: (marriage?.bg_image_url && marriage?.bg_image_position) || 'center' }}
+            className="absolute inset-0 h-full w-full object-cover opacity-60"
+            alt=""
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/20" />
           <div className="relative flex min-h-[340px] flex-col justify-between gap-10 p-6 text-white sm:min-h-[380px] sm:p-10 lg:p-12">
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}>

@@ -74,7 +74,6 @@ export default function SettingsPage() {
         partner_1_name: partner1.trim(),
         partner_2_name: partner2.trim(),
         ...(eventDate ? { wedding_date: eventDate } : {}),
-        primary_color: primaryColor,
         location_city: location
       })
       .eq('id', marriageId);
@@ -191,20 +190,17 @@ export default function SettingsPage() {
             )}
 
             {activeTab === 'design' && (
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Couleur thématique</label>
-                  <div className="flex flex-wrap gap-4 p-2">
-                    {['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#0f172a'].map((color) => (
-                      <button 
-                        key={color} 
-                        onClick={() => setPrimaryColor(color)}
-                        className={`w-12 h-12 rounded-2xl transition-all ${primaryColor === color ? 'scale-125 ring-4 ring-slate-100' : 'hover:scale-110'}`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
+              <div className="flex flex-col gap-5 rounded-2xl bg-ivory p-6 sm:flex-row sm:items-center sm:justify-between animate-in fade-in duration-500">
+                <div className="flex items-center gap-4">
+                  <span className="h-12 w-12 shrink-0 rounded-full ring-4 ring-white" style={{ backgroundColor: primaryColor }} />
+                  <div>
+                    <p className="font-display text-xl text-ink">Couleurs et photo de l&apos;invitation</p>
+                    <p className="mt-0.5 text-sm text-slate-500">Palettes, couverture et programme se règlent dans le studio, avec l&apos;aperçu en direct.</p>
                   </div>
                 </div>
+                <Link href="/dashboard/studio" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-700">
+                  Ouvrir le studio <ChevronRight className="h-4 w-4" />
+                </Link>
               </div>
             )}
 

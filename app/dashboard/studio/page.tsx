@@ -2,11 +2,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Heart, Save, Palette, Image as ImageIcon, Upload, Loader2, Clock, MapPin, Calendar,
+  Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
   MessageCircle, Smartphone, RotateCcw, type LucideIcon,
 } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
+import CoverPhotoEditor, { DEFAULT_COVER_POSITION } from '../../../components/studio/CoverPhotoEditor';
+import PalettePicker from '../../../components/studio/PalettePicker';
+import { DEFAULT_PALETTE, resolveAccent } from '../../../lib/palettes';
 import { toISODate, toHHMM } from '../../../lib/event-datetime';
 import { ceremonyFlags, isHttpUrl, mapsUrl } from '../../../lib/ceremonies';
 import {
@@ -15,8 +19,10 @@ import {
 
 type Config = {
   primary_color: string;
+  accent_color: string;
   invitation_text: string;
   bg_image_url: string;
+  bg_image_position: string;
   show_civil: boolean;
   show_religious: boolean;
   show_reception: boolean;
@@ -35,9 +41,11 @@ type Config = {
 };
 
 const EMPTY_CONFIG: Config = {
-  primary_color: '#9e3a55',
+  primary_color: DEFAULT_PALETTE.primary,
+  accent_color: DEFAULT_PALETTE.accent,
   invitation_text: 'Vous êtes invités',
   bg_image_url: '',
+  bg_image_position: DEFAULT_COVER_POSITION,
   show_civil: true,
   show_religious: false,
   show_reception: true,
@@ -47,23 +55,28 @@ const EMPTY_CONFIG: Config = {
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
 };
 
-// Colonnes ajoutées par la migration 3 (enregistrées à part pour ne pas bloquer le reste)
+// Colonnes ajoutées par les migrations 3 et 4 (enregistrées à part pour ne pas bloquer le reste)
 const EXTENDED_KEYS = ['show_civil', 'show_religious', 'show_reception', 'whatsapp_message'] as const;
+const COVER_KEYS = ['bg_image_position'] as const;
+const ACCENT_KEYS = ['accent_color'] as const;
+
+const MAX_UPLOAD_MB = 15;
 
 type Notice = { type: 'success' | 'error' | 'info'; text: string } | null;
 
 export default function InvitationStudio() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadStage, setUploadStage] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [marriage, setMarriage] = useState<any>(null);
   const [legacyValues, setLegacyValues] = useState<Record<string, string>>({});
   const [extendedAvailable, setExtendedAvailable] = useState(true);
+  const [coverPositionAvailable, setCoverPositionAvailable] = useState(true);
+  const [accentAvailable, setAccentAvailable] = useState(true);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -87,6 +100,8 @@ export default function InvitationStudio() {
 
         setMarriage(data);
         setExtendedAvailable('whatsapp_message' in data);
+        setCoverPositionAvailable('bg_image_position' in data);
+        setAccentAvailable('accent_color' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -104,8 +119,10 @@ export default function InvitationStudio() {
         const flags = ceremonyFlags(data);
         const loaded: Config = {
           primary_color: data.primary_color || EMPTY_CONFIG.primary_color,
+          accent_color: resolveAccent(data.primary_color, data.accent_color),
           invitation_text: data.invitation_text || EMPTY_CONFIG.invitation_text,
           bg_image_url: data.bg_image_url || '',
+          bg_image_position: data.bg_image_position || DEFAULT_COVER_POSITION,
           show_civil: flags.civil,
           show_religious: flags.religious,
           show_reception: flags.reception,
@@ -190,23 +207,41 @@ export default function InvitationStudio() {
       return;
     }
 
-    // Cérémonies et message WhatsApp : colonnes de la migration 3
+    // Réglages ajoutés par les migrations 3 à 5 : chacun enregistré à part, pour qu'une
+    // migration non lancée n'empêche pas de publier le reste
     const message = config.whatsapp_message.trim();
-    const { error: extError } = await supabase.from('marriages').update({
-      show_civil: config.show_civil,
-      show_religious: config.show_religious,
-      show_reception: config.show_reception,
-      whatsapp_message: !message || message === DEFAULT_WHATSAPP_TEMPLATE.trim() ? null : config.whatsapp_message,
-    }).eq('id', marriage.id);
+    const optionalGroups = [
+      {
+        keys: EXTENDED_KEYS, label: 'la migration 3 (cérémonies, message WhatsApp)', onMissing: () => setExtendedAvailable(false),
+        values: {
+          show_civil: config.show_civil,
+          show_religious: config.show_religious,
+          show_reception: config.show_reception,
+          whatsapp_message: !message || message === DEFAULT_WHATSAPP_TEMPLATE.trim() ? null : config.whatsapp_message,
+        },
+      },
+      {
+        keys: COVER_KEYS, label: 'la migration 4 (cadrage de la photo)', onMissing: () => setCoverPositionAvailable(false),
+        values: { bg_image_position: config.bg_image_position === DEFAULT_COVER_POSITION ? null : config.bg_image_position },
+      },
+      {
+        keys: ACCENT_KEYS, label: "la migration 5 (couleur d'accent)", onMissing: () => setAccentAvailable(false),
+        values: { accent_color: config.accent_color },
+      },
+    ];
+    const failed: typeof optionalGroups = [];
+    for (const group of optionalGroups) {
+      const { error: groupError } = await supabase.from('marriages').update(group.values).eq('id', marriage.id);
+      if (groupError) { failed.push(group); group.onMissing(); }
+    }
 
     setSaving(false);
     setLegacyValues({});
-    if (extError) {
+    if (failed.length) {
       const saved = { ...config };
-      for (const k of EXTENDED_KEYS) (saved as any)[k] = (savedConfig as any)[k];
+      for (const g of failed) for (const k of g.keys) (saved as any)[k] = (savedConfig as any)[k];
       setSavedConfig(saved);
-      setExtendedAvailable(false);
-      flash({ type: 'info', text: "Programme publié. Le choix des cérémonies et le message WhatsApp demandent la migration 3 dans Supabase." }, 7000);
+      flash({ type: 'info', text: `Invitation publiée, sauf certains réglages : lancez ${failed.map((g) => g.label).join(' et ')} dans Supabase.` }, 8000);
       return;
     }
     setSavedConfig(config);
@@ -214,22 +249,40 @@ export default function InvitationStudio() {
     flash({ type: 'success', text: "L'invitation est publiée !" });
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFile = async (file: File) => {
+    if (!marriage) return;
+    if (!file.type.startsWith('image/')) {
+      flash({ type: 'error', text: 'Ce fichier n’est pas une image. Choisissez une photo JPG, PNG ou WebP.' }, 5000);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      flash({ type: 'error', text: `Photo trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum : ${MAX_UPLOAD_MB} Mo.` }, 5000);
+      return;
+    }
     try {
-      const file = e.target.files?.[0];
-      if (!file || !marriage) return;
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const filePath = `backgrounds/${marriage.id}-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('invitations').upload(filePath, file);
+      // Photo allégée pour un chargement rapide sur mobile (≈ 800 Ko, 2000 px max)
+      setUploadStage('Optimisation de la photo…');
+      let optimized: Blob;
+      try {
+        optimized = await imageCompression(file, { maxSizeMB: 0.8, maxWidthOrHeight: 2000, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.85 });
+      } catch {
+        throw new Error('Format non lu par ce navigateur (photo HEIC ?). Essayez avec une photo JPG ou PNG.');
+      }
+
+      setUploadStage('Envoi…');
+      const filePath = `backgrounds/${marriage.id}-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('invitations')
+        .upload(filePath, optimized, { contentType: 'image/jpeg', cacheControl: '31536000' });
       if (uploadError) throw uploadError;
+
       const { data: { publicUrl } } = supabase.storage.from('invitations').getPublicUrl(filePath);
-      set('bg_image_url', publicUrl);
+      setConfig((prev) => ({ ...prev, bg_image_url: publicUrl, bg_image_position: DEFAULT_COVER_POSITION }));
+      flash({ type: 'success', text: 'Photo prête : cadrez-la puis publiez.' });
     } catch (error: any) {
-      flash({ type: 'error', text: `Erreur lors de l'envoi de la photo : ${error.message}` }, 6000);
+      flash({ type: 'error', text: error.message || "Erreur lors de l'envoi de la photo." }, 6000);
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setUploadStage(null);
     }
   };
 
@@ -287,32 +340,35 @@ export default function InvitationStudio() {
           </header>
 
           {/* Identité & photo */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Card icon={Palette} title="Identité visuelle">
-              <Field label="Couleur signature">
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2.5">
-                  <input type="color" value={config.primary_color} onChange={(e) => set('primary_color', e.target.value)} className="h-10 w-10 cursor-pointer rounded-lg border-none bg-transparent" aria-label="Couleur signature" />
-                  <span className="font-mono text-sm text-slate-600">{config.primary_color}</span>
-                </div>
-              </Field>
+          <div className="grid grid-cols-1 gap-6">
+            <Card icon={Palette} title="Couleurs de l'invitation" subtitle="Toute la page RSVP s'accorde à votre palette : fonds, boutons, filets et détails.">
+              <PalettePicker
+                primary={config.primary_color}
+                accent={config.accent_color}
+                onChange={(primary, accent) => setConfig((prev) => ({ ...prev, primary_color: primary, accent_color: accent }))}
+              />
+              {!accentAvailable && (
+                <p className="text-xs text-amber-700">La couleur d&apos;accent sera enregistrée après la migration « 20260930_05_couleur_accent.sql ».</p>
+              )}
               <Field label="Titre de l'invitation">
                 <input type="text" value={config.invitation_text} onChange={(e) => set('invitation_text', e.target.value)} placeholder="Ex : Vous êtes invités" className={inputClass} />
               </Field>
             </Card>
 
             <Card icon={ImageIcon} title="Photo de couverture">
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="group relative flex h-44 w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-ivory transition-colors hover:border-amber-300">
-                {uploading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-sm"><Loader2 className="h-6 w-6 animate-spin text-rose-500" /></div>}
-                {config.bg_image_url ? (
-                  <img src={config.bg_image_url} alt="Photo de couverture" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                ) : (
-                  <span className="space-y-2 text-center">
-                    <Upload className="mx-auto h-6 w-6 text-slate-400" />
-                    <span className="block text-sm font-medium text-slate-500">Importer une photo</span>
-                  </span>
-                )}
-              </button>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleUpload} />
+              <div className="max-w-sm">
+              <CoverPhotoEditor
+                url={config.bg_image_url}
+                position={config.bg_image_position}
+                busyLabel={uploadStage}
+                onPickFile={handleCoverFile}
+                onChangePosition={(p) => set('bg_image_position', p)}
+                onRemove={() => setConfig((prev) => ({ ...prev, bg_image_url: '', bg_image_position: DEFAULT_COVER_POSITION }))}
+              />
+              </div>
+              {!coverPositionAvailable && config.bg_image_url && (
+                <p className="text-xs text-amber-700">Le cadrage sera enregistré après la migration « 20260930_04_cadrage_photo_couverture.sql ».</p>
+              )}
             </Card>
           </div>
 
