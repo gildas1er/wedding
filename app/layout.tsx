@@ -1,15 +1,20 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Titres : serif éditoriale (avec italique pour le « & » des couples)
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Interface : sans-serif lisible et moderne
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -20,16 +25,18 @@ export const metadata: Metadata = {
   description: "La plateforme ultime pour organiser le mariage de vos rêves en Côte d'Ivoire.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#FAF7F2",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="fr" className={`${fraunces.variable} ${manrope.variable}`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>

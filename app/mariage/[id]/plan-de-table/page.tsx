@@ -16,10 +16,18 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
   const resolvedParams = React.use(params);
   const marriageId = resolvedParams.id;
 
+  const [coupleNames, setCoupleNames] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  useEffect(() => {
+    supabase.rpc('get_rsvp_invitation', { p_marriage_id: marriageId }).then(({ data }) => {
+      const m = data?.marriage;
+      if (m) setCoupleNames([m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & '));
+    });
+  }, [marriageId]);
 
   useEffect(() => {
     // Sécurité : Si l'identifiant du mariage n'est pas encore chargé, on attend.
@@ -67,7 +75,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
-      <div className="w-full max-w-[450px] bg-white rounded-[2.5rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden min-h-[550px]">
+      <div className="w-full max-w-[450px] bg-white rounded-[1.75rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden min-h-[550px]">
         
         <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-rose-300 via-amber-200 to-rose-300" />
 
@@ -76,7 +84,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
           <div className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
             <Utensils className="w-3 h-3" /> Placement salle
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Où est ma table ?</h1>
+          <h1 className="text-2xl font-normal text-slate-900 tracking-tight">Où est ma table ?</h1>
           <p className="text-xs text-slate-400 mt-1 px-4">
             Saisissez votre prénom ou votre nom pour découvrir votre placement.
           </p>
@@ -115,7 +123,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
                 {searchResults.map((invite) => (
                   <motion.div
                     key={invite.id}
-                    className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[2rem] p-5 shadow-xl relative overflow-hidden border border-slate-800"
+                    className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[1.5rem] p-5 shadow-xl relative overflow-hidden border border-slate-800"
                   >
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
@@ -152,7 +160,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
         <div className="text-center pt-6 mt-6 border-t border-slate-50">
           <Heart className="w-4 h-4 text-rose-200 mx-auto mb-1 fill-rose-200" />
           <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-            Gildas & Mariette • 2026
+            {coupleNames || 'Les mariés'}
           </p>
         </div>
 

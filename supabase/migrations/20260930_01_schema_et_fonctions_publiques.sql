@@ -138,6 +138,54 @@ as $$
   limit 5;
 $$;
 
+-- ---------------------------------------------------------------------
+-- 5. Création automatique du mariage à l'inscription
+--    Fonctionne même si la confirmation par e-mail est activée (pas encore de
+--    session côté navigateur au moment de l'inscription).
+--    Nom volontairement distinct de "handle_new_user" (souvent déjà utilisé pour profiles).
+--    Ne bloque jamais l'inscription : en cas d'erreur, le navigateur crée le mariage
+--    à la première connexion.
+-- ---------------------------------------------------------------------
+create or replace function public.create_marriage_for_new_user()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  v_p1 text := coalesce(nullif(trim(v_meta->>'partner_name_1'), ''), nullif(trim(v_meta->>'full_name'), ''), 'Partenaire 1');
+  v_p2 text := coalesce(nullif(trim(v_meta->>'partner_name_2'), ''), 'Partenaire 2');
+  v_date date;
+begin
+  begin
+    v_date := nullif(v_meta->>'wedding_date', '')::date;
+  exception when others then
+    v_date := null;
+  end;
+
+  if not exists (select 1 from public.marriages where user_id = new.id) then
+    insert into public.marriages (user_id, partner_1_name, partner_2_name, wedding_date, location_city, couple_slug)
+    values (
+      new.id, v_p1, v_p2,
+      coalesce(v_date, (now() + interval '1 year')::date),
+      'À définir',
+      lower(regexp_replace(v_p1 || '-' || v_p2, '\s+', '-', 'g')) || '-' || floor(1000 + random() * 9000)::int
+    );
+  end if;
+  return new;
+exception when others then
+  raise warning 'create_marriage_for_new_user: %', sqlerrm;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_marriage on auth.users;
+create trigger on_auth_user_created_marriage
+  after insert on auth.users
+  for each row execute function public.create_marriage_for_new_user();
+
+revoke all on function public.create_marriage_for_new_user() from public, anon, authenticated;
+
+
 revoke all on function public.marriage_exists(uuid) from public;
 revoke all on function public.get_rsvp_invitation(uuid, uuid) from public;
 revoke all on function public.submit_rsvp(uuid, uuid, text, text, boolean, boolean, boolean) from public;

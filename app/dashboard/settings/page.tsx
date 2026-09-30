@@ -87,7 +87,7 @@ export default function SettingsPage() {
   };
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
+    <div className="flex h-screen items-center justify-center bg-ivory">
        <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -100,16 +100,15 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]" style={{ fontFamily: '"Quicksand", sans-serif' }}>
+    <div className="min-h-screen bg-ivory">
       
 
       <main className="p-4 sm:p-6 lg:p-12">
         <div className="max-w-4xl mx-auto">
           
           <header className="mb-12">
-            <h1 className="text-4xl lg:text-5xl font-black italic text-slate-900">
-               Vos <span style={{ color: primaryColor }}>Settings</span>
-            </h1>
+            <p className="eyebrow">Compte</p>
+            <h1 className="mt-2 text-3xl font-normal text-ink sm:text-4xl">Paramètres</h1>
           </header>
 
           {/* ONGLETS */}
@@ -134,7 +133,7 @@ export default function SettingsPage() {
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[2rem] sm:rounded-[3rem] border-2 border-slate-50 shadow-2xl p-5 sm:p-10 relative overflow-hidden"
+            className="bg-white rounded-[1.5rem] sm:rounded-[2rem] border-2 border-slate-50 shadow-2xl p-5 sm:p-10 relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: primaryColor }} />
 
@@ -220,7 +219,7 @@ export default function SettingsPage() {
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
-                className="text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
+                className="text-white px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
                 style={{ backgroundColor: primaryColor }}
               >
                 {isSaving ? "Synchronisation..." : <><Save className="w-4 h-4" /> Sauvegarder</>}
@@ -233,7 +232,7 @@ export default function SettingsPage() {
       {/* TOAST */}
       <AnimatePresence>
         {toast && (
-          <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] px-8 py-5 rounded-[2rem] shadow-2xl flex items-center gap-4 bg-slate-900 border-2 border-rose-500 text-white">
+          <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] px-8 py-5 rounded-[1.5rem] shadow-2xl flex items-center gap-4 bg-slate-900 border-2 border-rose-500 text-white">
             <CheckCircle2 className="w-5 h-5 text-rose-500" />
             <span className="font-black text-xs uppercase tracking-widest">{toast.message}</span>
           </motion.div>

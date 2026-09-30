@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Camera, Upload, CheckCircle2, Loader2, Sparkles, Heart, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase'; // Ajuste le chemin selon ton projet
 import imageCompression from 'browser-image-compression';
@@ -13,6 +13,17 @@ interface SelectedFile {
 }
 
 export default function DepotPhotosPage() {
+  // Lien partagé aux invités : /photos?id=<identifiant du mariage> affiche les noms du couple
+  const [coupleNames, setCoupleNames] = useState('');
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) return;
+    supabase.rpc('get_rsvp_invitation', { p_marriage_id: id }).then(({ data }) => {
+      const m = data?.marriage;
+      if (m) setCoupleNames([m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & '));
+    });
+  }, []);
+
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [guestName, setGuestName] = useState('');
   const [message, setMessage] = useState('');
@@ -128,7 +139,7 @@ export default function DepotPhotosPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
-      <div className="w-full max-w-[450px] bg-white rounded-[2.5rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden">
+      <div className="w-full max-w-[450px] bg-white rounded-[1.75rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden">
         
         <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-rose-300 via-amber-200 to-rose-300" />
 
@@ -137,7 +148,7 @@ export default function DepotPhotosPage() {
           <div className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
             <Sparkles className="w-3 h-3" /> Live Album
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Partagez vos souvenirs</h1>
+          <h1 className="text-2xl font-normal text-slate-900 tracking-tight">Partagez vos souvenirs</h1>
           <p className="text-xs text-slate-400 mt-1 px-4">
             Envoyez vos photos en un instant pour alimenter l'album des mariés.
           </p>
@@ -148,7 +159,7 @@ export default function DepotPhotosPage() {
           
           {/* ZONE DE SÉLECTION */}
           {selectedFiles.length === 0 && !isUploading && (
-            <label className="relative aspect-[4/3] w-full bg-slate-50 hover:bg-slate-100/70 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center p-4 cursor-pointer transition-all group">
+            <label className="relative aspect-[4/3] w-full bg-slate-50 hover:bg-slate-100/70 border-2 border-dashed border-slate-200 rounded-[1.5rem] flex flex-col items-center justify-center p-4 cursor-pointer transition-all group">
               <input type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
               <div className="text-center space-y-2 text-slate-400">
                 <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto text-slate-600 group-hover:scale-105 transition-transform">
@@ -192,7 +203,7 @@ export default function DepotPhotosPage() {
 
           {/* VISU DE CHARGEMENT AVANCÉ (S'affiche pendant l'upload actif) */}
           {isUploading && (
-            <div className="bg-slate-950 text-white rounded-[2rem] p-5 space-y-4 shadow-inner animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-slate-950 text-white rounded-[1.5rem] p-5 space-y-4 shadow-inner animate-in fade-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
@@ -259,7 +270,7 @@ export default function DepotPhotosPage() {
           {isSuccess && !isUploading && (
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 text-emerald-800">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              <p className="text-xs font-bold">Vos photos et votre message ont été transmis ! Merci ❤️</p>
+              <p className="text-xs font-bold">Vos photos et votre message ont été transmis ! Merci</p>
             </div>
           )}
 
@@ -290,7 +301,7 @@ export default function DepotPhotosPage() {
         <div className="text-center pt-6 mt-6 border-t border-slate-50">
           <Heart className="w-4 h-4 text-rose-200 mx-auto mb-1 fill-rose-200" />
           <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-            Gildas & Mariette • 2026
+            {coupleNames || 'Les mariés'}
           </p>
         </div>
 

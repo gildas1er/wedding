@@ -19,7 +19,7 @@ export default function WelcomeModal({ partner1, partner2, onClose, onAction }: 
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="bg-white rounded-[2.5rem] p-8 lg:p-12 max-w-2xl w-full shadow-2xl relative overflow-hidden"
+          className="bg-white rounded-[1.75rem] p-8 lg:p-12 max-w-2xl w-full shadow-2xl relative overflow-hidden"
         >
           {/* Décoration de fond */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full -mr-16 -mt-16 blur-3xl" />
@@ -35,8 +35,8 @@ export default function WelcomeModal({ partner1, partner2, onClose, onAction }: 
             <div className="inline-flex items-center justify-center w-16 h-16 bg-rose-100 text-rose-500 rounded-2xl mb-6">
               <Heart size={32} className="fill-rose-500" />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 mb-2">
-              Félicitations {partner1} & {partner2} ! 🥂
+            <h2 className="text-3xl font-normal text-slate-900 mb-2">
+              Félicitations {partner1} & {partner2} !
             </h2>
             <p className="text-slate-500 font-medium">
               Votre espace de planification est prêt. Par quelle étape souhaitez-vous commencer l'aventure ?

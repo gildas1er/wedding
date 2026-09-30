@@ -100,17 +100,16 @@ export default function PlanningPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="min-h-screen bg-ivory text-ink">
       
 
       {/* MAIN CONTENT */}
       <main className="p-4 sm:p-8 lg:p-12 relative overflow-x-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-rose-100/50 blur-[120px] -z-10 rounded-full" />
 
         <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400">🕒 Chronologie</h2>
-            <p className="text-2xl font-bold">Le déroulement du Jour J 🥂</p>
+            <p className="eyebrow">Chronologie</p>
+            <h1 className="mt-2 text-3xl font-normal text-ink sm:text-4xl">Le déroulé du <span className="italic text-rose-500">Jour J</span></h1>
           </div>
           <button 
             onClick={() => setShowAddForm(true)}
@@ -126,12 +125,12 @@ export default function PlanningPage() {
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 sm:mb-12 bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 text-white relative overflow-hidden shadow-2xl"
+              className="mb-8 sm:mb-12 bg-slate-900 rounded-[1.5rem] sm:rounded-[1.75rem] p-5 sm:p-8 text-white relative overflow-hidden shadow-2xl"
             >
               <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-rose-500/20 blur-[80px] rounded-full" />
               <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-4 sm:gap-6">
-                  <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/10 flex flex-col items-center justify-center">
+                  <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 backdrop-blur-md rounded-[1.5rem] border border-white/10 flex flex-col items-center justify-center">
                     <Clock size={24} className="text-rose-400 mb-1" />
                     <span className="text-sm font-black">{nextEvent.start_time.substring(0, 5)}</span>
                   </div>
@@ -171,7 +170,7 @@ export default function PlanningPage() {
                 </div>
 
                 {/* Contenu */}
-                <div className={`flex-1 min-w-0 p-5 sm:p-7 rounded-[2rem] sm:rounded-[2.5rem] border transition-all ${event.is_major_step ? 'bg-white border-rose-100 shadow-xl shadow-rose-50/30' : 'bg-white border-slate-50 shadow-sm hover:shadow-md'}`}>
+                <div className={`flex-1 min-w-0 p-5 sm:p-7 rounded-[1.5rem] sm:rounded-[1.75rem] border transition-all ${event.is_major_step ? 'bg-white border-rose-100 shadow-xl shadow-rose-50/30' : 'bg-white border-slate-50 shadow-sm hover:shadow-md'}`}>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className={`font-bold text-lg sm:text-xl break-words ${event.is_major_step ? 'text-rose-600' : 'text-slate-800'}`}>
                       {event.title}
@@ -195,7 +194,7 @@ export default function PlanningPage() {
           </div>
 
           {events.length === 0 && !showAddForm && (
-            <div className="text-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200">
+            <div className="text-center py-20 bg-white rounded-[1.75rem] border border-dashed border-slate-200">
                <Calendar className="mx-auto text-slate-200 mb-4" size={48} />
                <p className="text-slate-400 font-medium italic">Commencez à planifier le déroulement de votre journée.</p>
             </div>
@@ -211,13 +210,13 @@ export default function PlanningPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 onSubmit={addEvent} 
-                className="bg-white p-10 rounded-[3rem] w-full max-w-xl shadow-2xl relative"
+                className="bg-white p-10 rounded-[2rem] w-full max-w-xl shadow-2xl relative"
               >
                 <button type="button" onClick={() => setShowAddForm(false)} className="absolute top-8 right-8 text-slate-400 hover:text-slate-600">
                   <XCircle size={24} />
                 </button>
 
-                <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
+                <h2 className="text-2xl font-normal mb-8 flex items-center gap-3">
                   <Plus className="text-rose-500" /> Nouvel événement
                 </h2>
 

@@ -1,8 +1,6 @@
-import { createBrowserClient } from '@supabase/ssr'
+// Point d'entrée conservé pour les imports existants : un seul client navigateur dans toute l'app.
+import { supabase } from '../../app/lib/supabase';
 
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  return supabase;
 }

@@ -22,13 +22,13 @@ export default function PricingModal({ onClose }: { onClose: () => void }) {
     >
       <motion.div
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-white rounded-[2rem] sm:rounded-[3rem] max-w-4xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl flex flex-col md:flex-row"
+        className="relative bg-white rounded-[1.5rem] sm:rounded-[2rem] max-w-4xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl flex flex-col md:flex-row"
       >
         <button onClick={onClose} aria-label="Fermer" className="absolute top-4 right-4 p-2 rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 md:hidden">
           <X size={18} />
         </button>
         <div className="p-8 sm:p-12 flex-1">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2">Passez au Premium 👑</h2>
+          <h2 className="text-2xl sm:text-3xl font-normal text-slate-900 mb-2">Passez au Premium 👑</h2>
           <p className="text-slate-500 mb-8 font-medium">Tout ce dont vous avez besoin pour un mariage sans stress.</p>
           <div className="space-y-4">
             <PricingFeature icon={Users} text="Invités illimités (Gratuit limité à 15)" />

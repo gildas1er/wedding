@@ -90,11 +90,11 @@ export default function GaleriePage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-        <div className="w-full max-w-[400px] bg-white rounded-[2.5rem] p-8 text-center shadow-2xl">
+        <div className="w-full max-w-[400px] bg-white rounded-[1.75rem] p-8 text-center shadow-2xl">
           <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Lock className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">Espace Mariés</h1>
+          <h1 className="text-2xl font-normal text-slate-900">Espace Mariés</h1>
           <p className="text-xs font-medium text-slate-500 mt-2 mb-6">Saisissez le code d&apos;accès pour ouvrir la galerie.</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
@@ -124,7 +124,7 @@ export default function GaleriePage() {
               <Sparkles className="w-3 h-3" />
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Album Souvenirs & Mots doux</p>
             </div>
-            <h1 className="text-2xl font-black text-slate-900">Le Livre d&apos;Or</h1>
+            <h1 className="text-2xl font-normal text-slate-900">Le Livre d&apos;Or</h1>
           </div>
           <button 
             onClick={fetchPhotosAndMetadata} disabled={loading}
@@ -152,7 +152,7 @@ export default function GaleriePage() {
                 key={idx}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-slate-50 border border-slate-100 rounded-[2.2rem] p-4 space-y-3.5 shadow-sm"
+                className="bg-slate-50 border border-slate-100 rounded-[1.5rem] p-4 space-y-3.5 shadow-sm"
               >
                 {/* Infos Invité */}
                 <div className="flex items-center justify-between px-1">
@@ -212,7 +212,7 @@ export default function GaleriePage() {
         {/* PIED DE PAGE */}
         <div className="text-center pt-8 border-t border-slate-50 mx-6 mt-auto">
           <Heart className="w-4 h-4 text-rose-200 mx-auto mb-1 fill-rose-200" />
-          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Gildas & Mariette • Livre d&apos;Or</p>
+          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Album des mariés • Livre d&apos;Or</p>
         </div>
 
         {/* LIGHTBOX UNIFIÉE (ZOOM SIMPLE) */}

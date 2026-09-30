@@ -114,11 +114,7 @@ export default function PrintPage() {
           setCoupleTitle(`${p1} & ${p2}`);
         } else if (marriageData.title && marriageData.title.toLowerCase() !== 'mariage') {
           setCoupleTitle(marriageData.title);
-        } else {
-          setCoupleTitle("GILDAS & MARIETTE");
         }
-      } else {
-        setCoupleTitle("GILDAS & MARIETTE");
       }
 
       const guestsResponse = marriageData?.id
@@ -162,10 +158,10 @@ export default function PrintPage() {
     );
   }
 
-  const displayName = coupleTitle || "GILDAS & MARIETTE";
+  const displayName = coupleTitle || "Notre mariage";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="min-h-screen bg-ivory text-slate-900 flex flex-col">
       
       {/* CSS D'IMPRESSION STRICT A4 */}
       <style jsx global>{`
@@ -227,7 +223,7 @@ export default function PrintPage() {
             
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => router.push('/dashboard/guests')}
+                onClick={() => router.push('/dashboard/invite')}
                 className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 transition-colors hidden sm:block"
                 title="Retour à la liste"
               >
@@ -235,7 +231,7 @@ export default function PrintPage() {
               </button>
 
               <div>
-                <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-normal text-slate-900 tracking-tight flex items-center gap-2">
                   <Printer className="text-rose-500 shrink-0" size={22} />
                   Centre d'Impression
                 </h1>
@@ -267,7 +263,7 @@ export default function PrintPage() {
                 type="text" 
                 value={coupleTitle} 
                 onChange={(e) => setCoupleTitle(e.target.value)}
-                placeholder="Ex: GILDAS & MARIETTE"
+                placeholder="Ex: AWA & YAO"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
@@ -319,7 +315,7 @@ export default function PrintPage() {
 
           {/* APERÇU ET ZONE D'IMPRESSION RESPONSIVE */}
           <main className="lg:col-span-8 w-full overflow-x-auto">
-            <div className="print-area bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-sm min-w-[320px] w-full">
+            <div className="print-area bg-white border border-slate-200 rounded-2xl sm:rounded-[1.5rem] p-4 sm:p-6 md:p-8 shadow-sm min-w-[320px] w-full">
               
               <table className="print-table w-full text-left border-collapse">
                 
@@ -340,7 +336,7 @@ export default function PrintPage() {
 
                         <div className="flex justify-between items-end gap-2 sm:gap-4">
                           <div>
-                            <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                            <h2 className="text-lg sm:text-xl md:text-2xl font-normal text-slate-900 tracking-tight">
                               {activeReport.title}
                             </h2>
                             <p className="text-[10px] sm:text-[11px] text-slate-600 font-medium mt-0.5">

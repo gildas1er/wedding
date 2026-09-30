@@ -106,6 +106,8 @@ export default function RegisterPage() {
         email,
         password,
         options: {
+          // Le lien de confirmation revient sur l'app, qui ouvre la session puis le tableau de bord
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName,
             partner_name_1: fullName,
@@ -122,19 +124,37 @@ export default function RegisterPage() {
       if (data?.user?.identities?.length === 0) {
         setMessage({ type: 'error', content: translateError('User already registered') });
       } else if (data?.user) {
-        // 2. ÉTAPE CRUCIALE : Impact de la table marriages
-        const { error: marriageError } = await supabase
-          .from('marriages')
-          .insert([{
-            user_id: data.user.id,
-            partner_1_name: fullName,
-            partner_2_name: partnerName,
-            wedding_date: weddingDate,
-            location_city: "À définir",
-            couple_slug: `${fullName.toLowerCase().trim().replace(/\s+/g, '-')}-${partnerName.toLowerCase().trim().replace(/\s+/g, '-')}-${Math.floor(1000 + Math.random() * 9000)}`
-          }]);
+        // 2. Le mariage est créé par un trigger en base (create_marriage_for_new_user).
+        if (!data.session) {
+          // Confirmation par e-mail activée : pas encore de session
+          setMessage({
+            type: 'success',
+            content: 'Compte créé ! Confirmez votre adresse via le lien reçu par e-mail, puis connectez-vous.'
+          });
+          return;
+        }
 
-        if (marriageError) throw marriageError;
+        // Secours si le trigger n'a pas pu créer le mariage
+        const { data: existing } = await supabase
+          .from('marriages')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: marriageError } = await supabase
+            .from('marriages')
+            .insert([{
+              user_id: data.user.id,
+              partner_1_name: fullName,
+              partner_2_name: partnerName,
+              wedding_date: weddingDate,
+              location_city: "À définir",
+              couple_slug: `${fullName.toLowerCase().trim().replace(/\s+/g, '-')}-${partnerName.toLowerCase().trim().replace(/\s+/g, '-')}-${Math.floor(1000 + Math.random() * 9000)}`
+            }]);
+
+          if (marriageError) throw marriageError;
+        }
 
         setMessage({ 
           type: 'success', 
@@ -162,7 +182,7 @@ export default function RegisterPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] flex flex-col lg:flex-row" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="min-h-screen bg-ivory flex flex-col lg:flex-row">
       <title>Prenez le contrôle de votre grand jour | WeddingStudio</title>
 
       {/* Côté gauche - Visuel */}
@@ -175,7 +195,7 @@ export default function RegisterPage() {
           <div className="w-16 h-16 bg-rose-500 rounded-3xl flex items-center justify-center shadow-2xl mx-auto mb-8">
             <Heart className="text-white w-8 h-8 fill-current" />
           </div>
-          <h2 className="text-4xl font-black text-white mb-6 italic" style={{ fontFamily: '"Playfair Display", serif' }}>Commencez votre histoire ici.</h2>
+          <h2 className="text-4xl font-normal text-white mb-6 italic" style={{ fontFamily: 'var(--font-display)' }}>Commencez votre histoire ici.</h2>
           <p className="text-slate-300 leading-relaxed font-medium">Rejoignez WeddingStudio et organisez votre mariage en toute sérénité.</p>
         </div>
       </div>
@@ -186,7 +206,7 @@ export default function RegisterPage() {
           
           <div className="mb-8 text-center lg:text-left">
             <span className="text-rose-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Inscription</span>
-            <h1 className="text-3xl font-black text-slate-900 mb-2 leading-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
+            <h1 className="text-3xl font-normal text-slate-900 mb-2 leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
               Prenez le contrôle de <br /> <span className="italic text-rose-500">votre grand jour.</span>
             </h1>
             <p className="text-slate-500 font-medium text-sm">Créez votre compte gratuit en quelques secondes.</p>

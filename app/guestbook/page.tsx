@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useSearchParams } from 'next/navigation';
-import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon } from 'lucide-react';
+import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';
 
 function GuestbookContent() {
   const searchParams = useSearchParams();
@@ -133,7 +133,7 @@ function GuestbookContent() {
       }
     } catch (error) {
       console.error(error);
-      alert("Oups, impossible d'envoyer votre message avec la photo. Réessayez ! ✨");
+      alert("Oups, impossible d'envoyer votre message avec la photo. Réessayez !");
     } finally {
       setSubmitting(false);
     }
@@ -141,11 +141,11 @@ function GuestbookContent() {
 
   if (!marriageId) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#FDFBFD] p-6 text-center">
+      <div className="h-screen flex items-center justify-center bg-ivory p-6 text-center">
         <div className="max-w-md p-8 bg-white rounded-3xl shadow-sm border border-slate-100">
           <Heart className="text-rose-400 mx-auto mb-4 animate-pulse" size={40} />
-          <h1 className="text-xl font-black text-slate-800">Livre d'or introuvable</h1>
-          <p className="text-sm text-slate-500 mt-2">Le lien d'accès semble incomplet ou incorrect. ✨</p>
+          <h1 className="text-xl font-normal text-slate-800">Livre d'or introuvable</h1>
+          <p className="text-sm text-slate-500 mt-2">Le lien d'accès semble incomplet ou incorrect.</p>
         </div>
       </div>
     );
@@ -161,7 +161,7 @@ function GuestbookContent() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">👤 Votre Nom / Famille</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Votre Nom / Famille</label>
             <input 
               required 
               type="text" 
@@ -173,7 +173,7 @@ function GuestbookContent() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">✍️ Votre Message</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Votre Message</label>
             <textarea 
               required 
               rows={4}
@@ -186,12 +186,12 @@ function GuestbookContent() {
 
           {/* AJOUT DE PHOTO */}
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📸 Ajouter un souvenir photo (Optionnel)</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Ajouter un souvenir photo (Optionnel)</label>
             <input 
               type="file" 
               ref={fileInputRef} 
               accept="image/*" 
-              capture="environment" // 👈 Magique : force l'ouverture de l'appareil photo arrière sur mobile
+              capture="environment" // Force l'ouverture de l'appareil photo arrière sur mobile
               className="hidden" 
               onChange={handleFileChange}
             />
@@ -237,8 +237,8 @@ function GuestbookContent() {
               exit={{ opacity: 0, y: 15 }}
               className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center text-center p-6"
             >
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-3 text-2xl">✨</div>
-              <h4 className="text-md font-black text-slate-800">Merci infiniment ! ❤️</h4>
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-3"><Check size={22} /></div>
+              <h4 className="text-md font-black text-slate-800">Merci infiniment !</h4>
               <p className="text-xs text-slate-500 mt-1">Votre souvenir photo a bien été ajouté au livre d'or.</p>
             </motion.div>
           )}
@@ -248,7 +248,7 @@ function GuestbookContent() {
       {/* LISTE DES MESSAGES REÇUS */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2 px-1">
-          🕊️ Les mots partagés ({messages.length})
+          Les mots partagés ({messages.length})
         </h2>
 
         {loading ? (
@@ -258,7 +258,7 @@ function GuestbookContent() {
           </div>
         ) : messages.length === 0 ? (
           <div className="bg-white py-12 px-6 text-center rounded-3xl border border-slate-100 shadow-sm">
-            <span className="text-3xl">🕯️</span>
+            <Feather className="mx-auto text-amber-500" size={28} strokeWidth={1.4} />
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-3">Aucun message pour l'instant</p>
             <p className="text-[10px] text-slate-400 font-bold mt-1">Soyez le tout premier à laisser un souvenir !</p>
           </div>
@@ -309,14 +309,14 @@ function GuestbookContent() {
 
 export default function PublicGuestbook() {
   return (
-    <div className="min-h-screen bg-[#FCF9FC] text-[#1E293B] pb-16" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="min-h-screen bg-ivory text-ink pb-16">
       {/* HEADER */}
       <div className="bg-white border-b border-rose-100/40 text-center py-12 px-6 shadow-sm">
         <span className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-500 flex items-center justify-center gap-1.5 mb-2">
           <Sparkles size={12} className="fill-rose-100" /> Livre d'or Virtuel <Sparkles size={12} className="fill-rose-100" />
         </span>
-        <h1 className="text-3xl font-black tracking-tight text-slate-900">Laissez-nous un <span className="text-rose-500 italic">mot doux</span></h1>
-        <p className="text-xs text-slate-400 font-bold mt-1.5 max-w-xs mx-auto">Prenez une jolie photo et laissez-nous vos meilleurs vœux ! 📸💍</p>
+        <h1 className="text-3xl font-normal tracking-tight text-slate-900">Laissez-nous un <span className="text-rose-500 italic">mot doux</span></h1>
+        <p className="text-xs text-slate-400 font-bold mt-1.5 max-w-xs mx-auto">Prenez une jolie photo et laissez-nous vos meilleurs vœux !</p>
       </div>
 
       <Suspense fallback={

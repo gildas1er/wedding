@@ -199,7 +199,7 @@ export default function SeatingPlannerV24() {
       tablesContentHtml += `
         <div style="margin-bottom: 30px; page-break-inside: avoid;">
           <h2 style="font-size: 14pt; color: #0f172a; margin-bottom: 5px; font-family: Arial, sans-serif;">
-            ${table.is_vip ? '⭐ [VIP] ' : ''}${table.name} 
+            ${table.is_vip ? '[VIP] ' : ''}${table.name} 
             <span style="font-size: 10pt; font-weight: normal; color: #475569;">(${currentOccupancy} / ${table.capacity} Couverts)</span>
           </h2>
           <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 10pt;">
@@ -258,7 +258,7 @@ export default function SeatingPlannerV24() {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen bg-[#FCFBF7] flex flex-col items-center justify-center gap-4">
+      <div className="h-screen w-screen bg-ivory flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-amber-600" size={40} />
         <p className="font-luxury italic text-xl text-slate-800">Chargement...</p>
       </div>
@@ -266,11 +266,8 @@ export default function SeatingPlannerV24() {
   }
 
   return (
-    <div className="h-[calc(100dvh-3.5rem)] lg:h-screen bg-[#FCFBF7] flex flex-col font-ui overflow-hidden">
+    <div className="h-[calc(100dvh-3.5rem)] lg:h-screen bg-ivory flex flex-col font-ui overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
-        .font-luxury { font-family: 'Playfair Display', serif; }
-        .font-ui { font-family: 'Montserrat', sans-serif; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
         
@@ -320,7 +317,7 @@ export default function SeatingPlannerV24() {
           </button>
           <div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <h1 className="text-lg sm:text-2xl font-luxury font-bold text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
+              <h1 className="text-lg sm:text-2xl font-luxury font-normal text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
               <span className="bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
                 <Users size={14} className="text-amber-600" />
                 {totalAssignedGuests} / {totalReceptionGuests} Placé(s)
@@ -412,7 +409,7 @@ export default function SeatingPlannerV24() {
                         const remaining = t.capacity - getTableOccupancy(t.id);
                         return (
                           <option key={t.id} value={t.id} disabled={remaining < groupSize}>
-                            {t.is_vip ? '⭐ ' : ''}{t.name} ({remaining} p. libres)
+                            {t.is_vip ? ' ' : ''}{t.name} ({remaining} p. libres)
                           </option>
                         );
                       })}
@@ -425,7 +422,7 @@ export default function SeatingPlannerV24() {
         </aside>
 
         {/* CANEVAS INTERACTIF & VUE CARTES */}
-        <main className="flex-1 bg-[#F7F5EF] relative overflow-hidden flex flex-col">
+        <main className="flex-1 bg-ivory-deep relative overflow-hidden flex flex-col">
           {viewMode === 'canvas' && (
             <>
               {/* TOOLBAR DISPOSITIONS */}
@@ -690,7 +687,7 @@ export default function SeatingPlannerV24() {
               >
                 <div className="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
                   <h3 className="font-bold text-base flex items-center gap-1.5 text-slate-900">
-                    {table.is_vip && "⭐ [VIP] "}
+                    {table.is_vip && "VIP · "}
                     {table.name}
                   </h3>
                   <span className="text-xs font-extrabold bg-slate-100 text-slate-800 px-3 py-1 rounded-full border border-slate-200">

@@ -133,7 +133,7 @@ export default function InvitationStudio() {
   };
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#FDFCFB]">
+    <div className="h-screen flex flex-col items-center justify-center bg-ivory">
       <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}>
         <Heart className="w-16 h-16 text-rose-500 fill-rose-500 shadow-xl shadow-rose-200" />
       </motion.div>
@@ -142,14 +142,14 @@ export default function InvitationStudio() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] p-4 sm:p-8 lg:p-12 text-slate-900" style={{ fontFamily: '"Quicksand", sans-serif' }}>
+    <div className="min-h-screen bg-ivory p-4 sm:p-8 lg:p-12 text-slate-900">
       
       {/* Notifications */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div 
             initial={{ opacity: 0, y: -20, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -20, x: "-50%" }}
-            className="fixed top-8 left-1/2 z-[200] bg-slate-900 text-white px-8 py-4 rounded-[2rem] shadow-2xl flex items-center gap-3 font-black italic border border-white/10"
+            className="fixed top-8 left-1/2 z-[200] bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 font-black italic border border-white/10"
           >
             <div className="bg-rose-500 rounded-full p-1"><Check className="w-4 h-4 text-white" /></div>
             L'invitation est prête !
@@ -165,12 +165,12 @@ export default function InvitationStudio() {
             <div className="inline-flex items-center gap-2 bg-rose-50 px-4 py-1.5 rounded-full text-rose-500 text-[10px] font-black uppercase tracking-widest border border-rose-100">
               <Palette className="w-3 h-3" /> Éditeur Digital
             </div>
-            <h1 className="text-5xl font-black text-slate-900 tracking-tight italic">Studio <span className="text-rose-500">Créatif</span></h1>
+            <h1 className="text-5xl font-normal text-slate-900 tracking-tight italic">Studio <span className="text-rose-500">Créatif</span></h1>
             <p className="text-slate-700 font-bold text-lg">Personnalisez le RSVP que vos invités recevront.</p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-50 space-y-6">
+            <div className="bg-white p-8 rounded-[1.75rem] shadow-sm border-2 border-slate-50 space-y-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500"><Palette className="w-5 h-5" /></div>
                 <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-600">Identité Visuelle</h3>
@@ -190,12 +190,12 @@ export default function InvitationStudio() {
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-50 space-y-6">
+            <div className="bg-white p-8 rounded-[1.75rem] shadow-sm border-2 border-slate-50 space-y-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-500"><ImageIcon className="w-5 h-5" /></div>
                 <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-600">Photo de Couverture</h3>
               </div>
-              <div onClick={() => fileInputRef.current?.click()} className="group relative h-44 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all overflow-hidden shadow-inner">
+              <div onClick={() => fileInputRef.current?.click()} className="group relative h-44 bg-slate-50 rounded-[1.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all overflow-hidden shadow-inner">
                 {uploading && <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-sm flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-rose-500" /></div>}
                 {config.bg_image_url ? (
                   <img src={config.bg_image_url} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -210,7 +210,7 @@ export default function InvitationStudio() {
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[3rem] shadow-sm border-2 border-slate-50 space-y-8">
+          <div className="bg-white p-8 rounded-[2rem] shadow-sm border-2 border-slate-50 space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500"><Clock className="w-5 h-5" /></div>
               <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-600">Le Programme du RSVP</h3>
@@ -218,7 +218,7 @@ export default function InvitationStudio() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Mairie */}
-              <div className="bg-rose-50/30 p-6 rounded-[2rem] border-2 border-rose-100 space-y-4">
+              <div className="bg-rose-50/30 p-6 rounded-[1.5rem] border-2 border-rose-100 space-y-4">
                 <div className="flex items-center gap-3 text-rose-600 font-black text-[13px] uppercase tracking-wider">
                   <div className="p-2 bg-white rounded-lg shadow-sm"><Landmark className="w-4 h-4" /></div>
                   Cérémonie Civile
@@ -245,7 +245,7 @@ export default function InvitationStudio() {
               </div>
 
               {/* Église */}
-              <div className="bg-blue-50/30 p-6 rounded-[2rem] border-2 border-blue-100 space-y-4">
+              <div className="bg-blue-50/30 p-6 rounded-[1.5rem] border-2 border-blue-100 space-y-4">
                 <div className="flex items-center gap-3 text-blue-600 font-black text-[13px] uppercase tracking-wider">
                   <div className="p-2 bg-white rounded-lg shadow-sm"><Cross className="w-4 h-4" /></div>
                   Cérémonie Religieuse
@@ -272,7 +272,7 @@ export default function InvitationStudio() {
               </div>
 
               {/* Réception */}
-              <div className="bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100 space-y-4 md:col-span-2">
+              <div className="bg-amber-50/30 p-6 rounded-[1.5rem] border-2 border-amber-100 space-y-4 md:col-span-2">
                 <div className="flex items-center gap-3 text-amber-700 font-black text-[13px] uppercase tracking-wider">
                   <div className="p-2 bg-white rounded-lg shadow-sm"><PartyPopper className="w-4 h-4" /></div>
                   Réception & Dîner
@@ -295,7 +295,7 @@ export default function InvitationStudio() {
             </div>
           </div>
 
-          <button onClick={handleSave} disabled={saving} className="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-xl hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="w-full bg-slate-900 text-white py-6 rounded-[1.75rem] font-black text-xl hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
             {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
             {saving ? "Sauvegarde en cours..." : "Publier les modifications"}
           </button>
@@ -332,7 +332,7 @@ export default function InvitationStudio() {
                     <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: config.primary_color }}>
                       {config.invitation_text}
                     </p>
-                    <h2 className="text-3xl font-black text-slate-900 leading-tight italic">
+                    <h2 className="text-3xl font-normal text-slate-900 leading-tight italic">
                       {marriage?.partner_1_name} <br/> 
                       <span className="text-2xl" style={{ color: config.primary_color }}>&</span> <br/> 
                       {marriage?.partner_2_name}

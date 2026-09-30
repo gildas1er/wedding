@@ -17,12 +17,11 @@ import {
 // --- 1. COMPOSANTS DE SOUTIEN ---
 
 
-function BentoStatCard({ label, value, emoji, color }: any) {
+function BentoStatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group transition-transform hover:scale-105 hover:shadow-lg">
-      <div className={`text-3xl font-black tabular-nums leading-none ${color}`}>{value}</div>
-      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1 mb-2">{label}</div>
-      <div className="bg-slate-50 w-9 h-9 rounded-full flex items-center justify-center m-auto text-lg">{emoji}</div>
+    <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm">
+      <div className={`font-display text-3xl tabular-nums leading-none ${color}`}>{value}</div>
+      <div className="mt-2 text-xs font-medium text-slate-500">{label}</div>
     </div>
   );
 }
@@ -174,7 +173,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
       onClose();
     } catch (error: any) {
       if (error.code === '23505') {
-        setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité. ✨");
+        setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité.");
       } else {
         setErrorMessage("Oups ! Une petite erreur technique s'est glissée.");
       }
@@ -188,10 +187,10 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-            <div className="p-5 sm:p-8 bg-[#161B2E] text-white flex justify-between items-center">
+          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden border border-slate-100">
+            <div className="p-5 sm:p-8 bg-ink text-white flex justify-between items-center">
               <div>
-                <h3 className="text-2xl font-black">{guestToEdit ? "Modifier" : "Ajouter"} Invité 🥂</h3>
+                <h3 className="text-2xl font-black">{guestToEdit ? "Modifier" : "Ajouter"} Invité</h3>
                 <p className="text-slate-400 font-medium text-xs uppercase tracking-widest mt-1">Registre des invités</p>
               </div>
               <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-2xl transition-colors"><X size={24} /></button>
@@ -223,12 +222,12 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">👤 Nom de l'invité</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Nom de l'invité</label>
                 <input required type="text" placeholder="Ex: Jean Dupont" className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-bold" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📞 Numéro WhatsApp (avec indicatif)</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Numéro WhatsApp (avec indicatif)</label>
                 <input 
                   required 
                   type="text"
@@ -244,16 +243,16 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">🏷️ Catégorie</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Catégorie</label>
                   <select className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-sm" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
-                    <option value="amis">Amis ✨</option>
-                    <option value="parents">Parents 🏠</option>
-                    <option value="collègues">Collègues 💼</option>
+                    <option value="amis">Amis</option>
+                    <option value="parents">Parents</option>
+                    <option value="collègues">Collègues</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📢 Statut RSVP</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Statut RSVP</label>
                   <select className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-sm" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
                     <option value="en_attente">En attente</option>
                     <option value="confirmé">Confirmé</option>
@@ -263,7 +262,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">👥 Accompagné ?</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Accompagné ?</label>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setHasAccompanist(false)} className={`flex-1 py-3 rounded-xl font-black text-xs border-2 transition-all ${!hasAccompanist ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>NON</button>
                   <button type="button" onClick={() => setHasAccompanist(true)} className={`flex-1 py-3 rounded-xl font-black text-xs border-2 transition-all ${hasAccompanist ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>OUI</button>
@@ -276,7 +275,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">💒 Côté</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Côté</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'partenaire_1', label: 'Marié' },
@@ -292,7 +291,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
 
               {formData.status === 'confirmé' && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">📍 Présence aux cérémonies</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Présence aux cérémonies</label>
                   <div className="grid grid-cols-3 gap-2">
                     <label className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 font-bold text-xs cursor-pointer ${formData.attending_civil ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
                       <input type="checkbox" checked={formData.attending_civil} onChange={e => setFormData({...formData, attending_civil: e.target.checked})} className="sr-only" />
@@ -311,7 +310,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               )}
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">💌 Notes / Message de l'invité</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Notes / Message de l'invité</label>
                 <textarea rows={3} placeholder="Message, vœux ou notes particulières..." className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-medium text-sm text-slate-700" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
               </div>
 
@@ -481,12 +480,12 @@ export default function GuestPage() {
           if (hasDuplicateError) {
             setImportNotice({ 
               type: 'success', 
-              message: `Importation partielle : ${insertedCount} proches ajoutés. Certains numéros en doublon ont été ignorés ! ✨` 
+              message: `Importation partielle : ${insertedCount} proches ajoutés. Certains numéros en doublon ont été ignorés !` 
             });
           } else {
             setImportNotice({ 
               type: 'success', 
-              message: `${insertedCount} proches ajoutés avec succès ! ✨` 
+              message: `${insertedCount} proches ajoutés avec succès !` 
             });
           }
           
@@ -506,7 +505,7 @@ export default function GuestPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Voulez-vous retirer cet invité précieux ? ✨")) {
+    if (confirm("Voulez-vous retirer cet invité précieux ?")) {
       const { error } = await supabase.from('invite').delete().eq('id', id);
       if (error) alert("Erreur technique lors du retrait");
       else loadData();
@@ -514,7 +513,7 @@ export default function GuestPage() {
   };
 
   const sendWhatsAppInvitation = async (guest: any) => {
-    const rsvpUrl = `${window.location.origin}/dashboard/rsvp/${marriage.id}?guest=${guest.id}`;
+    const rsvpUrl = `${window.location.origin}/rsvp/${marriage.id}?guest=${guest.id}`;
     
     // Si le numéro commence par +, on enlève le + pour le paramètre d'URL de l'API WhatsApp
     const formattedPhone = guest.phone.startsWith('+') ? guest.phone.substring(1) : guest.phone;
@@ -528,7 +527,7 @@ export default function GuestPage() {
 `Merci de cliquer sur le lien ci-dessous pour valider votre venue :\n` +
 `👉 ${rsvpUrl}\n\n` +
 `Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
-`_Gildas & Mariette_ \n`;
+`_${[marriage.partner_1_name, marriage.partner_2_name].filter(Boolean).join(' & ')}_ \n`;
     
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -571,7 +570,7 @@ export default function GuestPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFBFD] text-[#1E293B]" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="min-h-screen bg-ivory text-ink">
       
       <style jsx global>{`
         @media print {
@@ -592,8 +591,8 @@ export default function GuestPage() {
       <main className="max-w-7xl mx-auto p-4 sm:p-8 lg:p-12">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 sm:mb-12 gap-6 relative">
           <div className="space-y-2">
-            <div className="text-xs font-black uppercase text-rose-500 tracking-[0.2em] flex items-center gap-2"><UsersIcon size={14}/> Communauté du Bonheur</div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter">Liste des <span className="text-rose-500 italic">Invités Précieux</span></h1>
+            <p className="eyebrow">Vos invités</p>
+            <h1 className="text-3xl sm:text-4xl font-normal tracking-tight">La liste <span className="text-rose-500 italic">des invités</span></h1>
           </div>
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
@@ -621,13 +620,13 @@ export default function GuestPage() {
 
         {/* BENTO STATS AVEC DÉTAIL DES CÉRÉMONIES */}
         <div className="bento-cards grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 mb-8 sm:mb-12">
-          <BentoStatCard label="Total Invités" value={guests.reduce((acc, g) => acc + (g.guests_count || 1), 0)} emoji="👥" color="text-[#0D1C41]" />
-          <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} emoji="✅" color="text-emerald-500" />
-          <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} emoji="⏳" color="text-amber-500" />
-          <BentoStatCard label="Invités VIP" value={guests.filter(g => g.is_vip).length} emoji="⭐" color="text-amber-600" />
-          <BentoStatCard label="Mairie" value={totalCivil} emoji="🏛️" color="text-rose-600" />
-          <BentoStatCard label="Église" value={totalChurch} emoji="⛪" color="text-blue-600" />
-          <BentoStatCard label="Dîner" value={totalReception} emoji="🥂" color="text-amber-700" />
+          <BentoStatCard label="Total Invités" value={guests.reduce((acc, g) => acc + (g.guests_count || 1), 0)} color="text-ink" />
+          <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} color="text-emerald-500" />
+          <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} color="text-amber-500" />
+          <BentoStatCard label="Invités VIP" value={guests.filter(g => g.is_vip).length} color="text-amber-600" />
+          <BentoStatCard label="Mairie" value={totalCivil} color="text-rose-600" />
+          <BentoStatCard label="Église" value={totalChurch} color="text-blue-600" />
+          <BentoStatCard label="Dîner" value={totalReception} color="text-amber-700" />
         </div>
 
         <AnimatePresence>
@@ -644,7 +643,7 @@ export default function GuestPage() {
         </AnimatePresence>
 
         {/* BARRE DE RECHERCHE ET BARRE DE FILTRES AVANCÉS */}
-        <div className="search-container bg-white p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
+        <div className="search-container bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[1.75rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
           <div className="flex flex-col md:flex-row gap-4 items-stretch">
             <div className="relative flex-1">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
@@ -677,10 +676,10 @@ export default function GuestPage() {
               value={categoryFilter} 
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
-              <option value="all">🏷️ Catégorie : Toutes</option>
-              <option value="amis">Amis ✨</option>
-              <option value="parents">Parents 🏠</option>
-              <option value="collègues">Collègues 💼</option>
+              <option value="all"> Catégorie : Toutes</option>
+              <option value="amis">Amis</option>
+              <option value="parents">Parents</option>
+              <option value="collègues">Collègues</option>
             </select>
 
             <select 
@@ -688,7 +687,7 @@ export default function GuestPage() {
               value={accompanistFilter} 
               onChange={(e) => setAccompanistFilter(e.target.value)}
             >
-              <option value="all">👥 Accompagnants : Tous</option>
+              <option value="all"> Accompagnants : Tous</option>
               <option value="single">Seul (x1)</option>
               <option value="accompanied">Accompagné (x2+)</option>
             </select>
@@ -698,10 +697,10 @@ export default function GuestPage() {
               value={rsvpFilter} 
               onChange={(e) => setRsvpFilter(e.target.value)}
             >
-              <option value="all">📢 RSVP : Tous les statuts</option>
-              <option value="confirmé">Confirmé présent ✅</option>
+              <option value="all"> RSVP : Tous les statuts</option>
+              <option value="confirmé">Confirmé présent</option>
               <option value="en_attente">En attente ⏳</option>
-              <option value="décliné">Absent / Décliné ❌</option>
+              <option value="décliné">Absent / Décliné</option>
             </select>
 
             <select 
@@ -709,8 +708,8 @@ export default function GuestPage() {
               value={messageFilter} 
               onChange={(e) => setMessageFilter(e.target.value)}
             >
-              <option value="all">💬 Message WhatsApp : Tous</option>
-              <option value="sent">Message envoyé ✉️</option>
+              <option value="all"> Message WhatsApp : Tous</option>
+              <option value="sent">Message envoyé</option>
               <option value="pending">Message à envoyer ⏳</option>
             </select>
 
@@ -751,20 +750,20 @@ export default function GuestPage() {
             <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100/30">
               <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Restants à envoyer</div>
               <div className="text-base font-black text-amber-700 mt-0.5">
-                {guests.filter(g => !g.invitation_sent).length} fiches ✉️
+                {guests.filter(g => !g.invitation_sent).length} fiches
               </div>
             </div>
             <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/30">
               <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Invitations délivrées</div>
               <div className="text-base font-black text-emerald-700 mt-0.5">
-                {guests.filter(g => g.invitation_sent).length} envoyées ✅
+                {guests.filter(g => g.invitation_sent).length} envoyées
               </div>
             </div>
           </div>
         </div>
 
         {/* TABLEAU DES INVITÉS */}
-        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left border-separate border-spacing-0">
             <thead className="bg-slate-50/80 border-b border-slate-200">
@@ -814,7 +813,7 @@ export default function GuestPage() {
 
                           {guest.invitation_sent ? (
                             <span className="bg-emerald-100/70 text-emerald-800 border-emerald-200/50 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border">
-                              ✉️ Envoyé
+                              Envoyé
                             </span>
                           ) : (
                             <span className="bg-amber-50 text-amber-600 border-amber-200/60 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border italic">

@@ -11,35 +11,6 @@ import {
 } from 'lucide-react';
 
 // --- COMPOSANT DES PÉTALES ROUGES ---
-const RedPetals = () => {
-  const petals = Array.from({ length: 20 });
-  return (
-    <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden print:hidden">
-      {petals.map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ top: -20, left: `${Math.random() * 100}%`, opacity: 0, rotate: 0 }}
-          animate={{ 
-            top: '110%', 
-            left: `${Math.random() * 110 - 5}%`,
-            opacity: [0, 0.7, 0.7, 0],
-            rotate: 720 
-          }}
-          transition={{ 
-            duration: Math.random() * 8 + 7, 
-            repeat: Infinity, 
-            ease: "linear",
-            delay: Math.random() * 10 
-          }}
-          className="absolute text-red-500/30 select-none"
-        >
-          <Heart size={Math.random() * 12 + 8} fill="currentColor" />
-        </motion.div>
-      ))}
-    </div>
-  );
-};
-
 const EXCHANGE_RATES: { [key: string]: number } = { FCFA: 1, EUR: 0.0015, USD: 0.0016 };
 const CURRENCY_SYMBOLS: { [key: string]: string } = { FCFA: 'FCFA', EUR: '€', USD: '$' };
 
@@ -233,19 +204,16 @@ export default function BudgetDashboard() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#FDFBF7]">
+      <div className="h-screen flex items-center justify-center bg-ivory">
         <div className="w-8 h-8 border-4 border-amber-100 border-t-amber-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] font-ui w-full relative overflow-x-hidden">
+    <div className="min-h-screen bg-ivory font-ui w-full relative overflow-x-hidden">
       {/* FEUILLE DE STYLE MULTI-PAGES D'IMPRESSION AVEC LE REPETITEUR HTML TFOOT */}
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Montserrat:wght@300;400;600;800&display=swap');
-        .font-luxury { font-family: 'Playfair Display', serif; }
-        .font-ui { font-family: 'Montserrat', sans-serif; }
         
         .pure-print-wrapper { display: none; }
 
@@ -358,7 +326,6 @@ export default function BudgetDashboard() {
         }
       `}} />
 
-      <RedPetals />
 
       {/* MESSAGES D'ERREUR */}
       <AnimatePresence>
@@ -412,7 +379,7 @@ export default function BudgetDashboard() {
               { label: 'Total Facturé', val: totalActual, color: 'text-amber-600', icon: <DollarSign size={18}/> },
               { label: 'Reste à régler', val: totalRemaining, color: 'text-red-500', icon: <AlertCircle size={18}/> }
             ].map((stat, i) => (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={i} className="bg-white/80 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-amber-100 shadow-sm">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={i} className="bg-white/80 backdrop-blur-md p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[1.75rem] border border-amber-100 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{stat.label}</p>
                   <div className="p-2 bg-slate-50 rounded-lg text-slate-400">{stat.icon}</div>
@@ -422,7 +389,7 @@ export default function BudgetDashboard() {
             ))}
           </div>
 
-          <div className="bg-white/80 backdrop-blur-md p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] border border-amber-100 shadow-sm mb-8 sm:mb-12 relative overflow-hidden">
+          <div className="bg-white/80 backdrop-blur-md p-6 sm:p-10 rounded-[1.5rem] sm:rounded-[2rem] border border-amber-100 shadow-sm mb-8 sm:mb-12 relative overflow-hidden">
             <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
               <h3 className="font-luxury text-xl italic text-slate-800">Progression des règlements</h3>
               <span className="bg-amber-500 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
@@ -471,7 +438,7 @@ export default function BudgetDashboard() {
               )}
             </div>
 
-            <div className="bg-slate-900 rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 text-white shadow-2xl h-fit lg:sticky lg:top-40">
+            <div className="bg-slate-900 rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-10 text-white shadow-2xl h-fit lg:sticky lg:top-40">
               <h3 className="font-luxury text-2xl mb-8 italic text-amber-400">Répartition</h3>
               <div className="space-y-6">
                 {categories.map(cat => {
@@ -619,7 +586,7 @@ export default function BudgetDashboard() {
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:hidden">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 w-full max-w-2xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-10 w-full max-w-2xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
               <button onClick={() => setShowAddModal(false)} className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
               <h3 className="text-3xl font-luxury text-center mb-10 italic">Nouvelle dépense</h3>
               <form onSubmit={handleAddExpense} className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -670,11 +637,11 @@ export default function BudgetDashboard() {
       <AnimatePresence>
         {editingExpense && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:hidden">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 w-full max-w-xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-12 w-full max-w-xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
               <button onClick={() => setEditingExpense(null)} className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
               <h3 className="text-3xl font-luxury text-center mb-10 italic">Mise à jour paiement</h3>
               <form onSubmit={handleUpdateExpense} className="space-y-6">
-                <div className="bg-amber-50 p-8 rounded-[2rem] flex items-center justify-between border border-amber-100">
+                <div className="bg-amber-50 p-8 rounded-[1.5rem] flex items-center justify-between border border-amber-100">
                   <div className="text-left">
                     <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">À régler</p>
                     <p className="text-2xl font-luxury text-slate-900">{formatPrice(editingExpense.amount_actual)}</p>

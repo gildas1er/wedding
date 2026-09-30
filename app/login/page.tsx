@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ArrowRight, Chrome, Mail, Lock, Eye, EyeOff, Facebook, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
+import { safeNextPath } from '../../lib/safe-redirect';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,27 +23,12 @@ export default function LoginPage() {
     content: '' 
   });
 
-  // --- LOGIQUE DE VALIDATION ---
-  const [validation, setValidation] = useState({
-    length: false, upper: false, lower: false, number: false, special: false,
-  });
-
-  useEffect(() => {
-    setValidation({
-      length: password.length >= 8,
-      upper: /[A-Z]/.test(password),
-      lower: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    });
-  }, [password]);
-
-  const allValid = Object.values(validation).every(Boolean);
+  const allValid = email.trim() !== '' && password !== '';
 
   // --- CONNEXION EMAIL/PASSWORD ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!allValid) return;
+    if (!email || !password) return;
     
     setIsLoading(true);
     setMessage({ type: '', content: '' });
@@ -57,8 +43,10 @@ export default function LoginPage() {
 
       if (data.user) {
         setMessage({ type: 'success', content: 'Connexion réussie ! Redirection...' });
+        // Revient sur la page demandée avant la connexion (ex. /dashboard/budget)
+        const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
         setTimeout(() => {
-          router.push('/dashboard'); 
+          router.push(next);
         }, 1500);
       }
     } catch (error: any) {
@@ -78,7 +66,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNextPath(new URLSearchParams(window.location.search).get('next')))}`,
         },
       });
       if (error) throw error;
@@ -87,15 +75,8 @@ export default function LoginPage() {
     }
   };
 
-  const Criterion = ({ met, label }: { met: boolean; label: string }) => (
-    <div className="flex items-center gap-1.5">
-      {met ? <Check className="w-3 h-3 text-emerald-500" /> : <div className="w-1 h-1 rounded-full bg-slate-300 mx-1" />}
-      <span className={`text-[10px] font-medium ${met ? 'text-emerald-600' : 'text-slate-400'}`}>{label}</span>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-[#FAFAF8] flex flex-col lg:flex-row" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="min-h-screen bg-ivory flex flex-col lg:flex-row">
       
       <title>Heureux de vous revoir parmi nous | WeddingStudio</title>
 
@@ -109,7 +90,7 @@ export default function LoginPage() {
           <div className="w-16 h-16 bg-rose-500 rounded-3xl flex items-center justify-center shadow-2xl mx-auto mb-8">
             <Heart className="text-white w-8 h-8 fill-current" />
           </div>
-          <h2 className="text-4xl font-black text-white mb-6 italic" style={{ fontFamily: '"Playfair Display", serif' }}>Heureux de vous <br /> revoir parmi nous.</h2>
+          <h2 className="text-4xl font-normal text-white mb-6 italic" style={{ fontFamily: 'var(--font-display)' }}>Heureux de vous <br /> revoir parmi nous.</h2>
           <p className="text-slate-300 leading-relaxed font-medium">Connectez-vous pour continuer l&apos;organisation de votre journée inoubliable.</p>
         </div>
       </div>
@@ -118,7 +99,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6 md:p-12 lg:p-20">
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-[440px]">
           <div className="mb-10">
-            <h1 className="text-3xl font-black text-slate-900 mb-2" style={{ fontFamily: '"Playfair Display", serif' }}>Connexion</h1>
+            <h1 className="text-3xl font-normal text-slate-900 mb-2" style={{ fontFamily: 'var(--font-display)' }}>Connexion</h1>
             <p className="text-slate-500 font-medium">Entrez vos identifiants pour accéder à votre espace.</p>
           </div>
 
@@ -146,7 +127,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200"></div>
             </div>
-            <span className="relative px-4 bg-[#FAFAF8] text-[10px] font-black uppercase tracking-widest">Ou avec votre email</span>
+            <span className="relative px-4 bg-ivory text-[10px] font-black uppercase tracking-widest">Ou avec votre email</span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -169,15 +150,6 @@ export default function LoginPage() {
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
               </div>
 
-              <div className="mt-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                <div className="grid grid-cols-2 gap-y-2">
-                  <Criterion met={validation.length} label="8+ caractères" />
-                  <Criterion met={validation.upper} label="1 Majuscule" />
-                  <Criterion met={validation.lower} label="1 Minuscule" />
-                  <Criterion met={validation.number} label="1 Chiffre" />
-                  <Criterion met={validation.special} label="1 Spécial" />
-                </div>
-              </div>
             </div>
 
             <button type="submit" disabled={isLoading || !allValid} className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all flex items-center justify-center gap-2 ${allValid ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`}>

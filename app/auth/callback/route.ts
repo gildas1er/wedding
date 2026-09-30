@@ -1,16 +1,16 @@
-// Copie-colle ce bloc dans app/auth/callback/route.ts
-import { createClient } from '../../../utils/supabase/server'; // On remonte de 3 niveaux
+import { createClient } from '../../../utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { safeNextPath } from '../../../lib/safe-redirect';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/dashboard';
+  const next = safeNextPath(searchParams.get('next'));
 
   if (code) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    
+
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }

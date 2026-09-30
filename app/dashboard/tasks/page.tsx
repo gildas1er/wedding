@@ -99,21 +99,20 @@ export default function TasksPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="min-h-screen bg-ivory text-ink">
       
 
       <main className="p-4 sm:p-8 lg:p-12 relative overflow-x-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-rose-100/50 blur-[120px] -z-10 rounded-full" />
 
         <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400">✨ Organisation</h2>
-            <p className="text-2xl font-bold">Ma Checklist Intelligente 📝</p>
+            <p className="eyebrow">Organisation</p>
+            <h1 className="mt-2 text-3xl font-normal text-ink sm:text-4xl">Votre <span className="italic text-rose-500">checklist</span></h1>
           </div>
           
           <div className="flex items-center gap-4">
             {urgentCount > 0 && (
-              <div className="bg-rose-500 text-white px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg shadow-rose-200 animate-bounce">
+              <div className="bg-rose-500 text-white px-4 py-2 rounded-2xl flex items-center gap-2 shadow-sm">
                 <AlertCircle size={16} />
                 <span className="text-xs font-black uppercase">{urgentCount} Urgence{urgentCount > 1 ? 's' : ''}</span>
               </div>
@@ -131,7 +130,7 @@ export default function TasksPage() {
           {showAddForm && (
             <motion.form 
               initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-              onSubmit={addTask} className="bg-white p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-xl mb-10"
+              onSubmit={addTask} className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[1.75rem] border border-slate-100 shadow-xl mb-10"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
@@ -161,7 +160,7 @@ export default function TasksPage() {
           {tasks.map((task) => {
             const urgency = !task.is_completed ? getUrgencyStatus(task.due_months_before) : null;
             return (
-              <motion.div layout key={task.id} className={`bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between gap-3 group transition-all ${task.is_completed ? 'bg-slate-50/50' : 'hover:border-rose-200 hover:shadow-md'}`}>
+              <motion.div layout key={task.id} className={`bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm flex items-center justify-between gap-3 group transition-all ${task.is_completed ? 'bg-slate-50/50' : 'hover:border-rose-200 hover:shadow-md'}`}>
                 <div className="flex items-center gap-3 sm:gap-6 min-w-0">
                   <button onClick={() => toggleTask(task.id, task.is_completed)} className={`transition-all transform hover:scale-110 ${task.is_completed ? 'text-emerald-500' : 'text-slate-200 hover:text-rose-500'}`}>
                     {task.is_completed ? <CheckCircle2 size={32} /> : <Circle size={32} />}

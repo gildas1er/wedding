@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
-// Remplace par tes propres identifiants Supabase (disponibles dans Project Settings > API)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
@@ -8,4 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error("Les variables d'environnement Supabase sont manquantes !");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Session stockée en cookies (et non plus en localStorage) pour que le serveur
+// — proxy.ts, routes API — voie aussi l'utilisateur connecté.
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
