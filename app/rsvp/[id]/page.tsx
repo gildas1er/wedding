@@ -9,14 +9,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../../lib/supabase';
-
-// "2026-12-18" -> "Vendredi 18 décembre"
-function formatDay(date: string) {
-  const d = new Date(`${date}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return date;
-  const s = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
+import { formatDateFr, formatHourFr } from '../../../lib/event-datetime';
+import { ceremonyFlags, mapsUrl } from '../../../lib/ceremonies';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -42,6 +36,9 @@ function RSVPContent() {
   const cleanedGuestId = rawGuestId ? rawGuestId.replace(/['"]+/g, '') : null;
   // Un identifiant mal formé ne doit pas empêcher d'afficher l'invitation
   const guestId = cleanedGuestId && UUID_RE.test(cleanedGuestId) ? cleanedGuestId : null;
+  // Aperçu affiché dans le studio : la configuration non publiée arrive par postMessage
+  const isPreview = searchParams.get('preview') === '1';
+  const [previewOverrides, setPreviewOverrides] = useState<Record<string, unknown>>({});
   
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -133,6 +130,30 @@ function RSVPContent() {
     fire(0.1, { spread: 120, startVelocity: 45 });
   };
 
+  const mBase = marriage || {
+    partner_1_name: "Sarah", partner_2_name: "Marc",
+    primary_color: "#f43f5e", invitation_text: "VOUS ÊTES INVITÉS",
+    wedding_date: new Date(), 
+    mairie_date: "", mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
+    religious_date: "", religious_hour: "", religious_location: "",
+    reception_hour: "19:00", reception_location: "Domaine de la Rose",
+    music_url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"
+  };
+  // En aperçu, la configuration du studio (non publiée) remplace celle enregistrée
+  const m: any = { ...mBase, ...previewOverrides };
+  const flags = ceremonyFlags(m);
+
+  useEffect(() => {
+    if (!isPreview) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.data?.type !== 'studio-preview') return;
+      setPreviewOverrides(e.data.config ?? {});
+    };
+    window.addEventListener('message', onMessage);
+    window.parent?.postMessage({ type: 'studio-preview-ready' }, window.location.origin);
+    return () => window.removeEventListener('message', onMessage);
+  }, [isPreview]);
+
   // Toggle Musique
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -166,14 +187,17 @@ function RSVPContent() {
     setForm(updatedForm);
 
     // Si tout est coché à nouveau, réactiver le bouton "Tous les événements"
-    const hasChurch = Boolean(marriage?.religious_hour || marriage?.religious_date);
-    const isAllChecked = updatedForm.attending_civil && updatedForm.attending_reception && (!hasChurch || updatedForm.attending_church);
+    const isAllChecked = (!flags.civil || updatedForm.attending_civil)
+      && (!flags.religious || updatedForm.attending_church)
+      && (!flags.reception || updatedForm.attending_reception);
     setAllEventsSelected(isAllChecked);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guestId || !form.status) return;
+    if (!form.status) return;
+    if (isPreview) { setSubmitted(true); return; }
+    if (!guestId) return;
 
     setSending(true);
 
@@ -182,9 +206,9 @@ function RSVPContent() {
       p_guest_id: guestId,
       p_status: form.status,
       p_notes: form.notes,
-      p_attending_civil: form.attending_civil,
-      p_attending_church: form.attending_church,
-      p_attending_reception: form.attending_reception,
+      p_attending_civil: flags.civil && form.attending_civil,
+      p_attending_church: flags.religious && form.attending_church,
+      p_attending_reception: flags.reception && form.attending_reception,
     });
 
     if (error || !updated) {
@@ -207,17 +231,6 @@ function RSVPContent() {
     </div>
   );
 
-  const m = marriage || {
-    partner_1_name: "Sarah", partner_2_name: "Marc",
-    primary_color: "#f43f5e", invitation_text: "VOUS ÊTES INVITÉS",
-    wedding_date: new Date(), 
-    mairie_date: "", mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
-    religious_date: "", religious_hour: "", religious_location: "",
-    reception_hour: "19:00", reception_location: "Domaine de la Rose",
-    music_url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"
-  };
-
-  const hasChurchEvent = Boolean(m.religious_hour || m.religious_date);
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center relative">
@@ -249,6 +262,12 @@ function RSVPContent() {
           </div>
         )}
       </motion.button>
+
+      {isPreview && (
+        <div className="fixed top-4 left-4 z-50 rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
+          Aperçu · aucune réponse envoyée
+        </div>
+      )}
 
       <div className="w-full max-w-[450px] bg-white shadow-2xl relative min-h-screen pb-12 overflow-x-hidden">
         
@@ -306,34 +325,38 @@ function RSVPContent() {
             transition={{ delay: 0.3, staggerChildren: 0.1 }}
             className="space-y-4 mb-10"
           >
-            <ProgramItem 
-                icon={Landmark} 
-                title="La Cérémonie Civile" 
-                time={m.mairie_date ? `${formatDay(m.mairie_date)} · ${m.mairie_hour || ''}` : m.mairie_hour} 
-                loc={m.mairie_location} 
-                color="rose"
-                maps={m.mairie_maps_url}
-            />
-
-            {hasChurchEvent && (
+            {flags.civil && (
               <ProgramItem 
-                  icon={Cross} 
-                  title="La Cérémonie Religieuse" 
-                  time={m.religious_date ? `${formatDay(m.religious_date)} · ${m.religious_hour || ''}` : m.religious_hour} 
-                  loc={m.religious_location} 
-                  color="blue"
-                  maps={m.religious_maps_url}
+                  icon={Landmark} 
+                  title="La Cérémonie Civile" 
+                  time={[m.mairie_date && formatDateFr(m.mairie_date, { withYear: false }), formatHourFr(m.mairie_hour)].filter(Boolean).join(' · ')} 
+                  loc={m.mairie_location} 
+                  color="rose"
+                  maps={mapsUrl(m.mairie_maps_url, m.mairie_location)}
               />
             )}
 
-            <ProgramItem 
-                icon={GlassWater} 
-                title="Le Cocktail & Dîner" 
-                time={m.reception_hour} 
-                loc={m.reception_location} 
-                color="amber"
-                maps={m.reception_maps_url}
-            />
+            {flags.religious && (
+              <ProgramItem 
+                  icon={Cross} 
+                  title="La Cérémonie Religieuse" 
+                  time={[m.religious_date && formatDateFr(m.religious_date, { withYear: false }), formatHourFr(m.religious_hour)].filter(Boolean).join(' · ')} 
+                  loc={m.religious_location} 
+                  color="blue"
+                  maps={mapsUrl(m.religious_maps_url, m.religious_location)}
+              />
+            )}
+
+            {flags.reception && (
+              <ProgramItem 
+                  icon={GlassWater} 
+                  title="Le Cocktail & Dîner" 
+                  time={formatHourFr(m.reception_hour)} 
+                  loc={m.reception_location} 
+                  color="amber"
+                  maps={mapsUrl(m.reception_maps_url, m.reception_location)}
+              />
+            )}
           </motion.div>
 
           {/* FORMULAIRE RSVP */}
@@ -347,7 +370,7 @@ function RSVPContent() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="text-center mb-6">
                   <p className="eyebrow mb-1">Réponse de</p>
-                  <h2 className="text-2xl font-normal text-slate-800">{guestName || "Cher invité"}</h2>
+                  <h2 className="text-2xl font-normal text-slate-800">{guestName || (isPreview ? "Prénom de l'invité" : "Cher invité")}</h2>
                 </div>
 
                 <div className="flex gap-3">
@@ -423,15 +446,17 @@ function RSVPContent() {
                         {/* LISTE DES ÉVÉNEMENTS À COCHER */}
                         <div className="space-y-2 pt-1">
                           {/* Mairie */}
-                          <EventCheckbox 
-                            icon={Landmark}
-                            title="Mairie"
-                            checked={form.attending_civil}
-                            onChange={() => handleToggleEvent('attending_civil')}
-                          />
+                          {flags.civil && (
+                            <EventCheckbox 
+                              icon={Landmark}
+                              title="Mairie"
+                              checked={form.attending_civil}
+                              onChange={() => handleToggleEvent('attending_civil')}
+                            />
+                          )}
 
                           {/* Église (Conditionnelle) */}
-                          {hasChurchEvent && (
+                          {flags.religious && (
                             <EventCheckbox 
                               icon={Cross}
                               title="Église"
@@ -441,12 +466,14 @@ function RSVPContent() {
                           )}
 
                           {/* Réception */}
-                          <EventCheckbox 
-                            icon={GlassWater}
-                            title="Réception & Dîner"
-                            checked={form.attending_reception}
-                            onChange={() => handleToggleEvent('attending_reception')}
-                          />
+                          {flags.reception && (
+                            <EventCheckbox 
+                              icon={GlassWater}
+                              title="Réception & Dîner"
+                              checked={form.attending_reception}
+                              onChange={() => handleToggleEvent('attending_reception')}
+                            />
+                          )}
                         </div>
                       </div>
 
@@ -472,7 +499,7 @@ function RSVPContent() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       type="submit" 
-                      disabled={sending || !guestId}
+                      disabled={sending || (!guestId && !isPreview)}
                       className="w-full py-5 rounded-full text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
                       style={{ backgroundColor: m.primary_color }}
                     >

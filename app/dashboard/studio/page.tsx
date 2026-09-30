@@ -1,400 +1,644 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Heart, Save, Palette, Image as ImageIcon, 
-  Upload, Loader2, Clock, MapPin, Calendar, 
-  ArrowLeft, Check, Landmark, Church, PartyPopper, 
-  Link as LinkIcon, Cross, AlertCircle
+import {
+  Heart, Save, Palette, Image as ImageIcon, Upload, Loader2, Clock, MapPin, Calendar,
+  Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
+  MessageCircle, Smartphone, RotateCcw, type LucideIcon,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase'; // Utilisation de ton client existant
+import { supabase } from '../../lib/supabase';
+import { toISODate, toHHMM } from '../../../lib/event-datetime';
+import { ceremonyFlags, isHttpUrl, mapsUrl } from '../../../lib/ceremonies';
+import {
+  DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS, buildInvitationMessage, hasLinkPlaceholder,
+} from '../../../lib/whatsapp-message';
 
-import Link from 'next/link';
+type Config = {
+  primary_color: string;
+  invitation_text: string;
+  bg_image_url: string;
+  show_civil: boolean;
+  show_religious: boolean;
+  show_reception: boolean;
+  mairie_date: string;
+  mairie_hour: string;
+  mairie_location: string;
+  mairie_maps_url: string;
+  religious_date: string;
+  religious_hour: string;
+  religious_location: string;
+  religious_maps_url: string;
+  reception_hour: string;
+  reception_location: string;
+  reception_maps_url: string;
+  whatsapp_message: string;
+};
+
+const EMPTY_CONFIG: Config = {
+  primary_color: '#9e3a55',
+  invitation_text: 'Vous êtes invités',
+  bg_image_url: '',
+  show_civil: true,
+  show_religious: false,
+  show_reception: true,
+  mairie_date: '', mairie_hour: '', mairie_location: '', mairie_maps_url: '',
+  religious_date: '', religious_hour: '', religious_location: '', religious_maps_url: '',
+  reception_hour: '', reception_location: '', reception_maps_url: '',
+  whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
+};
+
+// Colonnes ajoutées par la migration 3 (enregistrées à part pour ne pas bloquer le reste)
+const EXTENDED_KEYS = ['show_civil', 'show_religious', 'show_reception', 'whatsapp_message'] as const;
+
+type Notice = { type: 'success' | 'error' | 'info'; text: string } | null;
 
 export default function InvitationStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
   const [marriage, setMarriage] = useState<any>(null);
-  
-  const [config, setConfig] = useState({
-    primary_color: '#f43f5e',
-    invitation_text: 'On se marie !',
-    bg_image_url: '',
-    mairie_date: '', // NOUVEAU
-    mairie_hour: '',
-    mairie_location: '',
-    mairie_maps_url: '',
-    religious_date: '', // NOUVEAU
-    religious_hour: '',
-    religious_location: '',
-    religious_maps_url: '',
-    reception_hour: '',
-    reception_location: '',
-    reception_maps_url: ''
-  });
+  const [legacyValues, setLegacyValues] = useState<Record<string, string>>({});
+  const [extendedAvailable, setExtendedAvailable] = useState(true);
+  const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
-  useEffect(() => { fetchConfig(); }, []);
+  const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
+  const [savedConfig, setSavedConfig] = useState<Config>(EMPTY_CONFIG);
+  const isDirty = useMemo(() => JSON.stringify(config) !== JSON.stringify(savedConfig), [config, savedConfig]);
 
-  const fetchConfig = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const set = <K extends keyof Config>(key: K, value: Config[K]) => setConfig((prev) => ({ ...prev, [key]: value }));
 
-      const { data, error } = await supabase
-        .from('marriages')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (data) {
-        setMarriage(data);
-        setConfig({
-          primary_color: data.primary_color || '#f43f5e',
-          invitation_text: data.invitation_text || 'On se marie !',
-          bg_image_url: data.bg_image_url || '',
-          mairie_date: data.mairie_date || '', // NOUVEAU
-          mairie_hour: data.mairie_hour || '',
-          mairie_location: data.mairie_location || '',
-          mairie_maps_url: data.mairie_maps_url || '',
-          religious_date: data.religious_date || '', // NOUVEAU
-          religious_hour: data.religious_hour || '',
-          religious_location: data.religious_location || '',
-          religious_maps_url: data.religious_maps_url || '',
-          reception_hour: data.reception_hour || '',
-          reception_location: data.reception_location || '',
-          reception_maps_url: data.reception_maps_url || ''
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement:", error);
-    } finally {
-      setLoading(false);
-    }
+  const flash = (n: Notice, ms = 3500) => {
+    setNotice(n);
+    if (n) setTimeout(() => setNotice((cur) => (cur === n ? null : cur)), ms);
   };
 
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase.from('marriages').select('*').eq('user_id', user.id).single();
+        if (!data) return;
+
+        setMarriage(data);
+        setExtendedAvailable('whatsapp_message' in data);
+
+        // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
+        const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
+        const legacy: Record<string, string> = {};
+        const asDate = (key: string) => {
+          const iso = toISODate(data[key], year);
+          if (data[key] && !iso) legacy[key] = data[key];
+          return iso ?? '';
+        };
+        const asHour = (key: string) => {
+          const hhmm = toHHMM(data[key]);
+          if (data[key] && !hhmm) legacy[key] = data[key];
+          return hhmm ?? '';
+        };
+        const flags = ceremonyFlags(data);
+        const loaded: Config = {
+          primary_color: data.primary_color || EMPTY_CONFIG.primary_color,
+          invitation_text: data.invitation_text || EMPTY_CONFIG.invitation_text,
+          bg_image_url: data.bg_image_url || '',
+          show_civil: flags.civil,
+          show_religious: flags.religious,
+          show_reception: flags.reception,
+          mairie_date: asDate('mairie_date'),
+          mairie_hour: asHour('mairie_hour'),
+          mairie_location: data.mairie_location || '',
+          mairie_maps_url: data.mairie_maps_url || '',
+          religious_date: asDate('religious_date'),
+          religious_hour: asHour('religious_hour'),
+          religious_location: data.religious_location || '',
+          religious_maps_url: data.religious_maps_url || '',
+          reception_hour: asHour('reception_hour'),
+          reception_location: data.reception_location || '',
+          reception_maps_url: data.reception_maps_url || '',
+          whatsapp_message: data.whatsapp_message || DEFAULT_WHATSAPP_TEMPLATE,
+        };
+        setLegacyValues(legacy);
+        setConfig(loaded);
+        setSavedConfig(loaded);
+      } catch (error) {
+        console.error('Erreur lors du chargement:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  // Prévient avant de quitter la page avec des modifications non publiées
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isDirty]);
+
+  // ── Aperçu : la vraie page RSVP dans une iframe, alimentée en direct ──
+  const postPreview = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'studio-preview', config }, window.location.origin);
+  }, [config]);
+
+  useEffect(() => { postPreview(); }, [postPreview]);
+
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === 'studio-preview-ready') postPreview();
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [postPreview]);
+
   const handleSave = async () => {
+    if (!marriage) return;
+    for (const [key, label] of [['mairie_maps_url', 'mairie'], ['religious_maps_url', 'église'], ['reception_maps_url', 'réception']] as const) {
+      if (config[key] && !isHttpUrl(config[key])) {
+        flash({ type: 'error', text: `Le lien Google Maps (${label}) n'est pas valide. Laissez-le vide pour qu'il soit créé automatiquement.` }, 5000);
+        return;
+      }
+    }
+
     setSaving(true);
     const { error } = await supabase.from('marriages').update({
       primary_color: config.primary_color,
       invitation_text: config.invitation_text,
       bg_image_url: config.bg_image_url,
-      mairie_date: config.mairie_date, // NOUVEAU
-      mairie_hour: config.mairie_hour,
+      mairie_date: config.mairie_date || null,
+      mairie_hour: config.mairie_hour || null,
       mairie_location: config.mairie_location,
       mairie_maps_url: config.mairie_maps_url,
-      religious_date: config.religious_date, // NOUVEAU
-      religious_hour: config.religious_hour,
+      religious_date: config.religious_date || null,
+      religious_hour: config.religious_hour || null,
       religious_location: config.religious_location,
       religious_maps_url: config.religious_maps_url,
-      reception_hour: config.reception_hour,
+      reception_hour: config.reception_hour || null,
       reception_location: config.reception_location,
-      reception_maps_url: config.reception_maps_url
+      reception_maps_url: config.reception_maps_url,
+    }).eq('id', marriage.id);
+
+    if (error) {
+      setSaving(false);
+      flash({ type: 'error', text: `Erreur lors de la sauvegarde : ${error.message}` }, 6000);
+      return;
+    }
+
+    // Cérémonies et message WhatsApp : colonnes de la migration 3
+    const message = config.whatsapp_message.trim();
+    const { error: extError } = await supabase.from('marriages').update({
+      show_civil: config.show_civil,
+      show_religious: config.show_religious,
+      show_reception: config.show_reception,
+      whatsapp_message: !message || message === DEFAULT_WHATSAPP_TEMPLATE.trim() ? null : config.whatsapp_message,
     }).eq('id', marriage.id);
 
     setSaving(false);
-    if (!error) {
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    } else {
-      alert("Erreur lors de la sauvegarde : " + error.message);
+    setLegacyValues({});
+    if (extError) {
+      const saved = { ...config };
+      for (const k of EXTENDED_KEYS) (saved as any)[k] = (savedConfig as any)[k];
+      setSavedConfig(saved);
+      setExtendedAvailable(false);
+      flash({ type: 'info', text: "Programme publié. Le choix des cérémonies et le message WhatsApp demandent la migration 3 dans Supabase." }, 7000);
+      return;
     }
+    setSavedConfig(config);
+    setMarriage((m: any) => ({ ...m, ...config }));
+    flash({ type: 'success', text: "L'invitation est publiée !" });
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
-      if (!file) return;
+      if (!file || !marriage) return;
       setUploading(true);
-
       const fileExt = file.name.split('.').pop();
-      const fileName = `${marriage.id}-${Date.now()}.${fileExt}`;
-      const filePath = `backgrounds/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('invitations')
-        .upload(filePath, file);
-
+      const filePath = `backgrounds/${marriage.id}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('invitations').upload(filePath, file);
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('invitations')
-        .getPublicUrl(filePath);
-
-      setConfig(prev => ({ ...prev, bg_image_url: publicUrl }));
+      const { data: { publicUrl } } = supabase.storage.from('invitations').getPublicUrl(filePath);
+      set('bg_image_url', publicUrl);
     } catch (error: any) {
-      alert("Erreur upload: " + error.message);
+      flash({ type: 'error', text: `Erreur lors de l'envoi de la photo : ${error.message}` }, 6000);
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+  // Insère un repère ({prenom}, {lien}…) à la position du curseur
+  const insertPlaceholder = (token: string) => {
+    const el = messageRef.current;
+    const text = config.whatsapp_message;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    set('whatsapp_message', text.slice(0, start) + token + text.slice(end));
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(start + token.length, start + token.length);
+    });
+  };
+
+  const couple = [marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ');
+  const sampleMessage = buildInvitationMessage(config.whatsapp_message, {
+    prenom: 'Aya Bamba',
+    maries: couple || 'Awa & Yao',
+    lien: `${typeof window !== 'undefined' ? window.location.origin : ''}/rsvp/${marriage?.id ?? ''}?guest=…`,
+  });
+
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-ivory">
-      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}>
-        <Heart className="w-16 h-16 text-rose-500 fill-rose-500 shadow-xl shadow-rose-200" />
-      </motion.div>
-      <p className="mt-4 font-black italic text-rose-400 animate-pulse">Chargement du studio...</p>
+    <div className="flex h-screen flex-col items-center justify-center bg-ivory">
+      <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+      <p className="mt-4 text-sm text-slate-500">Chargement du studio…</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-ivory p-4 sm:p-8 lg:p-12 text-slate-900">
-      
-      {/* Notifications */}
+    <div className="min-h-screen bg-ivory p-4 text-ink sm:p-8 lg:p-12">
       <AnimatePresence>
-        {showSuccess && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -20, x: "-50%" }}
-            className="fixed top-8 left-1/2 z-[200] bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 font-black italic border border-white/10"
+        {notice && (
+          <motion.div
+            initial={{ opacity: 0, y: -16, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: -16, x: '-50%' }}
+            role="status"
+            className={`fixed left-1/2 top-6 z-[200] flex max-w-[92vw] items-center gap-3 rounded-2xl px-5 py-3.5 text-sm font-medium shadow-xl ${
+              notice.type === 'error' ? 'bg-red-600 text-white' : notice.type === 'info' ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-300' : 'bg-ink text-white'
+            }`}
           >
-            <div className="bg-rose-500 rounded-full p-1"><Check className="w-4 h-4 text-white" /></div>
-            L'invitation est prête !
+            {notice.type === 'success' ? <Check className="h-4 w-4 shrink-0 text-amber-300" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            {notice.text}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-        
-        {/* Panneau de configuration (Gauche) */}
-        <div className="lg:col-span-7 space-y-10">
-          <header className="space-y-2">
-            <div className="inline-flex items-center gap-2 bg-rose-50 px-4 py-1.5 rounded-full text-rose-500 text-[10px] font-black uppercase tracking-widest border border-rose-100">
-              <Palette className="w-3 h-3" /> Éditeur Digital
-            </div>
-            <h1 className="text-5xl font-normal text-slate-900 tracking-tight italic">Studio <span className="text-rose-500">Créatif</span></h1>
-            <p className="text-slate-700 font-bold text-lg">Personnalisez le RSVP que vos invités recevront.</p>
+      <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
+        {/* ═════════ CONFIGURATION ═════════ */}
+        <div className="space-y-8 lg:col-span-7">
+          <header>
+            <p className="eyebrow">Faire-part & RSVP</p>
+            <h1 className="mt-2 text-3xl font-normal sm:text-4xl">Le <span className="italic text-rose-500">studio</span></h1>
+            <p className="mt-1 text-slate-500">Composez l&apos;invitation que vos proches recevront. L&apos;aperçu se met à jour en direct.</p>
           </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-8 rounded-[1.75rem] shadow-sm border-2 border-slate-50 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500"><Palette className="w-5 h-5" /></div>
-                <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-600">Identité Visuelle</h3>
-              </div>
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-600 uppercase ml-1 flex items-center gap-2">Couleur Signature</label>
-                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border-2 border-transparent focus-within:border-rose-100 transition-all shadow-inner">
-                    <input type="color" value={config.primary_color} onChange={(e) => setConfig({...config, primary_color: e.target.value})} className="w-12 h-12 rounded-xl cursor-pointer bg-transparent border-none" />
-                    <span className="text-sm font-black text-slate-900 font-mono tracking-widest">{config.primary_color}</span>
-                  </div>
+          {/* Identité & photo */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card icon={Palette} title="Identité visuelle">
+              <Field label="Couleur signature">
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2.5">
+                  <input type="color" value={config.primary_color} onChange={(e) => set('primary_color', e.target.value)} className="h-10 w-10 cursor-pointer rounded-lg border-none bg-transparent" aria-label="Couleur signature" />
+                  <span className="font-mono text-sm text-slate-600">{config.primary_color}</span>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-600 uppercase ml-1">Titre de l'invitation</label>
-                  <input type="text" value={config.invitation_text} onChange={(e) => setConfig({...config, invitation_text: e.target.value})} className="w-full bg-slate-50 p-4 rounded-2xl border-2 border-transparent focus:border-rose-100 text-slate-900 font-bold outline-none shadow-inner" placeholder="Ex: On se marie !" />
-                </div>
-              </div>
-            </div>
+              </Field>
+              <Field label="Titre de l'invitation">
+                <input type="text" value={config.invitation_text} onChange={(e) => set('invitation_text', e.target.value)} placeholder="Ex : Vous êtes invités" className={inputClass} />
+              </Field>
+            </Card>
 
-            <div className="bg-white p-8 rounded-[1.75rem] shadow-sm border-2 border-slate-50 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-500"><ImageIcon className="w-5 h-5" /></div>
-                <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-600">Photo de Couverture</h3>
-              </div>
-              <div onClick={() => fileInputRef.current?.click()} className="group relative h-44 bg-slate-50 rounded-[1.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all overflow-hidden shadow-inner">
-                {uploading && <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-sm flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-rose-500" /></div>}
+            <Card icon={ImageIcon} title="Photo de couverture">
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="group relative flex h-44 w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-ivory transition-colors hover:border-amber-300">
+                {uploading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-sm"><Loader2 className="h-6 w-6 animate-spin text-rose-500" /></div>}
                 {config.bg_image_url ? (
-                  <img src={config.bg_image_url} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                  <img src={config.bg_image_url} alt="Photo de couverture" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 ) : (
-                  <div className="text-center space-y-2">
-                    <Upload className="w-6 h-6 text-slate-300 mx-auto" />
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Importer une photo</span>
-                  </div>
+                  <span className="space-y-2 text-center">
+                    <Upload className="mx-auto h-6 w-6 text-slate-400" />
+                    <span className="block text-sm font-medium text-slate-500">Importer une photo</span>
+                  </span>
                 )}
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleUpload} />
-              </div>
-            </div>
+              </button>
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleUpload} />
+            </Card>
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] shadow-sm border-2 border-slate-50 space-y-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500"><Clock className="w-5 h-5" /></div>
-              <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-600">Le Programme du RSVP</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Mairie */}
-              <div className="bg-rose-50/30 p-6 rounded-[1.5rem] border-2 border-rose-100 space-y-4">
-                <div className="flex items-center gap-3 text-rose-600 font-black text-[13px] uppercase tracking-wider">
-                  <div className="p-2 bg-white rounded-lg shadow-sm"><Landmark className="w-4 h-4" /></div>
-                  Cérémonie Civile
-                </div>
-                <div className="space-y-3">
-                  {/* MODIFICATION : Ajout du champ Date Civile */}
-                  <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" />
-                    <input type="text" placeholder="Date de la mairie (ex: Vendredi 12 Juin)" value={config.mairie_date} onChange={(e) => setConfig({...config, mairie_date: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-rose-200 shadow-inner" />
-                  </div>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" />
-                    <input type="text" placeholder="Heure (ex: 14h30)" value={config.mairie_hour} onChange={(e) => setConfig({...config, mairie_hour: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-rose-200 shadow-inner" />
-                  </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" />
-                    <input type="text" placeholder="Lieu (Hôtel de ville...)" value={config.mairie_location} onChange={(e) => setConfig({...config, mairie_location: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-rose-200 shadow-inner" />
-                  </div>
-                  <div className="relative">
-                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" />
-                    <input type="text" placeholder="Lien Google Maps" value={config.mairie_maps_url} onChange={(e) => setConfig({...config, mairie_maps_url: e.target.value})} className="w-full pl-12 pr-4 py-3 bg-white/60 rounded-xl text-xs text-slate-500 italic outline-none border border-rose-100" />
-                  </div>
-                </div>
-              </div>
+          {/* Programme */}
+          <Card icon={Clock} title="Le programme" subtitle="Activez uniquement les cérémonies prévues : les autres n'apparaîtront pas aux invités.">
+            {!extendedAvailable && <MigrationHint />}
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <CeremonyCard icon={Landmark} title="Cérémonie civile" tone="rose" enabled={config.show_civil} onToggle={(v) => set('show_civil', v)}>
+                <DateField label="Date de la cérémonie civile" value={config.mairie_date} onChange={(v) => set('mairie_date', v)} legacy={legacyValues.mairie_date} />
+                <TimeField label="Heure de la cérémonie civile" value={config.mairie_hour} onChange={(v) => set('mairie_hour', v)} legacy={legacyValues.mairie_hour} />
+                <IconInput icon={MapPin} placeholder="Lieu (ex : Mairie de Cocody)" value={config.mairie_location} onChange={(v) => set('mairie_location', v)} />
+                <MapsField value={config.mairie_maps_url} location={config.mairie_location} onChange={(v) => set('mairie_maps_url', v)} />
+              </CeremonyCard>
 
-              {/* Église */}
-              <div className="bg-blue-50/30 p-6 rounded-[1.5rem] border-2 border-blue-100 space-y-4">
-                <div className="flex items-center gap-3 text-blue-600 font-black text-[13px] uppercase tracking-wider">
-                  <div className="p-2 bg-white rounded-lg shadow-sm"><Cross className="w-4 h-4" /></div>
-                  Cérémonie Religieuse
-                </div>
-                <div className="space-y-3">
-                  {/* MODIFICATION : Ajout du champ Date Religieuse */}
-                  <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
-                    <input type="text" placeholder="Date église (ex: Samedi 13 Juin)" value={config.religious_date} onChange={(e) => setConfig({...config, religious_date: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-blue-200 shadow-inner" />
-                  </div>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
-                    <input type="text" placeholder="Heure" value={config.religious_hour} onChange={(e) => setConfig({...config, religious_hour: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-blue-200 shadow-inner" />
-                  </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
-                    <input type="text" placeholder="Nom de l'église" value={config.religious_location} onChange={(e) => setConfig({...config, religious_location: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-blue-200 shadow-inner" />
-                  </div>
-                  <div className="relative">
-                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
-                    <input type="text" placeholder="Lien Google Maps" value={config.religious_maps_url} onChange={(e) => setConfig({...config, religious_maps_url: e.target.value})} className="w-full pl-12 pr-4 py-3 bg-white/60 rounded-xl text-xs text-slate-500 italic outline-none border border-blue-100" />
-                  </div>
-                </div>
-              </div>
+              <CeremonyCard icon={Cross} title="Cérémonie religieuse" tone="blue" enabled={config.show_religious} onToggle={(v) => set('show_religious', v)}>
+                <DateField label="Date de la cérémonie religieuse" value={config.religious_date} onChange={(v) => set('religious_date', v)} legacy={legacyValues.religious_date} />
+                <TimeField label="Heure de la cérémonie religieuse" value={config.religious_hour} onChange={(v) => set('religious_hour', v)} legacy={legacyValues.religious_hour} />
+                <IconInput icon={MapPin} placeholder="Lieu (ex : Paroisse Saint-Laurent)" value={config.religious_location} onChange={(v) => set('religious_location', v)} />
+                <MapsField value={config.religious_maps_url} location={config.religious_location} onChange={(v) => set('religious_maps_url', v)} />
+              </CeremonyCard>
 
-              {/* Réception */}
-              <div className="bg-amber-50/30 p-6 rounded-[1.5rem] border-2 border-amber-100 space-y-4 md:col-span-2">
-                <div className="flex items-center gap-3 text-amber-700 font-black text-[13px] uppercase tracking-wider">
-                  <div className="p-2 bg-white rounded-lg shadow-sm"><PartyPopper className="w-4 h-4" /></div>
-                  Réception & Dîner
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400" />
-                    <input type="text" placeholder="Heure du cocktail" value={config.reception_hour} onChange={(e) => setConfig({...config, reception_hour: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-amber-200 shadow-inner" />
+              <div className="md:col-span-2">
+                <CeremonyCard icon={PartyPopper} title="Réception & dîner" tone="amber" enabled={config.show_reception} onToggle={(v) => set('show_reception', v)}>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <TimeField label="Heure de la réception" value={config.reception_hour} onChange={(v) => set('reception_hour', v)} legacy={legacyValues.reception_hour} />
+                    <IconInput icon={MapPin} placeholder="Lieu de la fête" value={config.reception_location} onChange={(v) => set('reception_location', v)} />
                   </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400" />
-                    <input type="text" placeholder="Lieu de la fête" value={config.reception_location} onChange={(e) => setConfig({...config, reception_location: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl text-slate-900 font-bold outline-none border-2 border-transparent focus:border-amber-200 shadow-inner" />
-                  </div>
-                </div>
-                <div className="relative">
-                  <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400" />
-                  <input type="text" placeholder="Lien Google Maps de la réception" value={config.reception_maps_url} onChange={(e) => setConfig({...config, reception_maps_url: e.target.value})} className="w-full pl-12 pr-4 py-3 bg-white/60 rounded-xl text-xs text-slate-500 italic outline-none border border-amber-100" />
-                </div>
+                  <MapsField value={config.reception_maps_url} location={config.reception_location} onChange={(v) => set('reception_maps_url', v)} />
+                </CeremonyCard>
               </div>
             </div>
+          </Card>
+
+          {/* Message WhatsApp */}
+          <Card icon={MessageCircle} title="Message WhatsApp" subtitle="Le texte envoyé à chaque invité. Les repères sont remplacés automatiquement.">
+            {!extendedAvailable && <MigrationHint />}
+            <div className="flex flex-wrap items-center gap-2">
+              {WHATSAPP_PLACEHOLDERS.map(({ token, label }) => (
+                <button
+                  key={token}
+                  type="button"
+                  onClick={() => insertPlaceholder(token)}
+                  className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                  title={`Insérer : ${label}`}
+                >
+                  {token} <span className="font-normal text-amber-700/80">· {label}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => set('whatsapp_message', DEFAULT_WHATSAPP_TEMPLATE)}
+                className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-ink"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Message par défaut
+              </button>
+            </div>
+            <textarea
+              ref={messageRef}
+              value={config.whatsapp_message}
+              onChange={(e) => set('whatsapp_message', e.target.value)}
+              rows={14}
+              className="w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 text-[15px] leading-relaxed text-ink outline-none transition-colors focus:border-amber-400"
+              aria-label="Message WhatsApp"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              {hasLinkPlaceholder(config.whatsapp_message) ? (
+                <span className="text-slate-500">Astuce : *gras* et _italique_ fonctionnent dans WhatsApp.</span>
+              ) : (
+                <span className="font-medium text-amber-700">Sans {'{lien}'}, le lien de réponse sera ajouté à la fin du message.</span>
+              )}
+              <button type="button" onClick={() => setPreviewTab('whatsapp')} className="font-semibold text-rose-600 hover:text-rose-700 lg:hidden">
+                Voir l&apos;aperçu
+              </button>
+            </div>
+          </Card>
+
+          {/* Publication */}
+          <div className="sticky bottom-4 z-30 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-lg backdrop-blur">
+            <p className="flex-1 pl-2 text-sm text-slate-500">
+              {isDirty ? <span className="font-medium text-amber-700">Modifications non publiées</span> : 'Tout est à jour'}
+            </p>
+            <button onClick={handleSave} disabled={saving || !isDirty} className="inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:opacity-40">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? 'Publication…' : 'Publier'}
+            </button>
           </div>
-
-          <button onClick={handleSave} disabled={saving} className="w-full bg-slate-900 text-white py-6 rounded-[1.75rem] font-black text-xl hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-            {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-            {saving ? "Sauvegarde en cours..." : "Publier les modifications"}
-          </button>
         </div>
 
-        {/* Aperçu Mobile (Droite) */}
-        <div className="lg:col-span-5 flex flex-col items-center">
-          <div className="w-full lg:sticky lg:top-12 space-y-6 flex flex-col items-center">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Aperçu en temps réel</h3>
-            
-            <div className="w-full max-w-[360px] h-[740px] bg-slate-900 border-[10px] border-slate-900 rounded-[3.5rem] shadow-[0_60px_100px_-20px_rgba(0,0,0,0.3)] relative overflow-hidden">
-              <div className="absolute inset-0 bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50" />
-                
-                {/* Photo Header */}
-                <div className="h-[35%] relative">
-                  {config.bg_image_url ? (
-                    <img src={config.bg_image_url} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                      <ImageIcon className="w-12 h-12 text-slate-200" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/10" />
-                </div>
+        {/* ═════════ APERÇU ═════════ */}
+        <div className="flex flex-col items-center lg:col-span-5">
+          <div className="flex w-full flex-col items-center gap-5 lg:sticky lg:top-8">
+            <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+              {([['rsvp', 'Page RSVP', Smartphone], ['whatsapp', 'Message WhatsApp', MessageCircle]] as const).map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPreviewTab(id)}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${previewTab === id ? 'bg-ink text-white shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                >
+                  <Icon className="h-4 w-4" /> {label}
+                </button>
+              ))}
+            </div>
 
-                {/* Contenu Invitation */}
-                <div className="flex-1 p-6 flex flex-col items-center justify-between text-center relative">
-                  <div className="absolute -top-8 bg-white p-3 rounded-full shadow-lg border border-slate-50">
-                    <Heart className="w-6 h-6 fill-current" style={{ color: config.primary_color }} />
-                  </div>
-                  
-                  <div className="mt-4 space-y-2">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: config.primary_color }}>
-                      {config.invitation_text}
-                    </p>
-                    <h2 className="text-3xl font-normal text-slate-900 leading-tight italic">
-                      {marriage?.partner_1_name} <br/> 
-                      <span className="text-2xl" style={{ color: config.primary_color }}>&</span> <br/> 
-                      {marriage?.partner_2_name}
-                    </h2>
-                  </div>
-
-                  {/* Date Badge */}
-                  <div className="bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100 flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-slate-300" />
-                    <div className="text-left">
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Rendez-vous le</p>
-                      <p className="text-xs font-black text-slate-900">
-                        {marriage?.wedding_date ? new Date(marriage.wedding_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date à définir'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Timeline Rapide */}
-                  <div className="w-full space-y-4">
-                    <div className="flex justify-around items-center text-[8px] font-black border-t border-slate-50 pt-4 gap-2">
-                      <div className="flex-1 flex flex-col gap-0.5">
-                        <span className="text-rose-400 uppercase tracking-widest">Mairie</span>
-                        {/* MODIFICATION : Affiche la date custom si elle existe, sinon l'heure d'origine */}
-                        <span className="text-slate-900 truncate max-w-[70px]">{config.mairie_date || config.mairie_hour || '--:--'}</span>
-                      </div>
-                      
-                      {config.religious_hour && (
-                        <>
-                          <div className="w-px h-5 bg-slate-100" />
-                          <div className="flex-1 flex flex-col gap-0.5">
-                            <span className="text-blue-500 uppercase tracking-widest">Église</span>
-                            {/* MODIFICATION : Affiche la date custom religieuse si elle existe, sinon l'heure */}
-                            <span className="text-slate-900 truncate max-w-[70px]">{config.religious_date || config.religious_hour}</span>
-                          </div>
-                        </>
-                      )}
-
-                      <div className="w-px h-5 bg-slate-100" />
-                      <div className="flex-1 flex flex-col gap-0.5">
-                        <span className="text-amber-500 uppercase tracking-widest">Fête</span>
-                        <span className="text-slate-900">{config.reception_hour || '--:--'}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Bouton RSVP Simulation */}
-                    <button className="w-full py-4 rounded-2xl text-white text-[9px] font-black tracking-widest uppercase shadow-lg" 
-                      style={{ backgroundColor: config.primary_color, boxShadow: `0 10px 25px -5px ${config.primary_color}40` }}>
-                      Je confirme ma venue
-                    </button>
-                  </div>
-                </div>
-                <div className="h-1 w-24 bg-slate-100 mx-auto mb-2 rounded-full" />
+            <div className="relative h-[720px] w-full max-w-[360px] overflow-hidden rounded-[3rem] border-[10px] border-ink bg-ink shadow-2xl">
+              <div className="absolute left-1/2 top-0 z-20 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-ink" />
+              <div className="absolute inset-0 overflow-hidden rounded-[2.4rem] bg-white">
+                {/* L'iframe reste montée pour garder l'aperçu à jour pendant qu'on regarde le message */}
+                {marriage && (
+                  <iframe
+                    ref={iframeRef}
+                    src={`/rsvp/${marriage.id}?preview=1`}
+                    title="Aperçu de la page RSVP"
+                    onLoad={postPreview}
+                    className={`h-full w-full border-0 ${previewTab === 'rsvp' ? '' : 'invisible'}`}
+                  />
+                )}
+                {previewTab === 'whatsapp' && <WhatsAppPreview couple={couple} message={sampleMessage} />}
               </div>
             </div>
-            
-            <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 flex items-start gap-3 max-w-[360px]">
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-              <p className="text-[10px] text-rose-600 font-medium leading-relaxed">
-                <b>Note :</b> Ces informations seront visibles sur la page RSVP personnalisée de chaque invité et incluses dans le message WhatsApp d'invitation.
-              </p>
-            </div>
+
+            {marriage && previewTab === 'rsvp' && (
+              <a href={`/rsvp/${marriage.id}?preview=1`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-ink">
+                <ExternalLink className="h-4 w-4" /> Ouvrir en plein écran
+              </a>
+            )}
+            <p className="max-w-[360px] text-center text-xs leading-relaxed text-slate-500">
+              {previewTab === 'rsvp'
+                ? "Aperçu de la vraie page reçue par vos invités, avec vos modifications non publiées."
+                : "Exemple pour une invitée nommée Aya Bamba. Chaque invité reçoit son propre lien."}
+            </p>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Composants ─────────── */
+
+const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[15px] text-ink outline-none transition-colors placeholder:text-slate-400 focus:border-amber-400';
+
+function Card({ icon: Icon, title, subtitle, children }: { icon: LucideIcon; title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-5 rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300 text-amber-700"><Icon className="h-[18px] w-[18px]" strokeWidth={1.6} /></span>
+        <div>
+          <h2 className="font-display text-xl text-ink">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="block text-xs font-semibold text-slate-600">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const TONES = {
+  rose: { ring: 'border-rose-200', bg: 'bg-rose-50/40', text: 'text-rose-600', switch: 'bg-rose-500' },
+  blue: { ring: 'border-blue-200', bg: 'bg-blue-50/40', text: 'text-blue-600', switch: 'bg-blue-500' },
+  amber: { ring: 'border-amber-200', bg: 'bg-amber-50/40', text: 'text-amber-700', switch: 'bg-amber-500' },
+} as const;
+
+function CeremonyCard({ icon: Icon, title, tone, enabled, onToggle, children }: {
+  icon: LucideIcon; title: string; tone: keyof typeof TONES; enabled: boolean; onToggle: (v: boolean) => void; children: React.ReactNode;
+}) {
+  const t = TONES[tone];
+  return (
+    <div className={`rounded-2xl border p-4 transition-colors sm:p-5 ${enabled ? `${t.ring} ${t.bg}` : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className={`flex items-center gap-2.5 text-sm font-semibold ${enabled ? t.text : 'text-slate-400'}`}>
+          <Icon className="h-4 w-4" strokeWidth={1.8} /> {title}
+        </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label={`${title} : ${enabled ? 'prévue' : 'non prévue'}`}
+          onClick={() => onToggle(!enabled)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${enabled ? t.switch : 'bg-slate-300'}`}
+        >
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
+        </button>
+      </div>
+      {enabled ? (
+        <div className="mt-4 space-y-3">{children}</div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-400">Non prévue — masquée sur l&apos;invitation.</p>
+      )}
+    </div>
+  );
+}
+
+function IconInput({ icon: Icon, value, onChange, placeholder }: { icon: LucideIcon; value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div className="relative">
+      <Icon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} className={`${inputClass} pl-10`} />
+    </div>
+  );
+}
+
+function LegacyNote({ value, what }: { value?: string; what: string }) {
+  if (!value) return null;
+  return <p className="mt-1.5 pl-1 text-xs text-amber-700">Ancienne saisie « {value} » : choisissez {what} ci-dessus.</p>;
+}
+
+function DateField({ label, value, onChange, legacy }: { label: string; value: string; onChange: (v: string) => void; legacy?: string }) {
+  return (
+    <div>
+      <div className="relative">
+        <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input type="date" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} min-h-[3rem] cursor-pointer pl-10`} />
+      </div>
+      <LegacyNote value={legacy} what="la date" />
+    </div>
+  );
+}
+
+function TimeField({ label, value, onChange, legacy }: { label: string; value: string; onChange: (v: string) => void; legacy?: string }) {
+  return (
+    <div>
+      <div className="relative">
+        <Clock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input type="time" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} min-h-[3rem] cursor-pointer pl-10`} />
+      </div>
+      <LegacyNote value={legacy} what="l'heure" />
+    </div>
+  );
+}
+
+function MapsField({ value, location, onChange }: { value: string; location: string; onChange: (v: string) => void }) {
+  const invalid = Boolean(value) && !isHttpUrl(value);
+  const effective = mapsUrl(value, location);
+  return (
+    <div>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <LinkIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="url"
+            inputMode="url"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Lien Google Maps (facultatif)"
+            aria-label="Lien Google Maps"
+            aria-invalid={invalid}
+            className={`${inputClass} pl-10 text-sm ${invalid ? 'border-red-300 focus:border-red-400' : ''}`}
+          />
+        </div>
+        <a
+          href={effective ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled={!effective}
+          onClick={(e) => { if (!effective) e.preventDefault(); }}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors ${
+            effective ? 'border-slate-200 bg-white text-ink hover:border-ink' : 'cursor-not-allowed border-slate-100 text-slate-300'
+          }`}
+        >
+          <ExternalLink className="h-4 w-4" /> Tester
+        </a>
+      </div>
+      <p className={`mt-1.5 pl-1 text-xs ${invalid ? 'text-red-600' : 'text-slate-500'}`}>
+        {invalid
+          ? 'Lien invalide : il doit commencer par https://'
+          : value
+            ? 'Vos invités ouvriront ce lien.'
+            : location.trim()
+              ? 'Laissé vide : un lien sera créé automatiquement à partir du lieu.'
+              : 'Renseignez le lieu, ou collez un lien Google Maps.'}
+      </p>
+    </div>
+  );
+}
+
+function MigrationHint() {
+  return (
+    <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-amber-200">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+      Pour enregistrer ces réglages, lancez la migration « 20260930_03_studio_ceremonies_message.sql » dans Supabase. En attendant, l&apos;aperçu fonctionne.
+    </p>
+  );
+}
+
+// Rendu façon WhatsApp : *gras*, _italique_, lignes « > » en citation
+function formatWhatsAppLine(line: string, key: number) {
+  const quote = line.startsWith('> ');
+  const content = quote ? line.slice(2) : line;
+  const parts = content.split(/(\*[^*\n]+\*|_[^_\n]+_)/g).map((part, i) => {
+    if (/^\*[^*]+\*$/.test(part)) return <strong key={i}>{part.slice(1, -1)}</strong>;
+    if (/^_[^_]+_$/.test(part)) return <em key={i}>{part.slice(1, -1)}</em>;
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+  return (
+    <span key={key} className={`block min-h-[1.2em] break-words ${quote ? 'border-l-4 border-[#25d366]/40 pl-2 text-[#54656f]' : ''}`}>
+      {parts}
+    </span>
+  );
+}
+
+function WhatsAppPreview({ couple, message }: { couple: string; message: string }) {
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col bg-[#efeae2]">
+      <div className="flex items-center gap-3 bg-[#008069] px-4 pb-3 pt-9 text-white">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-white/20 text-sm font-semibold">
+          <Heart className="h-4 w-4 fill-white" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-semibold">{couple || 'Les mariés'}</p>
+          <p className="text-xs text-white/75">en ligne</p>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="ml-auto max-w-[88%] rounded-lg rounded-tr-none bg-[#d9fdd3] px-2.5 pb-1.5 pt-2 text-[13.5px] leading-snug text-[#111b21] shadow-sm">
+          {message.split('\n').map(formatWhatsAppLine)}
+          <p className="mt-1 text-right text-[10px] text-[#667781]">12:00 ✓✓</p>
         </div>
       </div>
     </div>

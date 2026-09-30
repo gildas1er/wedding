@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import { normalizePhone, whatsappLink } from '../../../lib/phone';
+import { buildInvitationMessage } from '../../../lib/whatsapp-message';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
   Users as UsersIcon, X, LayoutDashboard,
@@ -522,16 +523,12 @@ export default function GuestPage() {
   const sendWhatsAppInvitation = async (guest: any) => {
     const rsvpUrl = `${window.location.origin}/rsvp/${marriage.id}?guest=${guest.id}`;
     
-    const message = 
-`👑 *INVITATION OFFICIELLE* 👑\n\n` +
-`> NB : Cette invitation est strictement personnelle. \n\n` +
-`Bonjour *${guest.name}* ! 👋\n\n` +
-`Nous avons l'immense joie de vous inviter à célébrer notre union. Votre présence à nos côtés rendra cette journée inoubliable ! 🕊️💍\n\n` +
-`📍 *Pour confirmer votre présence (RSVP) :*\n` +
-`Merci de cliquer sur le lien ci-dessous pour valider votre venue :\n` +
-`👉 ${rsvpUrl}\n\n` +
-`Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
-`_${[marriage.partner_1_name, marriage.partner_2_name].filter(Boolean).join(' & ')}_ \n`;
+    // Message rédigé dans le studio (ou message par défaut)
+    const message = buildInvitationMessage(marriage.whatsapp_message, {
+      prenom: guest.name,
+      maries: [marriage.partner_1_name, marriage.partner_2_name].filter(Boolean).join(' & '),
+      lien: rsvpUrl,
+    });
     
     // Numéro au format international (ex. 07… -> 22507…) : sinon WhatsApp répond « Ce lien n'a pas pu être ouvert »
     const whatsappUrl = whatsappLink(guest.phone, message);

@@ -29,7 +29,9 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return digits ? `+${digits}` : null;
 }
 
+// Lien direct vers api.whatsapp.com (et non wa.me) : la redirection de wa.me abîme
+// les emojis du message, qui s'affichent alors en « � ».
 export function whatsappLink(raw: string | null | undefined, message: string): string | null {
   const digits = toInternationalDigits(raw);
-  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(message)}` : null;
+  return digits ? `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}` : null;
 }
