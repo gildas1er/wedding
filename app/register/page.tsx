@@ -7,6 +7,7 @@ import {
   Check, User, Calendar, Phone, ChevronDown, AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import { LEGAL } from '../../lib/legal';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
 
@@ -28,6 +29,7 @@ export default function RegisterPage() {
   const [weddingDate, setWeddingDate] = useState("");
   const [role, setRole] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   
   const [emailError, setEmailError] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -115,6 +117,10 @@ export default function RegisterPage() {
             phone: phone,
             wedding_date: weddingDate,
             role: role,
+            // Preuve du consentement : version des documents acceptés et date
+            terms_version: LEGAL.version,
+            terms_accepted_at: new Date().toISOString(),
+            marketing_opt_in: marketingOptIn,
           },
         },
       });
@@ -307,7 +313,12 @@ export default function RegisterPage() {
             <div className="pt-2">
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-1 accent-rose-500 h-4 w-4" required />
-                <span className="text-xs text-slate-500 leading-relaxed font-medium">J&apos;accepte les <Link href="/terms" className="text-rose-500 font-bold hover:underline">conditions</Link> et la <Link href="/privacy" className="text-rose-500 font-bold hover:underline">confidentialité</Link>.</span>
+                <span className="text-xs text-slate-500 leading-relaxed font-medium">J&apos;accepte les <a href="/conditions" target="_blank" rel="noopener noreferrer" className="text-rose-500 font-bold hover:underline">conditions d&apos;utilisation et de vente</a> et la <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-rose-500 font-bold hover:underline">politique de confidentialité</a>.</span>
+              </label>
+              {/* Consentement facultatif et séparé (jamais pré-coché) */}
+              <label className="mt-3 flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} className="mt-1 accent-rose-500 h-4 w-4" />
+                <span className="text-xs text-slate-500 leading-relaxed font-medium">J&apos;accepte de recevoir des conseils et nouveautés de WeddingStudio (facultatif, désinscription à tout moment).</span>
               </label>
             </div>
 

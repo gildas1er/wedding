@@ -1,53 +1,59 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Users, MapPin, Send, Zap, X, type LucideIcon } from 'lucide-react';
+import { Check, Crown, X } from 'lucide-react';
+import { FREE_GUEST_LIMIT, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_FEATURES, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
 
-function PricingFeature({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
-  return (
-    <div className="flex items-center gap-4">
-      <div className="w-8 h-8 shrink-0 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><Icon size={16} /></div>
-      <span className="text-sm font-bold text-slate-700">{text}</span>
-    </div>
-  );
-}
+type Props = { onClose: () => void; reason?: 'limit' | 'discover' };
 
-export default function PricingModal({ onClose }: { onClose: () => void }) {
+// Présentation de l'offre : ce qu'elle apporte vraiment, son prix, et l'accès au paiement
+export default function PricingModal({ onClose, reason = 'discover' }: Props) {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={onClose}
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-ink/60 backdrop-blur-sm sm:items-center sm:p-4"
     >
       <motion.div
+        initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-white rounded-[1.5rem] sm:rounded-[2rem] max-w-4xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl flex flex-col md:flex-row"
+        role="dialog" aria-modal="true" aria-label="Offre Premium"
+        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] bg-white p-6 shadow-2xl sm:rounded-[1.75rem] sm:p-8"
       >
-        <button onClick={onClose} aria-label="Fermer" className="absolute top-4 right-4 p-2 rounded-full bg-slate-50 text-slate-400 hover:text-slate-700 md:hidden">
+        <button onClick={onClose} aria-label="Fermer" className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-ink">
           <X size={18} />
         </button>
-        <div className="p-8 sm:p-12 flex-1">
-          <h2 className="text-2xl sm:text-3xl font-normal text-slate-900 mb-2">Passez au Premium 👑</h2>
-          <p className="text-slate-500 mb-8 font-medium">Tout ce dont vous avez besoin pour un mariage sans stress.</p>
-          <div className="space-y-4">
-            <PricingFeature icon={Users} text="Invités illimités (Gratuit limité à 15)" />
-            <PricingFeature icon={MapPin} text="Plan de table interactif" />
-            <PricingFeature icon={Send} text="Relances RSVP automatiques" />
-            <PricingFeature icon={Zap} text="Export PDF pour le traiteur" />
-          </div>
+
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-600"><Crown size={14} /> Premium</p>
+        <h2 className="mt-2 text-2xl font-normal text-ink sm:text-3xl">
+          {reason === 'limit' ? `Vous avez atteint ${FREE_GUEST_LIMIT} invités` : 'Recevez tous vos proches'}
+        </h2>
+        <p className="mt-2 text-slate-500">
+          {reason === 'limit'
+            ? 'Vos invités, votre plan de table et vos réglages restent intacts. Passez au Premium pour continuer à ajouter des invités.'
+            : `La version gratuite accueille jusqu'à ${FREE_GUEST_LIMIT} fiches invités. Le Premium lève cette limite.`}
+        </p>
+
+        <ul className="mt-6 space-y-2.5">
+          {PREMIUM_FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-3 text-sm text-slate-700">
+              <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Check size={12} /></span>{f}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-6 flex items-baseline justify-between gap-3 rounded-2xl bg-ivory px-4 py-3">
+          <span className="shrink-0 whitespace-nowrap font-display text-2xl text-ink">{formatXof(PREMIUM_PRICE_XOF)}</span>
+          <span className="text-right text-xs text-slate-500">paiement unique · jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après le mariage</span>
         </div>
-        <div className="bg-slate-50 p-8 sm:p-12 w-full md:w-[350px] flex flex-col justify-center border-t md:border-t-0 md:border-l border-slate-100">
-          <div className="mb-8">
-            <span className="text-4xl font-black text-slate-900">25.000</span>
-            <span className="text-sm font-bold text-slate-400"> FCFA</span>
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-2">Paiement unique - Accès à vie</p>
-          </div>
-          <button className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-slate-900 transition-all mb-4">
-            Débloquer maintenant
-          </button>
-          <button onClick={onClose} className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Plus tard</button>
-        </div>
+
+        <Link href="/dashboard/premium" onClick={onClose} className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-ink text-sm font-semibold text-white hover:bg-rose-700">
+          Passer au Premium
+        </Link>
+        <p className="mt-3 text-center text-xs text-slate-500">Wave, Orange Money, MTN, Moov ou carte bancaire</p>
+        <button onClick={onClose} className="mt-2 w-full py-2 text-sm font-medium text-slate-500 hover:text-ink">Plus tard</button>
       </motion.div>
     </motion.div>
   );

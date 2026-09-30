@@ -14,46 +14,6 @@ import {
   ArrowRight, Crown, ShieldCheck, Zap
 } from 'lucide-react';
 
-// --- NOUVEAU : MODALE PAYWALL DE VOLUME ---
-function VolumePaywall({ currentCount, onUpgrade, onClose }: any) {
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md"
-    >
-      <motion.div 
-        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-        className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-10 max-w-md w-full text-center shadow-2xl border border-rose-100"
-      >
-        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-          <Users size={40} />
-        </div>
-        
-        <h2 className="text-2xl font-normal text-slate-900 mb-2">Limite atteinte !</h2>
-        <p className="text-slate-500 text-sm leading-relaxed mb-8">
-          Vous avez ajouté vos <span className="font-bold text-slate-900">{currentCount} invités</span> gratuits. 
-          Pour débloquer la liste illimitée et la gestion des tables, passez à la version Premium.
-        </p>
-
-        <div className="space-y-3">
-          <button 
-            onClick={onUpgrade}
-            className="w-full py-4 bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-100 hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
-          >
-            Débloquer l'illimité <Crown size={14} />
-          </button>
-          <button 
-            onClick={onClose}
-            className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:text-slate-600 transition-colors"
-          >
-            Gérer mes {currentCount} invités
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
 // --- NOUVEAU : MODALE DE CÉLÉBRATION (GAMIFICATION) ---
 function MilestoneCelebration({ title, message, onConfirm }: any) {
   return (
@@ -169,7 +129,6 @@ export default function WeddingDashboard() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
   const [showPricing, setShowPricing] = useState(false);
-  const [showVolumePaywall, setShowVolumePaywall] = useState(false);
   const [celebration, setCelebration] = useState<any>(null);
   
   const [marriage, setMarriage] = useState<any>(null);
@@ -182,7 +141,6 @@ export default function WeddingDashboard() {
   const [onboardingProgress, setOnboardingProgress] = useState(0);
   
   const EXCHANGE_RATES: { [key: string]: number } = { FCFA: 1, EUR: 0.0015, USD: 0.0016 };
-  const GUEST_LIMIT = 9999;
 
   useEffect(() => {
     sidebarRef.current = document.getElementById('dashboard-sidebar-nav');
@@ -208,10 +166,6 @@ export default function WeddingDashboard() {
           return acc;
         }, { total: 0, confirmed: 0, pending: 0, declined: 0, totalPersons: 0 });
         setGuestStats(stats);
-        
-        if (stats.total >= GUEST_LIMIT) {
-          setShowVolumePaywall(true);
-        }
 
         if (stats.total === 0) setShowWelcome(true);
 
@@ -284,13 +238,6 @@ export default function WeddingDashboard() {
       <AnimatePresence>
         {celebration && <MilestoneCelebration title={celebration.title} message={celebration.message} onConfirm={() => setCelebration(null)} />}
         {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
-        {showVolumePaywall && (
-          <VolumePaywall 
-            currentCount={GUEST_LIMIT} 
-            onUpgrade={() => { setShowVolumePaywall(false); setShowPricing(true); }}
-            onClose={() => setShowVolumePaywall(false)} 
-          />
-        )}
       </AnimatePresence>
 
       <AnimatePresence>

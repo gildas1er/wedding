@@ -339,7 +339,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-8 text-xs text-white/40 sm:flex-row sm:justify-between">
-            <p>© {new Date().getFullYear()} WeddingStudio</p>
+            <p>© {new Date().getFullYear()} WeddingStudio · <Link href="/conditions" className="hover:text-white">Conditions</Link> · <Link href="/confidentialite" className="hover:text-white">Confidentialité</Link></p>
             <p>Fait avec soin à Abidjan</p>
           </div>
         </div>

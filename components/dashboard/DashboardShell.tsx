@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
+import { isPremium } from '../../lib/plan';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -36,7 +37,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-type Couple = { p1: string; p2: string; date: string | null };
+type Couple = { p1: string; p2: string; date: string | null; premium: boolean };
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard';
@@ -128,21 +129,28 @@ function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
         ))}
 
         {/* Offre Premium */}
-        <div className="relative mt-6 mb-3 overflow-hidden rounded-2xl bg-ink p-4 text-white">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-400/20 blur-2xl" />
-          <div className="relative">
-            <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-300">
-              <Crown size={13} /> Premium
-            </p>
-            <p className="mt-1.5 font-display text-[15px] leading-snug">Invités illimités & exports PDF</p>
-            <button
-              onClick={onUpgrade}
-              className="mt-3 w-full rounded-lg bg-amber-300 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-amber-200"
-            >
-              Découvrir l&apos;offre
-            </button>
+        {couple?.premium ? (
+          <Link href="/dashboard/premium" onClick={onNavigate} className="mt-6 mb-3 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50/70 p-3 text-sm">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink text-amber-300"><Crown size={15} /></span>
+            <span><span className="block font-semibold text-ink">Premium actif</span><span className="text-xs text-slate-500">Invités illimités</span></span>
+          </Link>
+        ) : (
+          <div className="relative mt-6 mb-3 overflow-hidden rounded-2xl bg-ink p-4 text-white">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-400/20 blur-2xl" />
+            <div className="relative">
+              <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-300">
+                <Crown size={13} /> Premium
+              </p>
+              <p className="mt-1.5 font-display text-[15px] leading-snug">Invités illimités pour votre grand jour</p>
+              <button
+                onClick={onUpgrade}
+                className="mt-3 w-full rounded-lg bg-amber-300 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-amber-200"
+              >
+                Découvrir l&apos;offre
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </nav>
 
       <div className="border-t border-slate-200/80 p-3">
@@ -171,10 +179,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       if (!user) return;
       const { data } = await supabase
         .from('marriages')
-        .select('partner_1_name, partner_2_name, wedding_date')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (data) setCouple({ p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date });
+      if (data) setCouple({ p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data) });
     });
   }, []);
 

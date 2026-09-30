@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import { normalizePhone, whatsappLink } from '../../../lib/phone';
 import { buildInvitationMessage } from '../../../lib/whatsapp-message';
+import { FREE_GUEST_LIMIT, isGuestLimitError, isPremium } from '../../../lib/plan';
+import PricingModal from '../../../components/dashboard/PricingModal';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
   Users as UsersIcon, X, LayoutDashboard,
@@ -182,6 +184,8 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
     } catch (error: any) {
       if (error.code === '23505') {
         setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité.");
+      } else if (isGuestLimitError(error)) {
+        setErrorMessage(`Limite gratuite de ${FREE_GUEST_LIMIT} invités atteinte : passez au Premium pour en ajouter d'autres.`);
       } else {
         setErrorMessage("Oups ! Une petite erreur technique s'est glissée.");
       }
@@ -357,10 +361,14 @@ export default function GuestPage() {
   const [messageFilter, setMessageFilter] = useState("all");
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [pricing, setPricing] = useState<null | 'limit' | 'discover'>(null);
   const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Version gratuite : limite de fiches (la base l'applique aussi, voir migration 7)
+  const limitActive = Boolean(marriage && 'plan' in marriage && !isPremium(marriage));
 
   // CALCUL DES STATISTIQUES DES CÉRÉMONIES
   const confirmedGuests = guests.filter(g => g.status === 'confirmé');
@@ -463,39 +471,46 @@ export default function GuestPage() {
           return;
         }
 
+        // Version gratuite : on importe jusqu'à la limite, le reste attendra le Premium
+        const room = limitActive ? Math.max(0, FREE_GUEST_LIMIT - guests.length) : Infinity;
+        if (room === 0) {
+          setImporting(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          setPricing('limit');
+          return;
+        }
+        const toImport = allGuests.slice(0, room);
+        const skippedForLimit = allGuests.length - toImport.length;
+
         const batchSize = 5;
         let insertedCount = 0;
-        let hasDuplicateError = false;
+        let duplicates = 0;
+        let limitHit = false;
 
         try {
-          for (let i = 0; i < allGuests.length; i += batchSize) {
-            const batch = allGuests.slice(i, i + batchSize);
-            
+          for (let i = 0; i < toImport.length && !limitHit; i += batchSize) {
+            const batch = toImport.slice(i, i + batchSize);
             const { error } = await supabase.from('invite').insert(batch);
-            
-            if (error) {
-              if (error.code === '23505') {
-                hasDuplicateError = true;
-                continue; 
-              }
-              throw error;
+            if (!error) { insertedCount += batch.length; continue; }
+            if (isGuestLimitError(error)) { limitHit = true; break; }
+            if (error.code !== '23505') throw error;
+            // Un doublon fait échouer tout le lot : on réessaie ligne par ligne pour ne perdre personne
+            for (const row of batch) {
+              const { error: rowError } = await supabase.from('invite').insert(row);
+              if (!rowError) insertedCount++;
+              else if (rowError.code === '23505') duplicates++;
+              else if (isGuestLimitError(rowError)) { limitHit = true; break; }
+              else throw rowError;
             }
-            
-            insertedCount += batch.length;
           }
 
-          if (hasDuplicateError) {
-            setImportNotice({ 
-              type: 'success', 
-              message: `Importation partielle : ${insertedCount} proches ajoutés. Certains numéros en doublon ont été ignorés !` 
-            });
-          } else {
-            setImportNotice({ 
-              type: 'success', 
-              message: `${insertedCount} proches ajoutés avec succès !` 
-            });
-          }
-          
+          const notLoaded = skippedForLimit + (limitHit ? toImport.length - insertedCount - duplicates : 0);
+          const parts = [`${insertedCount} proche${insertedCount > 1 ? 's' : ''} ajouté${insertedCount > 1 ? 's' : ''}`];
+          if (duplicates) parts.push(`${duplicates} numéro${duplicates > 1 ? 's' : ''} en double ignoré${duplicates > 1 ? 's' : ''}`);
+          if (notLoaded) parts.push(`${notLoaded} ligne${notLoaded > 1 ? 's' : ''} en attente : limite gratuite de ${FREE_GUEST_LIMIT} invités atteinte`);
+          setImportNotice({ type: notLoaded ? 'error' : 'success', message: `${parts.join(' · ')}.` });
+          if (notLoaded) setPricing('limit');
+
           loadData();
         } catch (err: any) {
           setImportNotice({ type: 'error', message: err.message || "Erreur lors de l'intégration progressive." });
@@ -563,7 +578,10 @@ export default function GuestPage() {
     setSearchTerm("");
   };
 
-  const openAdd = () => { setSelectedGuest(null); setIsModalOpen(true); };
+  const openAdd = () => {
+    if (limitActive && guests.length >= FREE_GUEST_LIMIT) { setPricing('limit'); return; }
+    setSelectedGuest(null); setIsModalOpen(true);
+  };
   const openEdit = (guest: any) => { setSelectedGuest(guest); setIsModalOpen(true); };
 
   if (loading) return (
@@ -607,6 +625,25 @@ export default function GuestPage() {
             </button>
           </div>
         </header>
+
+        {limitActive && guests.length >= FREE_GUEST_LIMIT * 0.8 && (
+          <div className={`mb-6 flex flex-col gap-3 rounded-2xl p-4 ring-1 sm:flex-row sm:items-center ${guests.length >= FREE_GUEST_LIMIT ? 'bg-rose-50 ring-rose-200' : 'bg-amber-50 ring-amber-200'}`}>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-ink">
+                {guests.length >= FREE_GUEST_LIMIT
+                  ? `Limite gratuite atteinte : ${FREE_GUEST_LIMIT} invités`
+                  : `Plus que ${FREE_GUEST_LIMIT - guests.length} invité${FREE_GUEST_LIMIT - guests.length > 1 ? 's' : ''} dans la version gratuite`}
+              </p>
+              <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-white">
+                <div className={`h-full rounded-full ${guests.length >= FREE_GUEST_LIMIT ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (guests.length / FREE_GUEST_LIMIT) * 100)}%` }} />
+              </div>
+              <p className="mt-1.5 text-xs text-slate-600">{guests.length} / {FREE_GUEST_LIMIT} fiches · vos invités actuels ne sont jamais bloqués.</p>
+            </div>
+            <button onClick={() => setPricing(guests.length >= FREE_GUEST_LIMIT ? 'limit' : 'discover')} className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700">
+              Passer au Premium
+            </button>
+          </div>
+        )}
 
         {/* ── CHIFFRES CLÉS (défilent sur mobile) ── */}
         <div className="-mx-4 mb-6 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-7 lg:overflow-visible">
@@ -821,6 +858,10 @@ export default function GuestPage() {
       >
         <Plus size={26} strokeWidth={2.2} />
       </button>
+
+      <AnimatePresence>
+        {pricing && <PricingModal reason={pricing} onClose={() => setPricing(null)} />}
+      </AnimatePresence>
 
       <GuestModal 
         isOpen={isModalOpen} 
