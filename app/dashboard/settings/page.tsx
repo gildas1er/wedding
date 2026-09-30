@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, LayoutDashboard, Users, Settings as SettingsIcon, 
   Palette, UserPlus, Download, Save, Trash2, 
-  Calendar, MapPin, X, CheckCircle2, AlertCircle
+  Calendar, MapPin, X, CheckCircle2, AlertCircle, Printer, ChevronRight
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
+import { PRINT_REPORTS } from '../../../lib/print-reports';
 import { usePathname } from 'next/navigation';
 
 export default function SettingsPage() {
@@ -208,7 +209,50 @@ export default function SettingsPage() {
             )}
 
             {activeTab === 'team' && <p className="text-slate-400 font-bold italic py-10 text-center">Gestion de l'équipe bientôt disponible...</p>}
-            {activeTab === 'export' && <p className="text-slate-400 font-bold italic py-10 text-center">Export PDF bientôt disponible...</p>}
+            {activeTab === 'export' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="eyebrow">Listes des invités</p>
+                    <h2 className="mt-2 text-2xl font-normal text-ink">Imprimer ou enregistrer en PDF</h2>
+                    <p className="mt-1 text-sm text-slate-500">Choisissez une liste : elle s&apos;ouvre prête à imprimer (ou « Enregistrer en PDF » depuis la fenêtre d&apos;impression).</p>
+                  </div>
+                  <Link
+                    href="/dashboard/invite/print"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-700"
+                  >
+                    <Printer className="h-4 w-4" /> Ouvrir l&apos;impression
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {PRINT_REPORTS.map(({ id, title, description, icon: Icon }) => (
+                    <Link
+                      key={id}
+                      href={`/dashboard/invite/print?report=${id}`}
+                      className="group flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 transition-all hover:border-amber-300 hover:shadow-md"
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300 text-amber-700 transition-colors group-hover:bg-amber-50">
+                        <Icon className="h-[18px] w-[18px]" strokeWidth={1.6} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold text-ink">{title.replace(/^\d+\.\s*/, '')}</span>
+                        <span className="mt-0.5 block text-sm text-slate-500">{description}</span>
+                      </span>
+                      <ChevronRight className="mt-2.5 h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-rose-500" />
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl bg-ivory p-4 text-sm text-slate-600">
+                  <span className="font-semibold text-ink">Autres documents :</span>{' '}
+                  le plan de table s&apos;imprime depuis{' '}
+                  <Link href="/dashboard/table" className="font-semibold text-rose-600 underline-offset-4 hover:underline">Plan de table</Link>{' '}
+                  (Imprimer PCO / Word PCO), et le budget depuis{' '}
+                  <Link href="/dashboard/budget" className="font-semibold text-rose-600 underline-offset-4 hover:underline">Budget</Link>.
+                </div>
+              </div>
+            )}
 
             <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-between">
               <button className="flex items-center gap-2 text-slate-300 hover:text-red-500 transition-colors">

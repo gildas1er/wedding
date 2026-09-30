@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
+import { normalizePhone, whatsappLink } from '../../../lib/phone';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
   Users as UsersIcon, X, LayoutDashboard,
@@ -138,8 +139,14 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!marriageId) return;
-    setIsSubmitting(true);
     setErrorMessage(null);
+
+    const phone = normalizePhone(formData.phone);
+    if (!phone) {
+      setErrorMessage("Ce numéro WhatsApp n'est pas valide. Exemple : 07 00 00 00 00 ou +33 6 12 34 56 78.");
+      return;
+    }
+    setIsSubmitting(true);
 
     const finalCount = hasAccompanist ? formData.guests_count : 1;
 
@@ -148,7 +155,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
       const dataToSave = {
         marriage_id: marriageId,
         name: formData.name,
-        phone: formData.phone,
+        phone,
         guests_count: finalCount,
         side: formData.side,
         status: formData.status,
@@ -231,11 +238,11 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
                 <input 
                   required 
                   type="text"
-                  placeholder="Ex: +33612345678 ou 2250102030405" 
+                  placeholder="Ex : 07 00 00 00 00 ou +33 6 12 34 56 78" 
                   className={`w-full px-5 py-3.5 bg-slate-50 border-2 rounded-2xl outline-none font-bold transition-all ${errorMessage?.includes('numéro') ? 'border-rose-300 bg-rose-50/30' : 'border-slate-100 focus:border-rose-400'}`} 
                   value={formData.phone} 
                   onChange={(e) => {
-                    const cleaned = e.target.value.replace(/(?!^\+)[^\d]/g, '');
+                    const cleaned = e.target.value.replace(/[^\d+\s.-]/g, '');
                     setFormData({...formData, phone: cleaned});
                   }} 
                 />
@@ -440,7 +447,7 @@ export default function GuestPage() {
         const allGuests = rows.map((row: any) => ({
           marriage_id: marriage.id,
           name: row.name?.trim(),
-          phone: row.phone?.trim()?.replace(/(?!^\+)[^\d]/g, ''),
+          phone: normalizePhone(row.phone),
           side: ['partenaire_1', 'partenaire_2', 'commun'].includes(row.side) ? row.side : 'commun',
           category: ['parents', 'amis', 'collègues'].includes(row.category) ? row.category : 'amis',
           guests_count: parseInt(row.guests_count) || 1,
@@ -451,7 +458,7 @@ export default function GuestPage() {
 
         const invalid = allGuests.some(g => !g.name || !g.phone);
         if (invalid) {
-          setImportNotice({ type: 'error', message: "Certaines lignes n'ont pas de nom ou de numéro de téléphone." });
+          setImportNotice({ type: 'error', message: "Certaines lignes n'ont pas de nom ou ont un numéro de téléphone invalide." });
           setImporting(false);
           return;
         }
@@ -515,9 +522,6 @@ export default function GuestPage() {
   const sendWhatsAppInvitation = async (guest: any) => {
     const rsvpUrl = `${window.location.origin}/rsvp/${marriage.id}?guest=${guest.id}`;
     
-    // Si le numéro commence par +, on enlève le + pour le paramètre d'URL de l'API WhatsApp
-    const formattedPhone = guest.phone.startsWith('+') ? guest.phone.substring(1) : guest.phone;
-
     const message = 
 `👑 *INVITATION OFFICIELLE* 👑\n\n` +
 `> NB : Cette invitation est strictement personnelle. \n\n` +
@@ -529,7 +533,12 @@ export default function GuestPage() {
 `Nous avons hâte de partager ce moment unique avec vous ! 🥂🎉\n\n` +
 `_${[marriage.partner_1_name, marriage.partner_2_name].filter(Boolean).join(' & ')}_ \n`;
     
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+    // Numéro au format international (ex. 07… -> 22507…) : sinon WhatsApp répond « Ce lien n'a pas pu être ouvert »
+    const whatsappUrl = whatsappLink(guest.phone, message);
+    if (!whatsappUrl) {
+      alert(`Le numéro de ${guest.name} (${guest.phone}) n'est pas valide. Modifiez la fiche puis réessayez.`);
+      return;
+    }
     window.open(whatsappUrl, '_blank');
 
     await supabase
