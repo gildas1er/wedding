@@ -4,13 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
-  MessageCircle, Smartphone, RotateCcw, Music, type LucideIcon,
+  MessageCircle, Smartphone, RotateCcw, Music, Info, type LucideIcon,
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import CoverPhotoEditor, { DEFAULT_COVER_POSITION } from '../../../components/studio/CoverPhotoEditor';
 import PalettePicker from '../../../components/studio/PalettePicker';
 import MusicPicker from '../../../components/studio/MusicPicker';
+import PracticalInfoEditor from '../../../components/studio/PracticalInfoEditor';
+import { prepareInfosForSave, sanitizeInfos, type PracticalInfo } from '../../../lib/practical-info';
 import { DEFAULT_PALETTE, resolveAccent } from '../../../lib/palettes';
 import { toISODate, toHHMM } from '../../../lib/event-datetime';
 import { ceremonyFlags, isHttpUrl, mapsUrl } from '../../../lib/ceremonies';
@@ -40,6 +42,7 @@ type Config = {
   reception_maps_url: string;
   whatsapp_message: string;
   music_url: string; // '' = mélodie d'origine, 'none' = sans musique
+  practical_info: PracticalInfo[];
 };
 
 const EMPTY_CONFIG: Config = {
@@ -56,6 +59,7 @@ const EMPTY_CONFIG: Config = {
   reception_hour: '', reception_location: '', reception_maps_url: '',
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
   music_url: '',
+  practical_info: [],
 };
 
 // Colonnes ajoutées par les migrations 3 et 4 (enregistrées à part pour ne pas bloquer le reste)
@@ -63,6 +67,7 @@ const EXTENDED_KEYS = ['show_civil', 'show_religious', 'show_reception', 'whatsa
 const COVER_KEYS = ['bg_image_position'] as const;
 const ACCENT_KEYS = ['accent_color'] as const;
 const MUSIC_KEYS = ['music_url'] as const;
+const INFO_KEYS = ['practical_info'] as const;
 const MAX_MUSIC_MB = 10;
 
 const MAX_UPLOAD_MB = 15;
@@ -83,6 +88,7 @@ export default function InvitationStudio() {
   const [extendedAvailable, setExtendedAvailable] = useState(true);
   const [coverPositionAvailable, setCoverPositionAvailable] = useState(true);
   const [accentAvailable, setAccentAvailable] = useState(true);
+  const [infosAvailable, setInfosAvailable] = useState(true);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -108,6 +114,7 @@ export default function InvitationStudio() {
         setExtendedAvailable('whatsapp_message' in data);
         setCoverPositionAvailable('bg_image_position' in data);
         setAccentAvailable('accent_color' in data);
+        setInfosAvailable('practical_info' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -145,6 +152,7 @@ export default function InvitationStudio() {
           reception_maps_url: data.reception_maps_url || '',
           whatsapp_message: data.whatsapp_message || DEFAULT_WHATSAPP_TEMPLATE,
           music_url: data.music_url || '',
+          practical_info: sanitizeInfos(data.practical_info),
         };
         setLegacyValues(legacy);
         setConfig(loaded);
@@ -188,6 +196,12 @@ export default function InvitationStudio() {
         flash({ type: 'error', text: `Le lien Google Maps (${label}) n'est pas valide. Laissez-le vide pour qu'il soit créé automatiquement.` }, 5000);
         return;
       }
+    }
+
+    const preparedInfos = prepareInfosForSave(config.practical_info);
+    if (preparedInfos.error) {
+      flash({ type: 'error', text: preparedInfos.error }, 5000);
+      return;
     }
 
     setSaving(true);
@@ -234,6 +248,10 @@ export default function InvitationStudio() {
       {
         keys: MUSIC_KEYS, label: 'la migration 1 (musique)', onMissing: () => {},
         values: { music_url: config.music_url || null },
+      },
+      {
+        keys: INFO_KEYS, label: 'la migration 6 (rubriques pratiques)', onMissing: () => setInfosAvailable(false),
+        values: { practical_info: preparedInfos.infos.length ? preparedInfos.infos : null },
       },
       {
         keys: ACCENT_KEYS, label: "la migration 5 (couleur d'accent)", onMissing: () => setAccentAvailable(false),
@@ -444,6 +462,16 @@ export default function InvitationStudio() {
           </Card>
 
           {/* Message WhatsApp */}
+          <Card icon={Info} title="Infos pratiques" subtitle="Dress code, contact, hébergement… affichés sous le programme de l'invitation.">
+            {!infosAvailable && (
+              <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-amber-200">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                Pour enregistrer ces rubriques, lancez la migration « 20260930_06_rubriques_pratiques.sql » dans Supabase. En attendant, l&apos;aperçu fonctionne.
+              </p>
+            )}
+            <PracticalInfoEditor value={config.practical_info} onChange={(v) => set('practical_info', v)} />
+          </Card>
+
           <Card icon={Music} title="Musique d'ambiance" subtitle="Vos invités peuvent l'écouter en ouvrant l'invitation. Appuyez sur lecture pour l'essayer.">
             <MusicPicker
               value={config.music_url}

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Wallet, LogOut, Settings, LayoutGrid,
-  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, type LucideIcon,
+  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
@@ -23,6 +23,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: '/dashboard/invite', label: 'Invités', icon: Users },
       { href: '/dashboard/studio', label: 'Faire-part & RSVP', icon: Mail },
+      { href: '/dashboard/partage', label: 'Partager', icon: QrCode },
       { href: '/dashboard/table', label: 'Plan de table', icon: Armchair },
       { href: '/dashboard/tasks', label: 'Checklist', icon: ListChecks },
       { href: '/dashboard/budget', label: 'Budget', icon: Wallet },

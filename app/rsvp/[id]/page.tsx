@@ -13,6 +13,8 @@ import { formatDateFr, formatHourFr } from '../../../lib/event-datetime';
 import { ceremonyFlags, mapsUrl } from '../../../lib/ceremonies';
 import { rsvpThemeStyle, resolveAccent } from '../../../lib/palettes';
 import { resolveMusic } from '../../../lib/music';
+import { sanitizeInfos } from '../../../lib/practical-info';
+import PracticalInfoSection from '../../../components/rsvp/PracticalInfoSection';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -374,6 +376,9 @@ function RSVPContent() {
             )}
           </motion.div>
 
+          {/* INFOS PRATIQUES (dress code, contact, hébergement…) */}
+          <PracticalInfoSection infos={sanitizeInfos(m.practical_info)} />
+
           {/* FORMULAIRE RSVP */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -381,7 +386,14 @@ function RSVPContent() {
             transition={{ delay: 0.4 }}
             className="bg-ivory rounded-[1.75rem] p-6 sm:p-8 border border-slate-200/70 relative"
           >
-            {!submitted ? (
+            {!guestId && !isPreview ? (
+              // Lien de faire-part partagé (sans invité) : la réponse se fait via le lien personnel
+              <div className="text-center">
+                <p className="eyebrow mb-2">Votre réponse</p>
+                <p className="font-display text-xl text-ink">Répondez depuis votre invitation personnelle</p>
+                <p className="mt-2 text-sm text-slate-500">Utilisez le lien reçu par WhatsApp : il vous est réservé et permet d&apos;indiquer votre présence.</p>
+              </div>
+            ) : !submitted ? (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="text-center mb-6">
                   <p className="eyebrow mb-1">Réponse de</p>
