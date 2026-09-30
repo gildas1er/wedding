@@ -10,6 +10,8 @@ import {
 import confetti from 'canvas-confetti';
 import { supabase } from '../../../lib/supabase';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function PublicRSVP() {
   return (
     <Suspense fallback={
@@ -29,7 +31,9 @@ function RSVPContent() {
   
   // Sécurité & nettoyage UUID
   const rawGuestId = searchParams.get('guest');
-  const guestId = rawGuestId ? rawGuestId.replace(/['"]+/g, '') : null;
+  const cleanedGuestId = rawGuestId ? rawGuestId.replace(/['"]+/g, '') : null;
+  // Un identifiant mal formé ne doit pas empêcher d'afficher l'invitation
+  const guestId = cleanedGuestId && UUID_RE.test(cleanedGuestId) ? cleanedGuestId : null;
   
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -59,22 +63,18 @@ function RSVPContent() {
     const fetchData = async () => {
       if (!id) { setLoading(false); return; }
       try {
-        // 1. Récupérer les infos du mariage
-        const { data: mData } = await supabase
-          .from('marriages')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-        if (mData) setMarriage(mData);
+        // Infos publiques du mariage + fiche de l'invité, via une fonction sécurisée
+        // (les invités n'ont plus d'accès direct aux tables)
+        const { data, error } = await supabase.rpc('get_rsvp_invitation', {
+          p_marriage_id: id,
+          p_guest_id: guestId,
+        });
+        if (error) throw error;
+        if (data?.marriage) setMarriage(data.marriage);
 
-        // 2. Récupérer les infos de l'invité
         if (guestId) {
-          const { data: gData } = await supabase
-            .from('invite')
-            .select('name, status, guests_count, attending_civil, attending_church, attending_reception, notes')
-            .eq('id', guestId)
-            .maybeSingle();
-          
+          const gData = data?.guest;
+
           if (gData) {
             setGuestName(gData.name);
             const isCivil = gData.attending_civil ?? true;
@@ -169,23 +169,18 @@ function RSVPContent() {
 
     setSending(true);
 
-    const isDeclined = form.status === 'décliné';
-    const finalCount = isDeclined ? 1 : form.guests_count;
+    const { data: updated, error } = await supabase.rpc('submit_rsvp', {
+      p_marriage_id: id,
+      p_guest_id: guestId,
+      p_status: form.status,
+      p_notes: form.notes,
+      p_attending_civil: form.attending_civil,
+      p_attending_church: form.attending_church,
+      p_attending_reception: form.attending_reception,
+    });
 
-    const { error } = await supabase
-      .from('invite')
-      .update({
-        status: form.status,
-        guests_count: finalCount,
-        notes: form.notes,
-        attending_civil: isDeclined ? false : form.attending_civil,
-        attending_church: isDeclined ? false : form.attending_church,
-        attending_reception: isDeclined ? false : form.attending_reception
-      })
-      .eq('id', guestId);
-
-    if (error) {
-      alert("Erreur lors de l'enregistrement : " + error.message);
+    if (error || !updated) {
+      alert("Erreur lors de l'enregistrement : " + (error?.message ?? "invitation introuvable."));
     } else {
       setSubmitted(true);
       if (form.status === 'confirmé') {

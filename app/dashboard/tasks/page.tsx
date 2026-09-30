@@ -99,40 +99,13 @@ export default function TasksPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
       
-      <aside className="w-64 border-r border-slate-200 flex flex-col bg-white sticky top-0 h-screen z-50">
-        <div className="p-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-100">
-            <Heart size={20} className="text-white fill-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">Mariage</span>
-        </div>
 
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto text-slate-600">
-          <p className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Général</p>
-          <SidebarItem icon={LayoutDashboard} label="Tableau de bord" onClick={() => router.push('/dashboard')} />
-          <SidebarItem icon={MessageSquare} label="Messages" />
-          <p className="px-4 py-2 mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Organisation</p>
-          <SidebarItem icon={Users} label="Liste des invités" onClick={() => router.push('/dashboard/invite')} />
-          <SidebarItem icon={Send} label="Invitations (RSVP)" onClick={() => router.push('/dashboard/studio')} />
-          <SidebarItem icon={Utensils} label="Gestion des tables" onClick={() => router.push('/dashboard/table')} />
-          <SidebarItem icon={ClipboardList} label="Mes tâches" active onClick={() => router.push('/dashboard/tasks')} />
-          <SidebarItem icon={Banknote} label="Budget & Dépenses" onClick={() => router.push('/dashboard/budget')} />
-        </nav>
-
-        <div className="p-4 border-t border-slate-100">
-          <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-            <LogOut size={20} />
-            <span className="text-sm font-semibold">Déconnexion</span>
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto relative">
+      <main className="p-4 sm:p-8 lg:p-12 relative overflow-x-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-rose-100/50 blur-[120px] -z-10 rounded-full" />
 
-        <header className="flex justify-between items-center mb-10">
+        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400">✨ Organisation</h2>
             <p className="text-2xl font-bold">Ma Checklist Intelligente 📝</p>
@@ -158,7 +131,7 @@ export default function TasksPage() {
           {showAddForm && (
             <motion.form 
               initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-              onSubmit={addTask} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl mb-10"
+              onSubmit={addTask} className="bg-white p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 shadow-xl mb-10"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
@@ -188,36 +161,28 @@ export default function TasksPage() {
           {tasks.map((task) => {
             const urgency = !task.is_completed ? getUrgencyStatus(task.due_months_before) : null;
             return (
-              <motion.div layout key={task.id} className={`bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group transition-all ${task.is_completed ? 'bg-slate-50/50' : 'hover:border-rose-200 hover:shadow-md'}`}>
-                <div className="flex items-center gap-6">
+              <motion.div layout key={task.id} className={`bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between gap-3 group transition-all ${task.is_completed ? 'bg-slate-50/50' : 'hover:border-rose-200 hover:shadow-md'}`}>
+                <div className="flex items-center gap-3 sm:gap-6 min-w-0">
                   <button onClick={() => toggleTask(task.id, task.is_completed)} className={`transition-all transform hover:scale-110 ${task.is_completed ? 'text-emerald-500' : 'text-slate-200 hover:text-rose-500'}`}>
                     {task.is_completed ? <CheckCircle2 size={32} /> : <Circle size={32} />}
                   </button>
                   <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className={`font-bold text-lg ${task.is_completed ? 'line-through text-slate-300' : 'text-slate-700'}`}>{task.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <h3 className={`font-bold text-base sm:text-lg break-words ${task.is_completed ? 'line-through text-slate-300' : 'text-slate-700'}`}>{task.title}</h3>
                       {urgency && <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${urgency.className}`}>{urgency.label}</span>}
                     </div>
-                    <div className="flex items-center gap-4 mt-1">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5"><Tag size={12} className="text-rose-400" /> {task.category}</span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5"><Clock size={12} /> {task.due_months_before} mois avant</span>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => deleteTask(task.id)} className="p-3 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"><Trash2 size={20} /></button>
+                <button onClick={() => deleteTask(task.id)} className="p-3 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all lg:opacity-0 lg:group-hover:opacity-100"><Trash2 size={20} /></button>
               </motion.div>
             );
           })}
         </div>
       </main>
     </div>
-  );
-}
-
-function SidebarItem({ icon: Icon, label, active = false, onClick }: any) {
-  return (
-    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${active ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-      <Icon size={18} /><span>{label}</span>
-    </button>
   );
 }

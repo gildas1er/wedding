@@ -3,12 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Lock, Loader2, Sparkles, 
-  Download, RefreshCw, Grid, Maximize2, X, User, MessageCircle, Calendar
+  Download, RefreshCw, Grid, Maximize2, X, MessageCircle, Calendar
 } from 'lucide-react';
-import { supabase } from '../lib/supabase'; // Ajuste selon ton projet
-
-const GALLERY_PASSWORD = "GildasMariette2026"; 
-
 interface EnrichedImage {
   id: string;
   name: string;
@@ -24,106 +20,74 @@ interface GuestPost {
 }
 
 export default function GaleriePage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // null = vérification en cours auprès du serveur
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [posts, setPosts] = useState<GuestPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const access = localStorage.getItem('maries_gallery_access');
-    if (access === 'true') {
-      setIsAuthenticated(true);
-      fetchPhotosAndMetadata();
-    }
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordInput === GALLERY_PASSWORD) {
-      localStorage.setItem('maries_gallery_access', 'true');
-      setIsAuthenticated(true);
-      setPasswordError(false);
-      fetchPhotosAndMetadata();
-    } else {
-      setPasswordError(true);
-    }
-  };
-
+  // Le mot de passe est vérifié côté serveur, qui pose un cookie httpOnly
   const fetchPhotosAndMetadata = async () => {
     setLoading(true);
     try {
-      // 1. Récupérer les métadonnées SQL
-      const { data: dbData, error: dbError } = await supabase
-        .from('photos_metadata')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (dbError) throw dbError;
-
-      // 2. Récupérer les fichiers du Storage
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('wedding-photos')
-        .list('invites', { limit: 150 });
-
-      if (storageError) throw storageError;
-
-      if (storageData && dbData) {
-        // 3. Regrouper par message/invité pour recréer les "packs" d'envois simultanés
-        const postMap: { [key: string]: GuestPost } = {};
-
-        storageData
-          .filter(file => file.name !== '.emptyFolderPlaceholder')
-          .forEach(file => {
-            const filePath = `invites/${file.name}`;
-            const meta = dbData.find(d => d.file_name === filePath);
-            
-            const { data: publicUrlData } = supabase.storage
-              .from('wedding-photos')
-              .getPublicUrl(filePath);
-
-            const guestName = meta?.guest_name || "Invité anonyme";
-            const message = meta?.message || null;
-            // Clé unique combinant le nom et le message pour regrouper les photos du même envoi
-            const groupKey = `${guestName}-${message || 'sans-message'}`;
-
-            const imgObj: EnrichedImage = {
-              id: file.name,
-              name: file.name,
-              url: publicUrlData.publicUrl,
-              created_at: file.created_at || new Date().toISOString()
-            };
-
-            if (!postMap[groupKey]) {
-              postMap[groupKey] = {
-                guest_name: guestName,
-                message: message,
-                created_at: file.created_at || new Date().toISOString(),
-                images: [imgObj]
-              };
-            } else {
-              postMap[groupKey].images.push(imgObj);
-            }
-          });
-
-        // Convertir l'objet en tableau et trier par date décroissante (plus récent d'abord)
-        const sortedPosts = Object.values(postMap).sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        
-        setPosts(sortedPosts);
-      }
+      const res = await fetch('/api/galerie/photos', { cache: 'no-store' });
+      if (res.status === 401) { setIsAuthenticated(false); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { posts } = await res.json();
+      setPosts(posts);
+      setIsAuthenticated(true);
     } catch (err) {
       console.error("Erreur lors du chargement de l'album:", err);
+      setIsAuthenticated((prev) => prev ?? false);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    // Nettoie l'ancien accès stocké dans le navigateur (non sécurisé)
+    try { localStorage.removeItem('maries_gallery_access'); } catch {}
+    fetchPhotosAndMetadata();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput || submitting) return;
+    setSubmitting(true);
+    setPasswordError(null);
+    try {
+      const res = await fetch('/api/galerie/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: null }));
+        setPasswordError(error || 'Mot de passe incorrect.');
+        return;
+      }
+      setPasswordInput('');
+      await fetchPhotosAndMetadata();
+    } catch {
+      setPasswordError('Connexion impossible. Réessayez.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-rose-400" />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
-    // (Le code du formulaire de mot de passe reste identique à ton ancienne page)
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
         <div className="w-full max-w-[400px] bg-white rounded-[2.5rem] p-8 text-center shadow-2xl">
@@ -131,15 +95,17 @@ export default function GaleriePage() {
             <Lock className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-black text-slate-900">Espace Mariés</h1>
-          <p className="text-xs font-medium text-slate-500 mt-2 mb-6">Saisissez le code d'accès pour ouvrir la galerie.</p>
+          <p className="text-xs font-medium text-slate-500 mt-2 mb-6">Saisissez le code d&apos;accès pour ouvrir la galerie.</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
-              type="password" placeholder="Mot de passe" value={passwordInput}
+              type="password" placeholder="Mot de passe" value={passwordInput} autoComplete="current-password"
               onChange={(e) => setPasswordInput(e.target.value)}
+              aria-invalid={Boolean(passwordError)}
               className={`w-full p-4 bg-slate-50 rounded-2xl text-center font-bold outline-none border ${passwordError ? 'border-rose-500 bg-rose-50' : 'border-slate-100'}`}
             />
-            <button type="submit" className="w-full py-4 bg-slate-950 text-white font-black uppercase tracking-widest text-[11px] rounded-full shadow-lg">
-              Accéder
+            {passwordError && <p role="alert" className="text-xs font-bold text-rose-500">{passwordError}</p>}
+            <button type="submit" disabled={submitting} className="w-full py-4 bg-slate-950 text-white font-black uppercase tracking-widest text-[11px] rounded-full shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />} Accéder
             </button>
           </form>
         </div>
@@ -158,7 +124,7 @@ export default function GaleriePage() {
               <Sparkles className="w-3 h-3" />
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Album Souvenirs & Mots doux</p>
             </div>
-            <h1 className="text-2xl font-black text-slate-900">Le Livre d'Or</h1>
+            <h1 className="text-2xl font-black text-slate-900">Le Livre d&apos;Or</h1>
           </div>
           <button 
             onClick={fetchPhotosAndMetadata} disabled={loading}
@@ -246,7 +212,7 @@ export default function GaleriePage() {
         {/* PIED DE PAGE */}
         <div className="text-center pt-8 border-t border-slate-50 mx-6 mt-auto">
           <Heart className="w-4 h-4 text-rose-200 mx-auto mb-1 fill-rose-200" />
-          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Gildas & Mariette • Livre d'Or</p>
+          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Gildas & Mariette • Livre d&apos;Or</p>
         </div>
 
         {/* LIGHTBOX UNIFIÉE (ZOOM SIMPLE) */}
@@ -263,7 +229,7 @@ export default function GaleriePage() {
               <img src={selectedImage} alt="Zoom" className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl" />
               <div className="mt-4">
                 <a href={selectedImage} download target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-white text-slate-900 rounded-full font-black uppercase text-[10px] tracking-wider flex items-center gap-2">
-                  <Download size={12} /> Télécharger l'original
+                  <Download size={12} /> Télécharger l&apos;original
                 </a>
               </div>
             </motion.div>

@@ -252,57 +252,11 @@ export default function TablesDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
       
-      {/* SIDEBAR DASHBOARD */}
-      <aside className="w-64 border-r border-slate-200 flex flex-col bg-white sticky top-0 h-screen z-50 shrink-0">
-        <div className="p-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-100">
-            <Heart size={20} className="text-white fill-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">Mariage</span>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-          <p className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Général</p>
-          <SidebarItem icon={LayoutDashboard} label="Tableau de bord" onClick={() => router.push('/dashboard')} />
-          <SidebarItem icon={MessageSquare} label="Messages" />
-          
-          <p className="px-4 py-2 mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Organisation</p>
-          <SidebarItem icon={Users} label="Liste des invités" onClick={() => router.push('/dashboard/invite')} />
-          <SidebarItem icon={Send} label="Invitations (RSVP)" onClick={() => router.push('/dashboard/studio')} />
-          <SidebarItem icon={Utensils} label="Gestion des tables" active onClick={() => router.push('/dashboard/table')} />
-          <SidebarItem icon={ClipboardList} label="Mes tâches" onClick={() => router.push('/dashboard/tasks')} />
-          <SidebarItem icon={Banknote} label="Budget" onClick={() => router.push('/dashboard/budget')} />
-          <SidebarItem icon={Clock} label="Planning Jour J" onClick={() => router.push('/dashboard/planning')} />
-          
-          <div className="mt-8 p-6 bg-gradient-to-br from-indigo-600 to-rose-500 rounded-[2rem] text-white shadow-xl relative overflow-hidden group mx-2">
-            <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
-            <h4 className="text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
-              <Crown size={12} /> Version Premium
-            </h4>
-            <p className="text-[10px] leading-relaxed mb-4 opacity-90 font-medium text-white/80">
-              Plan de salle interactif & invités illimités.
-            </p>
-            <button className="w-full py-3 bg-white text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-100 transition-colors">
-              Upgrade
-            </button>
-          </div>
-        </nav>
-
-        <div className="p-4 border-t border-slate-100">
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all"
-          >
-            <LogOut size={18} />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </aside>
 
       {/* CONTENU PRINCIPAL */}
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto">
+      <main className="p-4 sm:p-8 lg:p-12">
         
         {/* HEADER */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -644,21 +598,5 @@ export default function TablesDashboardPage() {
       )}
 
     </div>
-  );
-}
-
-function SidebarItem({ icon: Icon, label, active = false, onClick }: any) {
-  return (
-    <button 
-      onClick={onClick} 
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-        active 
-          ? 'bg-slate-900 text-white shadow-lg' 
-          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-      }`}
-    >
-      <Icon size={18} />
-      <span>{label}</span>
-    </button>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -20,6 +20,7 @@ export default function SeatingPlannerV24() {
   const [zoom, setZoom] = useState(0.85);
   const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
   const [danceFloor, setDanceFloor] = useState({ x: 700, y: 380, width: 320, height: 180 });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,6 +32,9 @@ export default function SeatingPlannerV24() {
   const [newTableData, setNewTableData] = useState({ name: '', capacity: 10, is_vip: false });
 
   useEffect(() => { loadData(); }, []);
+
+  // Sur téléphone, la vue cartes est plus lisible que le plan libre
+  useEffect(() => { if (window.innerWidth < 1024) setViewMode('grid'); }, []);
 
   useEffect(() => {
     if (error) {
@@ -262,7 +266,7 @@ export default function SeatingPlannerV24() {
   }
 
   return (
-    <div className="h-screen bg-[#FCFBF7] flex flex-col font-ui overflow-hidden">
+    <div className="h-[calc(100dvh-3.5rem)] lg:h-screen bg-[#FCFBF7] flex flex-col font-ui overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
         .font-luxury { font-family: 'Playfair Display', serif; }
@@ -309,14 +313,14 @@ export default function SeatingPlannerV24() {
       `}} />
 
       {/* HEADER */}
-      <header className="bg-white border-b border-amber-100/80 px-8 py-4 flex justify-between items-center z-30 shadow-sm shrink-0 no-print">
-        <div className="flex items-center gap-5">
+      <header className="bg-white border-b border-amber-100/80 px-4 sm:px-8 py-3 sm:py-4 flex flex-col xl:flex-row xl:justify-between xl:items-center gap-3 z-30 shadow-sm shrink-0 no-print">
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           <button onClick={() => router.push('/dashboard')} className="p-2.5 bg-slate-50 text-slate-500 hover:text-amber-600 rounded-xl transition-all border border-slate-200">
             <ArrowLeft size={18} />
           </button>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-luxury font-bold text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-lg sm:text-2xl font-luxury font-bold text-slate-900">{marriage?.partner_1_name} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name}</h1>
               <span className="bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
                 <Users size={14} className="text-amber-600" />
                 {totalAssignedGuests} / {totalReceptionGuests} Placé(s)
@@ -325,7 +329,7 @@ export default function SeatingPlannerV24() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
             <button onClick={() => setViewMode('canvas')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'canvas' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               <Layout size={15} /> Plan Visuel Luxe
@@ -350,9 +354,9 @@ export default function SeatingPlannerV24() {
       </header>
 
       {/* CONTENU principal */}
-      <div className="flex-1 flex overflow-hidden no-print">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden no-print">
         {/* PANEL GAUCHE */}
-        <aside className="w-96 bg-white border-r border-amber-100 flex flex-col shrink-0">
+        <aside className="w-full lg:w-96 max-h-[45%] lg:max-h-none bg-white border-b lg:border-b-0 lg:border-r border-amber-100 flex flex-col shrink-0">
           <div className="p-5 border-b border-amber-50 bg-slate-50/50">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Invités non placés</h3>
@@ -425,9 +429,9 @@ export default function SeatingPlannerV24() {
           {viewMode === 'canvas' && (
             <>
               {/* TOOLBAR DISPOSITIONS */}
-              <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-center pointer-events-none">
+              <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap gap-2 justify-between items-center pointer-events-none">
                 <div className="bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-amber-100/80 flex items-center gap-2 pointer-events-auto">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 px-2 flex items-center gap-1">
+                  <span className="hidden sm:flex text-[10px] font-extrabold uppercase tracking-widest text-slate-400 px-2 items-center gap-1">
                     <Compass size={12} className="text-amber-500" /> Dispositions :
                   </span>
                   <button onClick={() => applyLayoutPreset('U')} className="px-3 py-1.5 bg-slate-50 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 rounded-xl text-xs font-bold transition-all">
@@ -450,10 +454,22 @@ export default function SeatingPlannerV24() {
 
               {/* ZONE DE DESSIN */}
               <div 
-                className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing overflow-hidden"
-                onMouseDown={(e) => { if (e.button === 0 && (e.target as HTMLElement).tagName === 'DIV') setIsPanning(true); }}
-                onMouseMove={(e) => { if (isPanning) setCameraPos(p => ({ x: p.x + e.movementX, y: p.y + e.movementY })); }}
-                onMouseUp={() => setIsPanning(false)}
+                className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing overflow-hidden touch-none"
+                onPointerDown={(e) => {
+                  if (e.button === 0 && e.target === e.currentTarget.firstElementChild) {
+                    lastPointer.current = { x: e.clientX, y: e.clientY };
+                    setIsPanning(true);
+                  }
+                }}
+                onPointerMove={(e) => {
+                  if (!isPanning || !lastPointer.current) return;
+                  const dx = e.clientX - lastPointer.current.x;
+                  const dy = e.clientY - lastPointer.current.y;
+                  lastPointer.current = { x: e.clientX, y: e.clientY };
+                  setCameraPos(p => ({ x: p.x + dx, y: p.y + dy }));
+                }}
+                onPointerUp={() => { setIsPanning(false); lastPointer.current = null; }}
+                onPointerLeave={() => { setIsPanning(false); lastPointer.current = null; }}
               >
                 <div 
                   style={{ 
@@ -505,7 +521,7 @@ export default function SeatingPlannerV24() {
                               <Crown size={14} />
                             </button>
 
-                            <button onClick={() => deleteTable(table.id)} className="absolute top-2 right-2 bg-white text-red-500 hover:bg-red-50 p-2 rounded-full shadow-md border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            <button onClick={() => deleteTable(table.id)} className="absolute top-2 right-2 bg-white text-red-500 hover:bg-red-50 p-2 rounded-full shadow-md border border-red-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity z-20">
                               <Trash2 size={13} />
                             </button>
 
@@ -560,7 +576,7 @@ export default function SeatingPlannerV24() {
           )}
 
           {viewMode === 'grid' && (
-            <div className="p-8 overflow-y-auto h-full">
+            <div className="p-4 sm:p-8 overflow-y-auto h-full">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto pb-20">
                 {tables.map(table => {
                   const tableGuests = guests.filter(g => g.table_id === table.id);
@@ -616,7 +632,7 @@ export default function SeatingPlannerV24() {
                                 <span className="font-bold text-slate-800 uppercase tracking-wide">{g.name || g.nom}</span>
                                 
                                 <div className="flex items-center gap-1.5">
-                                  <button onClick={() => assignGuest(g.id, null)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity mr-1">
+                                  <button onClick={() => assignGuest(g.id, null)} className="lg:opacity-0 lg:group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity mr-1">
                                     <X size={12} />
                                   </button>
 

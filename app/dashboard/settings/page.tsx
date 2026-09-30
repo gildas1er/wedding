@@ -16,7 +16,8 @@ export default function SettingsPage() {
   
   // États des données
   const [marriageId, setMarriageId] = useState<string | null>(null);
-  const [marriageName, setMarriageName] = useState("");
+  const [partner1, setPartner1] = useState("");
+  const [partner2, setPartner2] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#f43f5e");
   const [location, setLocation] = useState("");
@@ -46,13 +47,14 @@ export default function SettingsPage() {
 
       if (marriageData) {
         setMarriageId(marriageData.id);
-        setMarriageName(marriageData.name || "");
-        setPrimaryColor(marriageData.theme_color || "#f43f5e");
-        setLocation(marriageData.location || "");
+        setPartner1(marriageData.partner_1_name || "");
+        setPartner2(marriageData.partner_2_name || "");
+        setPrimaryColor(marriageData.primary_color || "#f43f5e");
+        setLocation(marriageData.location_city || "");
         
         // Sécurité formatage date (YYYY-MM-DD) pour l'input HTML
-        if (marriageData.event_date) {
-          setEventDate(marriageData.event_date.split('T')[0]);
+        if (marriageData.wedding_date) {
+          setEventDate(marriageData.wedding_date.split('T')[0]);
         }
       }
       setLoading(false);
@@ -68,10 +70,11 @@ export default function SettingsPage() {
     const { error } = await supabase
       .from('marriages')
       .update({ 
-        name: marriageName, 
-        event_date: eventDate, 
-        theme_color: primaryColor,
-        location: location 
+        partner_1_name: partner1.trim(),
+        partner_2_name: partner2.trim(),
+        ...(eventDate ? { wedding_date: eventDate } : {}),
+        primary_color: primaryColor,
+        location_city: location
       })
       .eq('id', marriageId);
 
@@ -97,27 +100,10 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]" style={{ fontFamily: '"Quicksand", sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC]" style={{ fontFamily: '"Quicksand", sans-serif' }}>
       
-      {/* SIDEBAR */}
-      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-100 p-8 fixed h-full z-20">
-        <div className="flex items-center gap-3 mb-12 px-2">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg" style={{ backgroundColor: primaryColor }}>
-            <Heart className="text-white w-5 h-5 fill-current" />
-          </div>
-          <span className="font-black text-xl tracking-tighter text-slate-900 italic">
-            {marriageName ? marriageName.split(' ')[0] : "Wedding"}<span style={{ color: primaryColor }}>Studio</span>
-          </span>
-        </div>
-        <nav className="space-y-2 flex-1">
-          <SidebarLink href="/dashboard" icon={<LayoutDashboard />} label="Tableau de bord" active={pathname === '/dashboard'} />
-          <SidebarLink href="/dashboard/guests" icon={<Users />} label="Invités" active={pathname.includes('/guests')} />
-          <SidebarLink href="/dashboard/tables" icon={<LayoutDashboard />} label="Plan de table" active={pathname.includes('/tables')} />
-          <SidebarLink href="/dashboard/settings" icon={<SettingsIcon />} label="Paramètres" active={pathname.includes('/settings')} color={primaryColor} />
-        </nav>
-      </aside>
 
-      <main className="flex-1 lg:ml-72 p-6 lg:p-12">
+      <main className="p-4 sm:p-6 lg:p-12">
         <div className="max-w-4xl mx-auto">
           
           <header className="mb-12">
@@ -148,7 +134,7 @@ export default function SettingsPage() {
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[3rem] border-2 border-slate-50 shadow-2xl p-10 relative overflow-hidden"
+            className="bg-white rounded-[2rem] sm:rounded-[3rem] border-2 border-slate-50 shadow-2xl p-5 sm:p-10 relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: primaryColor }} />
 
@@ -156,16 +142,22 @@ export default function SettingsPage() {
               <div className="space-y-8 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Nom du Mariage</label>
-                    <div className="relative">
-                      <Heart className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: primaryColor }} />
-                      <input 
-                        type="text" 
-                        value={marriageName}
-                        onChange={(e) => setMarriageName(e.target.value)}
-                        className="w-full bg-slate-50 border-none rounded-2xl py-5 pl-12 pr-6 font-bold text-slate-700 outline-none focus:ring-2 transition-all"
-                        style={{'--tw-ring-color': `${primaryColor}20`} as any}
-                      />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Les mariés</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[{ value: partner1, set: setPartner1, label: 'Prénom 1' }, { value: partner2, set: setPartner2, label: 'Prénom 2' }].map(({ value, set, label }) => (
+                        <div key={label} className="relative">
+                          <Heart className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: primaryColor }} />
+                          <input 
+                            type="text" 
+                            aria-label={label}
+                            placeholder={label}
+                            value={value}
+                            onChange={(e) => set(e.target.value)}
+                            className="w-full bg-slate-50 border-none rounded-2xl py-5 pl-10 pr-3 font-bold text-slate-700 outline-none focus:ring-2 transition-all"
+                            style={{'--tw-ring-color': `${primaryColor}20`} as any}
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -248,15 +240,5 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function SidebarLink({ href, icon, label, active, color }: any) {
-  return (
-    <Link href={href} className={`flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm transition-all ${active ? 'bg-white shadow-xl text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'}`}>
-      <div style={{ color: active ? color : 'inherit' }}>{icon}</div>
-      <span>{label}</span>
-      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />}
-    </Link>
   );
 }

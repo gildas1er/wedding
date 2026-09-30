@@ -240,7 +240,7 @@ export default function BudgetDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] font-ui flex overflow-hidden w-full relative">
+    <div className="min-h-screen bg-[#FDFBF7] font-ui w-full relative overflow-x-hidden">
       {/* FEUILLE DE STYLE MULTI-PAGES D'IMPRESSION AVEC LE REPETITEUR HTML TFOOT */}
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Montserrat:wght@300;400;600;800&display=swap');
@@ -370,48 +370,15 @@ export default function BudgetDashboard() {
         )}
       </AnimatePresence>
 
-      {/* BARRE LATÉRALE - ÉCRAN UNIQUEMENT */}
-      <aside className="w-80 bg-white border-r border-amber-100 flex flex-col z-50 sticky top-0 h-screen shrink-0">
-        <div className="p-12">
-          <h2 className="text-2xl font-luxury text-slate-900 flex items-center gap-3">
-             <Heart className="text-red-500 fill-red-500" size={24} /> WeddingStudio
-          </h2>
-          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-amber-600 mt-2">Édition Premium</p>
-        </div>
-
-        <nav className="flex-1 px-8 space-y-2">
-          {[
-            { icon: <LayoutDashboard size={20} />, label: 'Tableau de Bord', active: false, path: '/dashboard' },
-            { icon: <Users size={20} />, label: 'Liste d\'invités', active: false, path: '/guests' },
-            { icon: <Wallet size={20} />, label: 'Budget & Finances', active: true, path: '/budget' },
-            { icon: <MapPin size={20} />, label: 'Plan de Table', active: false, path: '/seating' },
-            { icon: <Calendar size={20} />, label: 'Planning', active: false, path: '/timeline' },
-          ].map((item, idx) => (
-            <button 
-              key={idx} 
-              onClick={() => router.push(item.path)}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-xs font-bold transition-all ${item.active ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}`}
-            >
-              {item.icon} {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-8 border-t border-slate-50">
-          <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="w-full flex items-center gap-4 px-6 py-4 text-xs font-bold text-slate-400 hover:text-red-500 transition-colors">
-            <LogOut size={20} /> Déconnexion
-          </button>
-        </div>
-      </aside>
 
       {/* SECTION VUE ÉCRAN */}
-      <div className="flex-1 overflow-y-auto relative z-10 h-screen custom-scrollbar screen-only-section">
+      <div className="relative z-10 screen-only-section">
         
         {/* EN-TÊTE ÉCRAN */}
-        <header className="h-28 bg-white/70 backdrop-blur-xl border-b border-amber-100 flex justify-between items-center px-12 sticky top-0 z-40">
+        <header className="bg-white/70 backdrop-blur-xl border-b border-amber-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 px-4 sm:px-8 lg:px-12 py-4 md:h-28 md:py-0 lg:sticky lg:top-0 z-30">
           <div className="flex items-center gap-6">
             <div>
-              <h1 className="text-2xl font-luxury text-slate-900">
+              <h1 className="text-xl sm:text-2xl font-luxury text-slate-900 break-words">
                 {marriage?.partner_1_name || 'Partenaire 1'} <span className="text-amber-500 italic">&</span> {marriage?.partner_2_name || 'Partenaire 2'}
               </h1>
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mt-1 flex items-center gap-2">
@@ -420,10 +387,10 @@ export default function BudgetDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="bg-white/80 border border-amber-100 rounded-full p-1 flex shadow-sm">
               {['FCFA', 'EUR', 'USD'].map((curr) => (
-                <button key={curr} onClick={() => setCurrency(curr)} className={`px-4 py-2 rounded-full text-[10px] font-black transition-all ${currency === curr ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{curr}</button>
+                <button key={curr} onClick={() => setCurrency(curr)} className={`px-3 sm:px-4 py-2 rounded-full text-[10px] font-black transition-all ${currency === curr ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{curr}</button>
               ))}
             </div>
 
@@ -431,32 +398,32 @@ export default function BudgetDashboard() {
               <Printer size={18} />
             </button>
 
-            <button onClick={() => setShowAddModal(true)} className="bg-amber-500 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-amber-600 transition-all flex items-center gap-3">
+            <button onClick={() => setShowAddModal(true)} className="bg-amber-500 text-white px-5 sm:px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-amber-600 transition-all flex items-center gap-3">
               <Plus size={16} /> Ajouter une dépense
             </button>
           </div>
         </header>
 
         {/* CONTENU TABLEAU DE BORD ÉCRAN */}
-        <main className="max-w-6xl mx-auto p-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <main className="max-w-6xl mx-auto p-4 sm:p-8 lg:p-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 mb-8 sm:mb-12">
             {[
               { label: 'Budget Prévu', val: totalEstimated, color: 'text-slate-900', icon: <Wallet size={18}/> },
               { label: 'Total Facturé', val: totalActual, color: 'text-amber-600', icon: <DollarSign size={18}/> },
               { label: 'Reste à régler', val: totalRemaining, color: 'text-red-500', icon: <AlertCircle size={18}/> }
             ].map((stat, i) => (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={i} className="bg-white/80 backdrop-blur-md p-8 rounded-[2.5rem] border border-amber-100 shadow-sm">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={i} className="bg-white/80 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-amber-100 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{stat.label}</p>
                   <div className="p-2 bg-slate-50 rounded-lg text-slate-400">{stat.icon}</div>
                 </div>
-                <h2 className={`text-3xl font-luxury ${stat.color}`}>{formatPrice(stat.val)}</h2>
+                <h2 className={`text-2xl sm:text-3xl font-luxury break-words ${stat.color}`}>{formatPrice(stat.val)}</h2>
               </motion.div>
             ))}
           </div>
 
-          <div className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-amber-100 shadow-sm mb-12 relative overflow-hidden">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white/80 backdrop-blur-md p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] border border-amber-100 shadow-sm mb-8 sm:mb-12 relative overflow-hidden">
+            <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
               <h3 className="font-luxury text-xl italic text-slate-800">Progression des règlements</h3>
               <span className="bg-amber-500 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
                 {paymentPercentage}% Payé
@@ -467,14 +434,14 @@ export default function BudgetDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
             <div className="lg:col-span-2 space-y-4">
               {expenses.map((expense) => {
                 const isPaid = expense.status === 'Payé' || (expense.amount_paid >= expense.amount_actual && expense.amount_actual > 0);
                 return (
-                  <motion.div layout key={expense.id} className="bg-white p-6 rounded-3xl border border-amber-50 shadow-sm flex items-center justify-between hover:border-amber-300 transition-all group">
-                    <div className="flex items-center gap-6">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                  <motion.div layout key={expense.id} className="bg-white p-4 sm:p-6 rounded-3xl border border-amber-50 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-amber-300 transition-all group">
+                    <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+                      <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center ${isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
                         {isPaid ? <CheckCircle2 size={20} /> : <Coins size={20} />}
                       </div>
                       <div>
@@ -484,8 +451,8 @@ export default function BudgetDashboard() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-8">
-                      <div className="text-right">
+                    <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-8">
+                      <div className="sm:text-right">
                         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Réglé / Total</p>
                         <p className="text-sm font-black text-slate-800 font-ui">
                           {formatPrice(expense.amount_paid)} / <span className="text-amber-600">{formatPrice(expense.amount_actual)}</span>
@@ -504,7 +471,7 @@ export default function BudgetDashboard() {
               )}
             </div>
 
-            <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl h-fit sticky top-40">
+            <div className="bg-slate-900 rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 text-white shadow-2xl h-fit lg:sticky lg:top-40">
               <h3 className="font-luxury text-2xl mb-8 italic text-amber-400">Répartition</h3>
               <div className="space-y-6">
                 {categories.map(cat => {
@@ -652,11 +619,11 @@ export default function BudgetDashboard() {
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:hidden">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-[3rem] p-10 w-full max-w-2xl border border-amber-100 relative max-h-[90vh] overflow-y-auto">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 w-full max-w-2xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
+              <button onClick={() => setShowAddModal(false)} className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
               <h3 className="text-3xl font-luxury text-center mb-10 italic">Nouvelle dépense</h3>
-              <form onSubmit={handleAddExpense} className="grid grid-cols-2 gap-6">
-                <div className="col-span-2 space-y-1">
+              <form onSubmit={handleAddExpense} className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div className="sm:col-span-2 space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Désignation *</label>
                   <input required className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm outline-none border border-transparent focus:bg-white focus:ring-1 focus:ring-amber-400" placeholder="Ex: Décoration Florale" value={formData.label} onChange={e => setFormData({...formData, label: e.target.value})} />
                 </div>
@@ -688,7 +655,7 @@ export default function BudgetDashboard() {
                   <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest flex items-center gap-2"><Phone size={10}/> Contact</label>
                   <input className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm" placeholder="Tél / Email" value={formData.vendor_contact} onChange={e => setFormData({...formData, vendor_contact: e.target.value})} />
                 </div>
-                <div className="col-span-2 pt-4">
+                <div className="sm:col-span-2 pt-4">
                   <button type="submit" disabled={actionLoading} className="w-full bg-slate-900 text-white py-5 rounded-full font-black text-[10px] uppercase tracking-[0.3em] shadow-xl hover:bg-amber-600 transition-all disabled:opacity-50">
                     {actionLoading ? "Enregistrement..." : "Enregistrer la dépense"}
                   </button>
@@ -703,8 +670,8 @@ export default function BudgetDashboard() {
       <AnimatePresence>
         {editingExpense && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:hidden">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-[3rem] p-12 w-full max-w-xl border border-amber-100 relative">
-              <button onClick={() => setEditingExpense(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 w-full max-w-xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
+              <button onClick={() => setEditingExpense(null)} className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
               <h3 className="text-3xl font-luxury text-center mb-10 italic">Mise à jour paiement</h3>
               <form onSubmit={handleUpdateExpense} className="space-y-6">
                 <div className="bg-amber-50 p-8 rounded-[2rem] flex items-center justify-between border border-amber-100">

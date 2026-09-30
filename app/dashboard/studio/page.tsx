@@ -142,7 +142,7 @@ export default function InvitationStudio() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] p-4 lg:p-12 pt-24 text-slate-900" style={{ fontFamily: '"Quicksand", sans-serif' }}>
+    <div className="min-h-screen bg-[#FDFCFB] p-4 sm:p-8 lg:p-12 text-slate-900" style={{ fontFamily: '"Quicksand", sans-serif' }}>
       
       {/* Notifications */}
       <AnimatePresence>
@@ -157,14 +157,7 @@ export default function InvitationStudio() {
         )}
       </AnimatePresence>
 
-      <div className="fixed top-6 left-6 z-[100]">
-        <Link href="/dashboard" className="flex items-center gap-3 bg-white border-2 border-slate-100 px-6 py-3 rounded-2xl shadow-sm hover:border-rose-200 transition-all group">
-          <ArrowLeft className="w-4 h-4 text-slate-600 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Retour</span>
-        </Link>
-      </div>
-
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         
         {/* Panneau de configuration (Gauche) */}
         <div className="lg:col-span-7 space-y-10">
@@ -310,10 +303,10 @@ export default function InvitationStudio() {
 
         {/* Aperçu Mobile (Droite) */}
         <div className="lg:col-span-5 flex flex-col items-center">
-          <div className="sticky top-12 space-y-6 flex flex-col items-center">
+          <div className="w-full lg:sticky lg:top-12 space-y-6 flex flex-col items-center">
             <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Aperçu en temps réel</h3>
             
-            <div className="w-[360px] h-[740px] bg-slate-900 border-[10px] border-slate-900 rounded-[3.5rem] shadow-[0_60px_100px_-20px_rgba(0,0,0,0.3)] relative overflow-hidden">
+            <div className="w-full max-w-[360px] h-[740px] bg-slate-900 border-[10px] border-slate-900 rounded-[3.5rem] shadow-[0_60px_100px_-20px_rgba(0,0,0,0.3)] relative overflow-hidden">
               <div className="absolute inset-0 bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50" />
                 

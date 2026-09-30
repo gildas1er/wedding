@@ -100,41 +100,14 @@ export default function PlanningPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]" style={{ fontFamily: '"Inter", sans-serif' }}>
       
-      {/* SIDEBAR */}
-      <aside className="w-64 border-r border-slate-200 flex flex-col bg-white sticky top-0 h-screen z-50">
-        <div className="p-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-100">
-            <Heart size={20} className="text-white fill-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">Mariage</span>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto text-slate-600">
-          <p className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Général</p>
-          <SidebarItem icon={LayoutDashboard} label="Tableau de bord" onClick={() => router.push('/dashboard')} />
-          <p className="px-4 py-2 mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Organisation</p>
-          <SidebarItem icon={ClipboardList} label="Mes tâches" onClick={() => router.push('/dashboard/tasks')} />
-          <SidebarItem icon={Clock} label="Planning Jour J" active onClick={() => router.push('/dashboard/planning')} />
-          <SidebarItem icon={Users} label="Liste des invités" onClick={() => router.push('/dashboard/invite')} />
-          <SidebarItem icon={Utensils} label="Gestion des tables" onClick={() => router.push('/dashboard/table')} />
-          <SidebarItem icon={Banknote} label="Budget" onClick={() => router.push('/dashboard/budget')} />
-        </nav>
-
-        <div className="p-4 border-t border-slate-100">
-          <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-            <LogOut size={20} />
-            <span className="text-sm font-semibold">Déconnexion</span>
-          </button>
-        </div>
-      </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto relative">
+      <main className="p-4 sm:p-8 lg:p-12 relative overflow-x-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-rose-100/50 blur-[120px] -z-10 rounded-full" />
 
-        <header className="flex justify-between items-center mb-10">
+        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400">🕒 Chronologie</h2>
             <p className="text-2xl font-bold">Le déroulement du Jour J 🥂</p>
@@ -153,18 +126,18 @@ export default function PlanningPage() {
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-12 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl"
+              className="mb-8 sm:mb-12 bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 text-white relative overflow-hidden shadow-2xl"
             >
               <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-rose-500/20 blur-[80px] rounded-full" />
               <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/10 flex flex-col items-center justify-center">
+                <div className="flex items-center gap-4 sm:gap-6">
+                  <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/10 flex flex-col items-center justify-center">
                     <Clock size={24} className="text-rose-400 mb-1" />
                     <span className="text-sm font-black">{nextEvent.start_time.substring(0, 5)}</span>
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-400">Prochaine étape</span>
-                    <h3 className="text-2xl font-black">{nextEvent.title}</h3>
+                    <h3 className="text-xl sm:text-2xl font-black break-words">{nextEvent.title}</h3>
                     <p className="text-slate-400 text-sm flex items-center gap-2 mt-1 italic">
                       <MapPin size={14} /> {nextEvent.location || "Lieu à confirmer"}
                     </p>
@@ -183,29 +156,29 @@ export default function PlanningPage() {
         <div className="max-w-3xl mx-auto relative pt-4">
           <div className="absolute left-[31px] top-0 bottom-0 w-1 bg-slate-100 rounded-full" />
 
-          <div className="space-y-12">
+          <div className="space-y-8 sm:space-y-12">
             {events.map((event, index) => (
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
                 key={event.id} 
-                className="relative flex gap-8 group"
+                className="relative flex gap-4 sm:gap-8 group"
               >
                 {/* Heure / Point de Timeline */}
-                <div className={`z-10 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-all ${event.is_major_step ? 'bg-rose-500 text-white scale-110 shadow-rose-200' : 'bg-white text-slate-500 border border-slate-100'}`}>
+                <div className={`z-10 shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-all ${event.is_major_step ? 'bg-rose-500 text-white scale-110 shadow-rose-200' : 'bg-white text-slate-500 border border-slate-100'}`}>
                   <span className="text-xs font-black">{event.start_time.substring(0, 5)}</span>
                 </div>
 
                 {/* Contenu */}
-                <div className={`flex-1 p-7 rounded-[2.5rem] border transition-all ${event.is_major_step ? 'bg-white border-rose-100 shadow-xl shadow-rose-50/30' : 'bg-white border-slate-50 shadow-sm hover:shadow-md'}`}>
+                <div className={`flex-1 min-w-0 p-5 sm:p-7 rounded-[2rem] sm:rounded-[2.5rem] border transition-all ${event.is_major_step ? 'bg-white border-rose-100 shadow-xl shadow-rose-50/30' : 'bg-white border-slate-50 shadow-sm hover:shadow-md'}`}>
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className={`font-bold text-xl ${event.is_major_step ? 'text-rose-600' : 'text-slate-800'}`}>
+                    <h3 className={`font-bold text-lg sm:text-xl break-words ${event.is_major_step ? 'text-rose-600' : 'text-slate-800'}`}>
                       {event.title}
                     </h3>
                     <button 
                       onClick={() => deleteEvent(event.id)}
-                      className="p-2 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all lg:opacity-0 lg:group-hover:opacity-100"
                     >
                       <Trash2 size={18}/>
                     </button>
@@ -290,12 +263,4 @@ export default function PlanningPage() {
 // Icone X simple car non importée
 function XCircle({ size }: { size: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
-}
-
-function SidebarItem({ icon: Icon, label, active = false, onClick }: any) {
-  return (
-    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${active ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-      <Icon size={18} /><span>{label}</span>
-    </button>
-  );
 }

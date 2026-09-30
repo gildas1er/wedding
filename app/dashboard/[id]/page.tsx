@@ -113,27 +113,11 @@ export default function TablePlanPage() {
     .filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]" style={{ fontFamily: '"Quicksand", sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC]" style={{ fontFamily: '"Quicksand", sans-serif' }}>
       
-      {/* --- SIDEBAR --- */}
-      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-100 p-8 fixed h-full z-20">
-        <div className="flex items-center gap-3 mb-12 px-2">
-          <div className="w-10 h-10 rounded-2xl bg-rose-500 flex items-center justify-center shadow-lg shadow-rose-200">
-            <Heart className="text-white w-5 h-5 fill-current" />
-          </div>
-          <span className="font-black text-xl tracking-tighter text-slate-900 italic">Wedding<span style={{ color: primaryColor }}>Studio</span></span>
-        </div>
-
-        <nav className="space-y-2 flex-1">
-          <SidebarLink href={`/dashboard/${marriageId}`} icon={<LayoutDashboard />} label="Tableau de bord" active={pathname === `/dashboard/${marriageId}`} />
-          <SidebarLink href={`/dashboard/${marriageId}/guests`} icon={<Users />} label="Invités" active={pathname.includes('/guests')} />
-          <SidebarLink href={`/dashboard/${marriageId}/tables`} icon={<LayoutDashboard />} label="Plan de table" active={pathname.includes('/tables')} color={primaryColor} />
-          <SidebarLink href={`/dashboard/${marriageId}/settings`} icon={<Settings />} label="Paramètres" active={pathname.includes('/settings')} />
-        </nav>
-      </aside>
 
       {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 lg:ml-72 p-6 lg:p-12">
+      <main className="p-4 sm:p-6 lg:p-12">
         <div className="max-w-6xl mx-auto">
           
           <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
@@ -262,17 +246,5 @@ export default function TablePlanPage() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function SidebarLink({ href, icon, label, active, color }: any) {
-  return (
-    <Link href={href}>
-      <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-sm transition-all cursor-pointer ${active ? 'bg-white shadow-xl shadow-slate-200/50 text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'}`}>
-        <div className={active ? 'text-rose-500' : ''}>{React.cloneElement(icon, { size: 20 })}</div>
-        <span>{label}</span>
-        {active && <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />}
-      </div>
-    </Link>
   );
 }

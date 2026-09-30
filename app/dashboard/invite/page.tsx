@@ -16,16 +16,6 @@ import {
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
 
-function SidebarItem({ icon: Icon, label, active = false, onClick }: any) {
-  return (
-    <button onClick={onClick} className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${
-      active ? 'bg-[#0D1C41] text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-    }`}>
-      <Icon size={18} strokeWidth={active ? 2.5 : 2} />
-      <span>{label}</span>
-    </button>
-  );
-}
 
 function BentoStatCard({ label, value, emoji, color }: any) {
   return (
@@ -199,7 +189,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
           <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-            <div className="p-8 bg-[#161B2E] text-white flex justify-between items-center">
+            <div className="p-5 sm:p-8 bg-[#161B2E] text-white flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-black">{guestToEdit ? "Modifier" : "Ajouter"} Invité 🥂</h3>
                 <p className="text-slate-400 font-medium text-xs uppercase tracking-widest mt-1">Registre des invités</p>
@@ -207,7 +197,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-2xl transition-colors"><X size={24} /></button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-5 max-h-[75vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-5 max-h-[75dvh] overflow-y-auto">
               <AnimatePresence>
                 {errorMessage && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center gap-3 text-rose-600 text-sm font-bold">
@@ -581,7 +571,7 @@ export default function GuestPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFBFD] flex text-[#1E293B]" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="min-h-screen bg-[#FDFBFD] text-[#1E293B]" style={{ fontFamily: '"DM Sans", sans-serif' }}>
       
       <style jsx global>{`
         @media print {
@@ -597,32 +587,13 @@ export default function GuestPage() {
         }
       `}</style>
 
-      {/* SIDEBAR */}
-      <aside className="w-64 border-r border-slate-200 flex flex-col bg-white sticky top-0 h-screen z-50">
-        <div className="p-8">
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Général</p>
-          <div className="space-y-1">
-            <SidebarItem icon={LayoutDashboard} label="Tableau de bord" onClick={() => router.push('/dashboard')} />
-            <SidebarItem icon={MessageSquare} label="Messages" />
-          </div>
-
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-8 mb-1 ml-1">Organisation</p>
-          <div className="space-y-1">
-            <SidebarItem icon={Users} label="Liste des invités" active />
-            <SidebarItem icon={Send} label="Invitations (RSVP)" onClick={() => router.push('/dashboard/studio')} />
-            <SidebarItem icon={Utensils} label="Gestion des tables" onClick={() => router.push('/dashboard/table')} />
-            <SidebarItem icon={ClipboardList} label="Mes tâches" />
-            <SidebarItem icon={Banknote} label="Budget" />
-          </div>
-        </div>
-      </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 max-w-7xl mx-auto p-12 overflow-y-auto">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6 relative">
+      <main className="max-w-7xl mx-auto p-4 sm:p-8 lg:p-12">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 sm:mb-12 gap-6 relative">
           <div className="space-y-2">
             <div className="text-xs font-black uppercase text-rose-500 tracking-[0.2em] flex items-center gap-2"><UsersIcon size={14}/> Communauté du Bonheur</div>
-            <h1 className="text-4xl font-black tracking-tighter">Liste des <span className="text-rose-500 italic">Invités Précieux</span></h1>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter">Liste des <span className="text-rose-500 italic">Invités Précieux</span></h1>
           </div>
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
@@ -649,7 +620,7 @@ export default function GuestPage() {
         </header>
 
         {/* BENTO STATS AVEC DÉTAIL DES CÉRÉMONIES */}
-        <div className="bento-cards grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-12">
+        <div className="bento-cards grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 mb-8 sm:mb-12">
           <BentoStatCard label="Total Invités" value={guests.reduce((acc, g) => acc + (g.guests_count || 1), 0)} emoji="👥" color="text-[#0D1C41]" />
           <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} emoji="✅" color="text-emerald-500" />
           <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} emoji="⏳" color="text-amber-500" />
@@ -673,7 +644,7 @@ export default function GuestPage() {
         </AnimatePresence>
 
         {/* BARRE DE RECHERCHE ET BARRE DE FILTRES AVANCÉS */}
-        <div className="search-container bg-white p-6 rounded-[2.5rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
+        <div className="search-container bg-white p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200/80 shadow-sm space-y-4 mb-8">
           <div className="flex flex-col md:flex-row gap-4 items-stretch">
             <div className="relative flex-1">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
@@ -794,7 +765,8 @@ export default function GuestPage() {
 
         {/* TABLEAU DES INVITÉS */}
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-left border-separate border-spacing-0">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px] text-left border-separate border-spacing-0">
             <thead className="bg-slate-50/80 border-b border-slate-200">
               <tr className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                 <th className="px-8 py-5 border-b border-slate-100">Invité</th>
@@ -880,7 +852,7 @@ export default function GuestPage() {
                       )}
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                      <div className="flex justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all transform lg:translate-x-2 lg:group-hover:translate-x-0">
                         <button 
                           onClick={() => sendWhatsAppInvitation(guest)} 
                           className={`p-2.5 rounded-xl transition-all shadow-sm ${
@@ -905,8 +877,9 @@ export default function GuestPage() {
               })}
             </tbody>
           </table>
+          </div>
 
-          <div className="pagination-container px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+          <div className="pagination-container px-4 sm:px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Page {currentPage} sur {totalPages || 1} ({filteredGuests.length} résultat{filteredGuests.length > 1 ? 's' : ''})
             </div>

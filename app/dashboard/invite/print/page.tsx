@@ -94,7 +94,6 @@ export default function PrintPage() {
   const [guests, setGuests] = useState<any[]>([]);
   const [coupleTitle, setCoupleTitle] = useState<string>('');
   const [selectedReportId, setSelectedReportId] = useState<string>('confirmed');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -122,26 +121,9 @@ export default function PrintPage() {
         setCoupleTitle("GILDAS & MARIETTE");
       }
 
-      let guestsResponse = await supabase
-        .from('invite')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (!guestsResponse.data || guestsResponse.data.length === 0) {
-        if (marriageData?.id) {
-          guestsResponse = await supabase
-            .from('invite')
-            .select('*')
-            .eq('marriage_id', marriageData.id);
-        }
-      }
-
-      if (!guestsResponse.data || guestsResponse.data.length === 0) {
-        guestsResponse = await supabase
-          .from('guests')
-          .select('*')
-          .eq('user_id', user.id);
-      }
+      const guestsResponse = marriageData?.id
+        ? await supabase.from('invite').select('*').eq('marriage_id', marriageData.id)
+        : { data: null };
 
       if (guestsResponse.data) {
         setGuests(guestsResponse.data);
@@ -183,7 +165,7 @@ export default function PrintPage() {
   const displayName = coupleTitle || "GILDAS & MARIETTE";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col lg:flex-row" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
       {/* CSS D'IMPRESSION STRICT A4 */}
       <style jsx global>{`
@@ -236,127 +218,14 @@ export default function PrintPage() {
         }
       `}</style>
 
-      {/* OVERLAY NAVIGATION MOBILE (no-print) */}
-      {isMobileMenuOpen && (
-        <div 
-          className="no-print fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* SIDEBAR RESPONSIVE (no-print) */}
-      <aside className={`no-print fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 bg-white border-r border-slate-200 p-6 flex flex-col justify-between shrink-0 transform transition-transform duration-300 ease-in-out ${
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      }`}>
-        <div className="space-y-8">
-          
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Wedding Studio</h2>
-            <button 
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="lg:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <p className="px-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
-              GÉNÉRAL
-            </p>
-            <nav className="space-y-1">
-              <button 
-                onClick={() => router.push('/dashboard')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm bg-[#0F172A] text-white shadow-md transition-all"
-              >
-                <LayoutDashboard size={18} />
-                <span>Tableau de bord</span>
-              </button>
-
-              <button 
-                onClick={() => router.push('/dashboard/messages')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <MessageSquare size={18} />
-                <span>Messages</span>
-              </button>
-            </nav>
-          </div>
-
-          <div className="space-y-2">
-            <p className="px-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
-              ORGANISATION
-            </p>
-            <nav className="space-y-1">
-              <button 
-                onClick={() => router.push('/dashboard/guests')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <Users size={18} />
-                <span>Liste des invités</span>
-              </button>
-
-              <button 
-                onClick={() => router.push('/dashboard/rsvp')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <Send size={18} />
-                <span>Invitations (RSVP)</span>
-              </button>
-
-              <button 
-                onClick={() => router.push('/dashboard/tables')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <UtensilsCrossed size={18} />
-                <span>Gestion des tables</span>
-              </button>
-
-              <button 
-                onClick={() => router.push('/dashboard/tasks')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <ClipboardList size={18} />
-                <span>Mes tâches</span>
-              </button>
-
-              <button 
-                onClick={() => router.push('/dashboard/budget')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <Wallet size={18} />
-                <span>Budget</span>
-              </button>
-
-              <button 
-                onClick={() => router.push('/dashboard/planning')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-all"
-              >
-                <Clock size={18} />
-                <span>Planning Jour J</span>
-              </button>
-            </nav>
-          </div>
-
-        </div>
-      </aside>
-
       {/* CONTENU PRINCIPAL */}
       <div className="flex-1 min-w-0 flex flex-col">
         
         {/* HEADER RESPONSIVE (no-print) */}
-        <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <header className="no-print bg-white border-b border-slate-200 lg:sticky lg:top-0 z-30 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             
             <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 lg:hidden transition-colors"
-                title="Ouvrir le menu"
-              >
-                <Menu size={20} />
-              </button>
-
               <button 
                 onClick={() => router.push('/dashboard/guests')}
                 className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-600 transition-colors hidden sm:block"

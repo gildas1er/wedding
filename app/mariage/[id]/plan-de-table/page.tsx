@@ -43,45 +43,21 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
     setLoading(true);
     setHasSearched(true);
     try {
-      // Jointure exacte avec gestion flexible si tables renvoie un objet ou un tableau
-      const { data, error } = await supabase
-        .from('invite')
-        .select(`
-          id,
-          name,
-          guests_count,
-          tables (
-            name
-          )
-        `)
-        .eq('marriage_id', marriageId)
-        .ilike('name', `%${query}%`)
-        .limit(5);
+      // Recherche via une fonction sécurisée : les invités n'ont pas accès à la liste complète
+      const { data, error } = await supabase.rpc('find_guest_table', {
+        p_marriage_id: marriageId,
+        p_query: query,
+      });
 
       if (error) throw error;
 
-      const uniqueInvitesMap = new Map();
-      (data || []).forEach((invite: any) => {
-        if (!uniqueInvitesMap.has(invite.id)) {
-          
-          // Sécurité sur le format de retour de la jointure
-          let extractedTableName = 'Table non assignée';
-          if (invite.tables) {
-            extractedTableName = Array.isArray(invite.tables)
-              ? (invite.tables[0]?.name || 'Table non assignée')
-              : (invite.tables.name || 'Table non assignée');
-          }
-
-          uniqueInvitesMap.set(invite.id, {
-            id: invite.id,
-            name: invite.name,
-            guests_count: invite.guests_count || 1,
-            table_name: extractedTableName
-          });
-        }
-      });
-
-      setSearchResults(Array.from(uniqueInvitesMap.values()));
+      setSearchResults(
+        ((data as InviteRow[] | null) || []).map((row) => ({
+          ...row,
+          guests_count: row.guests_count || 1,
+          table_name: row.table_name || 'Table non assignée',
+        }))
+      );
     } catch (err) {
       console.error("Erreur recherche plan de table:", err);
     } finally {
