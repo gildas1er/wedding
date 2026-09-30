@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Camera, Upload, CheckCircle2, Loader2, Sparkles, Heart, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase'; // Ajuste le chemin selon ton projet
 import imageCompression from 'browser-image-compression';
+import { usePublicMarriage } from '../../lib/use-public-marriage';
 
 const MAX_PHOTOS_LIMIT = 5; 
 
@@ -13,16 +14,13 @@ interface SelectedFile {
 }
 
 export default function DepotPhotosPage() {
-  // Lien partagé aux invités : /photos?id=<identifiant du mariage> affiche les noms du couple
-  const [coupleNames, setCoupleNames] = useState('');
+  // Lien partagé aux invités : /photos?id=<identifiant du mariage> reprend les prénoms et la palette du couple
+  const [marriageId, setMarriageId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id');
-    if (!id) return;
-    supabase.rpc('get_rsvp_invitation', { p_marriage_id: id }).then(({ data }) => {
-      const m = data?.marriage;
-      if (m) setCoupleNames([m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & '));
-    });
+    queueMicrotask(() => setMarriageId(id));
   }, []);
+  const { coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
 
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [guestName, setGuestName] = useState('');
@@ -138,7 +136,7 @@ export default function DepotPhotosPage() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+    <div className={`min-h-screen bg-rose-50 flex justify-center items-center p-4 ${revealClass}`} style={themeStyle}>
       <div className="w-full max-w-[450px] bg-white rounded-[1.75rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden">
         
         <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-rose-300 via-amber-200 to-rose-300" />

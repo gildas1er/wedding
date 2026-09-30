@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Utensils, Users, Sparkles, Heart, Loader2, HelpCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { usePublicMarriage } from '../../../../lib/use-public-marriage';
 
 interface InviteRow {
   id: string;
@@ -16,18 +17,12 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
   const resolvedParams = React.use(params);
   const marriageId = resolvedParams.id;
 
-  const [coupleNames, setCoupleNames] = useState('');
+  // Prénoms et palette du couple
+  const { coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-
-  useEffect(() => {
-    supabase.rpc('get_rsvp_invitation', { p_marriage_id: marriageId }).then(({ data }) => {
-      const m = data?.marriage;
-      if (m) setCoupleNames([m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & '));
-    });
-  }, [marriageId]);
 
   useEffect(() => {
     // Sécurité : Si l'identifiant du mariage n'est pas encore chargé, on attend.
@@ -74,7 +69,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+    <div className={`min-h-screen bg-rose-50 flex justify-center items-center p-4 ${revealClass}`} style={themeStyle}>
       <div className="w-full max-w-[450px] bg-white rounded-[1.75rem] p-6 shadow-xl border border-slate-100/50 flex flex-col relative overflow-hidden min-h-[550px]">
         
         <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-rose-300 via-amber-200 to-rose-300" />

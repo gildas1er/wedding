@@ -665,7 +665,7 @@ export default function SeatingPlannerV24() {
       <div id="pco-print-zone" className="hidden p-8 bg-white font-ui text-black">
         <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
           <div>
-            <h1 className="text-2xl font-bold uppercase tracking-wider">Feuille de Route PCO - Plan de Table</h1>
+            <h1 className="font-sans text-2xl font-bold uppercase tracking-wider">Feuille de Route PCO - Plan de Table</h1>
             <p className="text-sm font-medium text-slate-600">Mariage : {marriage?.partner_1_name} & {marriage?.partner_2_name}</p>
           </div>
           <div className="text-right">

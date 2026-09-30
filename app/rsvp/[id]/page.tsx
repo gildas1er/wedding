@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase';
 import { formatDateFr, formatHourFr } from '../../../lib/event-datetime';
 import { ceremonyFlags, mapsUrl } from '../../../lib/ceremonies';
 import { rsvpThemeStyle, resolveAccent } from '../../../lib/palettes';
+import { resolveMusic } from '../../../lib/music';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -140,7 +141,7 @@ function RSVPContent() {
     mairie_date: "", mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
     religious_date: "", religious_hour: "", religious_location: "",
     reception_hour: "19:00", reception_location: "Domaine de la Rose",
-    music_url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"
+    music_url: null
   };
   // En aperçu, la configuration du studio (non publiée) remplace celle enregistrée
   const m: any = { ...mBase, ...previewOverrides };
@@ -157,6 +158,11 @@ function RSVPContent() {
     return () => window.removeEventListener('message', onMessage);
   }, [isPreview]);
 
+  const music = resolveMusic(m.music_url);
+
+  // Changement de morceau (aperçu du studio) : on arrête la lecture en cours
+  useEffect(() => { audioRef.current?.pause(); }, [music.url]);
+
   // Toggle Musique
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -164,9 +170,7 @@ function RSVPContent() {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(err => console.log("Audio playback error:", err));
+      audioRef.current.play().catch(err => console.log("Audio playback error:", err));
     }
   };
 
@@ -238,11 +242,16 @@ function RSVPContent() {
   return (
     <div className="min-h-screen bg-rose-50 flex justify-center relative" style={rsvpThemeStyle(m.primary_color, m.accent_color)}>
       
-      {/* LECTEUR AUDIO CACHÉ ET BOUTON DE CONTRÔLE FLOTTANT */}
+      {/* LECTEUR AUDIO CACHÉ ET BOUTON DE CONTRÔLE FLOTTANT (absents si le couple a choisi « sans musique ») */}
+      {music.url && (
+      <>
       <audio 
         ref={audioRef} 
-        src={m.music_url || "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"} 
+        src={music.url} 
         loop 
+        preload="none"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
       />
 
       <motion.button
@@ -265,6 +274,8 @@ function RSVPContent() {
           </div>
         )}
       </motion.button>
+      </>
+      )}
 
       {isPreview && (
         <div className="fixed top-4 left-4 z-50 rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
@@ -543,6 +554,9 @@ function RSVPContent() {
             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-relaxed">
               Fait avec amour pour le mariage de <br/> {m.partner_1_name} & {m.partner_2_name}
             </p>
+            {music.track?.credit && (
+              <p className="mt-3 text-[10px] text-slate-400">Musique : {music.track.credit}</p>
+            )}
         </div>
       </div>
     </div>

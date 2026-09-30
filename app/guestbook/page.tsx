@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { usePublicMarriage } from '../../lib/use-public-marriage';
 import { useSearchParams } from 'next/navigation';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';
 
@@ -155,7 +156,7 @@ function GuestbookContent() {
     <div className="max-w-xl mx-auto px-6 mt-8 space-y-8">
       {/* FORMULAIRE D'AJOUT */}
       <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-        <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-6 flex items-center gap-2">
+        <h2 className="font-sans text-sm font-black uppercase tracking-wider text-slate-400 mb-6 flex items-center gap-2">
           <MessageSquare size={16} className="text-rose-500" /> Rédiger vos vœux
         </h2>
 
@@ -247,7 +248,7 @@ function GuestbookContent() {
 
       {/* LISTE DES MESSAGES REÇUS */}
       <div className="space-y-4">
-        <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2 px-1">
+        <h2 className="font-sans text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2 px-1">
           Les mots partagés ({messages.length})
         </h2>
 
@@ -309,7 +310,18 @@ function GuestbookContent() {
 
 export default function PublicGuestbook() {
   return (
-    <div className="min-h-screen bg-ivory text-ink pb-16">
+    <Suspense fallback={<div className="min-h-screen bg-ivory" />}>
+      <ThemedGuestbook />
+    </Suspense>
+  );
+}
+
+// Palette et prénoms du couple, lus depuis ?id=
+function ThemedGuestbook() {
+  const marriageId = useSearchParams().get('id');
+  const { coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
+  return (
+    <div className={`min-h-screen bg-ivory text-ink pb-16 ${revealClass}`} style={themeStyle}>
       {/* HEADER */}
       <div className="bg-white border-b border-rose-100/40 text-center py-12 px-6 shadow-sm">
         <span className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-500 flex items-center justify-center gap-1.5 mb-2">
@@ -317,6 +329,7 @@ export default function PublicGuestbook() {
         </span>
         <h1 className="text-3xl font-normal tracking-tight text-slate-900">Laissez-nous un <span className="text-rose-500 italic">mot doux</span></h1>
         <p className="text-xs text-slate-400 font-bold mt-1.5 max-w-xs mx-auto">Prenez une jolie photo et laissez-nous vos meilleurs vœux !</p>
+        {coupleNames && <p className="mt-3 font-display text-lg text-rose-500">{coupleNames}</p>}
       </div>
 
       <Suspense fallback={

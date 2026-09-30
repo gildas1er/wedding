@@ -206,7 +206,7 @@ function PrintContent() {
             </div>
 
             <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm">
-              <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+              <h2 className="font-sans text-xs font-black uppercase text-slate-400 tracking-wider">
                 10 Listes Disponibles
               </h2>
               <p className="text-xs text-slate-500 mt-1">Cliquez sur une liste pour mettre à jour l'aperçu.</p>

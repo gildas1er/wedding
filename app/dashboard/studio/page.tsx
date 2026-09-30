@@ -4,12 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
-  MessageCircle, Smartphone, RotateCcw, type LucideIcon,
+  MessageCircle, Smartphone, RotateCcw, Music, type LucideIcon,
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import CoverPhotoEditor, { DEFAULT_COVER_POSITION } from '../../../components/studio/CoverPhotoEditor';
 import PalettePicker from '../../../components/studio/PalettePicker';
+import MusicPicker from '../../../components/studio/MusicPicker';
 import { DEFAULT_PALETTE, resolveAccent } from '../../../lib/palettes';
 import { toISODate, toHHMM } from '../../../lib/event-datetime';
 import { ceremonyFlags, isHttpUrl, mapsUrl } from '../../../lib/ceremonies';
@@ -38,6 +39,7 @@ type Config = {
   reception_location: string;
   reception_maps_url: string;
   whatsapp_message: string;
+  music_url: string; // '' = mélodie d'origine, 'none' = sans musique
 };
 
 const EMPTY_CONFIG: Config = {
@@ -53,12 +55,15 @@ const EMPTY_CONFIG: Config = {
   religious_date: '', religious_hour: '', religious_location: '', religious_maps_url: '',
   reception_hour: '', reception_location: '', reception_maps_url: '',
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
+  music_url: '',
 };
 
 // Colonnes ajoutées par les migrations 3 et 4 (enregistrées à part pour ne pas bloquer le reste)
 const EXTENDED_KEYS = ['show_civil', 'show_religious', 'show_reception', 'whatsapp_message'] as const;
 const COVER_KEYS = ['bg_image_position'] as const;
 const ACCENT_KEYS = ['accent_color'] as const;
+const MUSIC_KEYS = ['music_url'] as const;
+const MAX_MUSIC_MB = 10;
 
 const MAX_UPLOAD_MB = 15;
 
@@ -71,6 +76,7 @@ export default function InvitationStudio() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadStage, setUploadStage] = useState<string | null>(null);
+  const [musicStage, setMusicStage] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [marriage, setMarriage] = useState<any>(null);
   const [legacyValues, setLegacyValues] = useState<Record<string, string>>({});
@@ -138,6 +144,7 @@ export default function InvitationStudio() {
           reception_location: data.reception_location || '',
           reception_maps_url: data.reception_maps_url || '',
           whatsapp_message: data.whatsapp_message || DEFAULT_WHATSAPP_TEMPLATE,
+          music_url: data.music_url || '',
         };
         setLegacyValues(legacy);
         setConfig(loaded);
@@ -225,6 +232,10 @@ export default function InvitationStudio() {
         values: { bg_image_position: config.bg_image_position === DEFAULT_COVER_POSITION ? null : config.bg_image_position },
       },
       {
+        keys: MUSIC_KEYS, label: 'la migration 1 (musique)', onMissing: () => {},
+        values: { music_url: config.music_url || null },
+      },
+      {
         keys: ACCENT_KEYS, label: "la migration 5 (couleur d'accent)", onMissing: () => setAccentAvailable(false),
         values: { accent_color: config.accent_color },
       },
@@ -247,6 +258,36 @@ export default function InvitationStudio() {
     setSavedConfig(config);
     setMarriage((m: any) => ({ ...m, ...config }));
     flash({ type: 'success', text: "L'invitation est publiée !" });
+  };
+
+  // Chanson du couple : envoyée telle quelle (MP3/M4A), lue en continu sur la page RSVP
+  const handleMusicFile = async (file: File) => {
+    if (!marriage) return;
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!file.type.startsWith('audio/') && !['mp3', 'm4a'].includes(ext)) {
+      flash({ type: 'error', text: 'Ce fichier n’est pas un morceau audio. Choisissez un MP3 ou un M4A.' }, 5000);
+      return;
+    }
+    if (file.size > MAX_MUSIC_MB * 1024 * 1024) {
+      flash({ type: 'error', text: `Morceau trop lourd (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum : ${MAX_MUSIC_MB} Mo.` }, 5000);
+      return;
+    }
+    try {
+      setMusicStage('Envoi du morceau…');
+      const safeExt = ext === 'm4a' ? 'm4a' : 'mp3';
+      const filePath = `music/${marriage.id}-${Date.now()}.${safeExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('invitations')
+        .upload(filePath, file, { contentType: file.type || (safeExt === 'm4a' ? 'audio/mp4' : 'audio/mpeg'), cacheControl: '31536000' });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('invitations').getPublicUrl(filePath);
+      set('music_url', publicUrl);
+      flash({ type: 'success', text: 'Morceau prêt : écoutez-le puis publiez.' });
+    } catch (error: any) {
+      flash({ type: 'error', text: error.message || "Erreur lors de l'envoi du morceau." }, 6000);
+    } finally {
+      setMusicStage(null);
+    }
   };
 
   const handleCoverFile = async (file: File) => {
@@ -403,6 +444,15 @@ export default function InvitationStudio() {
           </Card>
 
           {/* Message WhatsApp */}
+          <Card icon={Music} title="Musique d'ambiance" subtitle="Vos invités peuvent l'écouter en ouvrant l'invitation. Appuyez sur lecture pour l'essayer.">
+            <MusicPicker
+              value={config.music_url}
+              busyLabel={musicStage}
+              onChange={(v) => set('music_url', v)}
+              onPickFile={handleMusicFile}
+            />
+          </Card>
+
           <Card icon={MessageCircle} title="Message WhatsApp" subtitle="Le texte envoyé à chaque invité. Les repères sont remplacés automatiquement.">
             {!extendedAvailable && <MigrationHint />}
             <div className="flex flex-wrap items-center gap-2">
