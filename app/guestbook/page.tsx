@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../lib/supabase';
+import { guestSupabase as supabase } from '../../lib/supabase-guest';
 import { usePublicMarriage } from '../../lib/use-public-marriage';
 import { useSearchParams } from 'next/navigation';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';

@@ -624,7 +624,7 @@ function CeremonyCard({ icon: Icon, title, tone, enabled, onToggle, children }: 
 }) {
   const t = TONES[tone];
   return (
-    <div className={`rounded-2xl border p-4 transition-colors sm:p-5 ${enabled ? `${t.ring} ${t.bg}` : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
+    <div className={`min-w-0 rounded-2xl border p-4 transition-colors sm:p-5 ${enabled ? `${t.ring} ${t.bg}` : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
       <div className="flex items-center justify-between gap-3">
         <p className={`flex items-center gap-2.5 text-sm font-semibold ${enabled ? t.text : 'text-slate-400'}`}>
           <Icon className="h-4 w-4" strokeWidth={1.8} /> {title}
@@ -665,10 +665,10 @@ function LegacyNote({ value, what }: { value?: string; what: string }) {
 
 function DateField({ label, value, onChange, legacy }: { label: string; value: string; onChange: (v: string) => void; legacy?: string }) {
   return (
-    <div>
-      <div className="relative">
+    <div className="min-w-0">
+      <div className="relative min-w-0">
         <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input type="date" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} min-h-[3rem] cursor-pointer pl-10`} />
+        <input type="date" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} min-h-[3rem] min-w-0 cursor-pointer pl-10`} />
       </div>
       <LegacyNote value={legacy} what="la date" />
     </div>
@@ -677,10 +677,10 @@ function DateField({ label, value, onChange, legacy }: { label: string; value: s
 
 function TimeField({ label, value, onChange, legacy }: { label: string; value: string; onChange: (v: string) => void; legacy?: string }) {
   return (
-    <div>
-      <div className="relative">
+    <div className="min-w-0">
+      <div className="relative min-w-0">
         <Clock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input type="time" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} min-h-[3rem] cursor-pointer pl-10`} />
+        <input type="time" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} min-h-[3rem] min-w-0 cursor-pointer pl-10`} />
       </div>
       <LegacyNote value={legacy} what="l'heure" />
     </div>

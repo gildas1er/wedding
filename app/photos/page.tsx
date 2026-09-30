@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Camera, Upload, CheckCircle2, Loader2, Sparkles, Heart, X, Image as ImageIcon } from 'lucide-react';
-import { supabase } from '../lib/supabase'; // Ajuste le chemin selon ton projet
+import { guestSupabase } from '../../lib/supabase-guest';
 import imageCompression from 'browser-image-compression';
 import { usePublicMarriage } from '../../lib/use-public-marriage';
 
@@ -11,6 +11,18 @@ interface SelectedFile {
   id: string;
   file: File;
   previewUrl: string;
+}
+
+class UploadError extends Error {}
+
+// Message compréhensible à partir d'une erreur Supabase
+function describeError(error: { message?: string; statusCode?: string | number }, fallback: string) {
+  const msg = (error.message || '').toLowerCase();
+  if (msg.includes('row-level security') || msg.includes('unauthorized') || msg.includes('permission')) return `${fallback} (accès refusé : les mariés doivent vérifier la configuration du dépôt de photos).`;
+  if (msg.includes('payload too large') || msg.includes('exceeded') || String(error.statusCode) === '413') return 'Cette photo est trop lourde pour être envoyée.';
+  if (msg.includes('bucket not found')) return "L'album n'est pas encore configuré par les mariés.";
+  if (msg.includes('fetch') || msg.includes('network')) return 'La connexion semble interrompue. Vérifiez votre réseau puis réessayez.';
+  return fallback;
 }
 
 export default function DepotPhotosPage() {
@@ -68,62 +80,57 @@ export default function DepotPhotosPage() {
 
     setIsUploading(true);
     setErrorMsg(null);
-    setUploadProgress({ current: 0, total: selectedFiles.length });
+    const queue = [...selectedFiles];
+    setUploadProgress({ current: 0, total: queue.length });
+    let sent = 0;
 
     try {
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const currentItem = selectedFiles[i];
-        
-        // Mettre à jour les indicateurs visuels pour l'invité
-        setUploadProgress({ current: i + 1, total: selectedFiles.length });
+      for (let i = 0; i < queue.length; i++) {
+        const currentItem = queue[i];
+        setUploadProgress({ current: i + 1, total: queue.length });
         setCurrentUploadingName(currentItem.file.name);
 
-        // 1. Compression intelligente
-        const options = {
-          maxSizeMB: 1.5,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        };
-        const compressedFile = await imageCompression(currentItem.file, options);
+        // 1. Compression (photo allégée pour un envoi rapide, même en 3G)
+        let compressedFile: File;
+        try {
+          compressedFile = await imageCompression(currentItem.file, { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg' });
+        } catch {
+          throw new UploadError(`La photo « ${currentItem.file.name} » n'a pas pu être lue. Essayez une photo JPG ou PNG.`);
+        }
 
-        // 2. Nom unique
-        const fileExt = currentItem.file.name.split('.').pop();
-        const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-        const filePath = `invites/${cleanFileName}`;
-
-        // 3. Storage Supabase
-        const { error: storageError } = await supabase.storage
+        // 2. Envoi du fichier (toujours en tant qu'invité, voir lib/supabase-guest)
+        const filePath = `invites/${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
+        const { error: storageError } = await guestSupabase.storage
           .from('wedding-photos')
-          .upload(filePath, compressedFile, {
-            cacheControl: '3600',
-            upsert: false
-          });
+          .upload(filePath, compressedFile, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
+        if (storageError) {
+          console.error('Envoi de la photo refusé :', storageError);
+          throw new UploadError(describeError(storageError, "L'envoi de la photo a été refusé par le serveur."));
+        }
 
-        if (storageError) throw storageError;
-
-        // 4. Base de données
-        const { error: dbError } = await supabase
+        // 3. Nom et message de l'invité
+        const { error: dbError } = await guestSupabase
           .from('photos_metadata')
-          .insert([
-            {
-              file_name: filePath,
-              guest_name: guestName.trim() || "Invité anonyme",
-              message: message.trim() || null
-            }
-          ]);
+          .insert([{ file_name: filePath, guest_name: guestName.trim() || 'Invité anonyme', message: message.trim() || null }]);
+        if (dbError) {
+          console.error('Enregistrement du message refusé :', dbError);
+          // Pas de photo orpheline sans son nom ni son message
+          await guestSupabase.storage.from('wedding-photos').remove([filePath]);
+          throw new UploadError(describeError(dbError, "Votre message n'a pas pu être enregistré."));
+        }
 
-        if (dbError) throw dbError;
-        
+        // Photo envoyée : retirée de la sélection pour ne jamais la renvoyer en double
+        sent++;
         URL.revokeObjectURL(currentItem.previewUrl);
+        setSelectedFiles((prev) => prev.filter((f) => f.id !== currentItem.id));
       }
 
       setIsSuccess(true);
-      setSelectedFiles([]);
       setGuestName('');
       setMessage('');
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg("Une erreur est survenue durant le transfert. Veuillez réessayer.");
+    } catch (err: unknown) {
+      const reason = err instanceof UploadError ? err.message : 'La connexion semble interrompue. Vérifiez votre réseau puis réessayez.';
+      setErrorMsg(sent > 0 ? `${sent} photo${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}. ${reason}` : reason);
     } finally {
       setIsUploading(false);
       setCurrentUploadingName('');
