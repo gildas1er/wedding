@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Check, Crown, X } from 'lucide-react';
-import { FREE_GUEST_LIMIT, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_FEATURES, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
+import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, PREMIUM_FEATURES, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
 
 type Props = { onClose: () => void; reason?: 'limit' | 'discover' };
 
@@ -52,7 +52,9 @@ export default function PricingModal({ onClose, reason = 'discover' }: Props) {
         <Link href="/dashboard/premium" onClick={onClose} className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-ink text-sm font-semibold text-white hover:bg-rose-700">
           Passer au Premium
         </Link>
-        <p className="mt-3 text-center text-xs text-slate-500">Wave, Orange Money, MTN, Moov ou carte bancaire</p>
+        <p className="mt-3 text-center text-xs text-slate-500">
+          {ONLINE_PAYMENT_ENABLED ? 'Wave, Orange Money, MTN, Moov ou carte bancaire' : `Activation par appel ou WhatsApp au ${PREMIUM_CONTACT.display}`}
+        </p>
         <button onClick={onClose} className="mt-2 w-full py-2 text-sm font-medium text-slate-500 hover:text-ink">Plus tard</button>
       </motion.div>
     </motion.div>

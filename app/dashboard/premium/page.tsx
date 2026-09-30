@@ -3,16 +3,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import confetti from 'canvas-confetti';
-import { Crown, Check, Loader2, ShieldCheck, AlertCircle, Smartphone, CreditCard } from 'lucide-react';
+import { Crown, Check, Loader2, ShieldCheck, AlertCircle, Smartphone, CreditCard, MessageCircle, Phone } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
-  FREE_GUEST_LIMIT, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_FEATURES, PREMIUM_PRICE_XOF, formatXof, isPremium,
+  FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, PREMIUM_FEATURES, PREMIUM_PRICE_XOF,
+  formatXof, isPremium, premiumWhatsappLink,
 } from '../../../lib/plan';
 
 type Phase = 'idle' | 'redirecting' | 'verifying' | 'success' | 'failed';
 
 export default function PremiumPage() {
-  const [marriage, setMarriage] = useState<any>(null);
+  const [marriage, setMarriage] = useState<{ id: string; partner_1_name?: string | null; partner_2_name?: string | null; plan?: string | null; premium_until?: string | null } | null>(null);
   const [guestCount, setGuestCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -99,7 +100,7 @@ export default function PremiumPage() {
           <section className="rounded-[1.75rem] bg-ink p-6 text-white shadow-xl sm:p-10">
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300"><Crown className="h-4 w-4" /> Premium actif</p>
             <p className="mt-3 font-display text-3xl">Invités illimités</p>
-            <p className="mt-2 text-white/70">{until ? `Accès complet jusqu'au ${until}.` : 'Accès complet sans limite de durée.'} {guestCount} fiche{guestCount > 1 ? 's' : ''} invités aujourd'hui.</p>
+            <p className="mt-2 text-white/70">{until ? `Accès complet jusqu'au ${until}.` : 'Accès complet sans limite de durée.'} {guestCount} fiche{guestCount > 1 ? 's' : ''} invités aujourd&apos;hui.</p>
             <Link href="/dashboard/invite" className="mt-6 inline-flex min-h-[48px] items-center rounded-xl bg-amber-300 px-5 text-sm font-semibold text-ink hover:bg-amber-200">Gérer mes invités</Link>
           </section>
         ) : (
@@ -132,22 +133,50 @@ export default function PremiumPage() {
               <p className="mt-4 font-display text-4xl">{formatXof(PREMIUM_PRICE_XOF)}</p>
               <p className="mt-1 text-sm text-white/70">Paiement unique · accès jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après votre mariage</p>
 
-              <button
-                type="button"
-                onClick={startCheckout}
-                disabled={phase === 'redirecting' || phase === 'verifying'}
-                className="mt-6 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-amber-300 text-sm font-semibold text-ink transition-colors hover:bg-amber-200 disabled:opacity-60"
-              >
-                {phase === 'redirecting' ? <><Loader2 className="h-4 w-4 animate-spin" /> Ouverture du paiement…</> : `Payer ${formatXof(PREMIUM_PRICE_XOF)}`}
-              </button>
-
-              <div className="mt-5 space-y-2 text-xs text-white/70">
-                <p className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-amber-300" /> Wave, Orange Money, MTN MoMo, Moov Money</p>
-                <p className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-amber-300" /> Carte bancaire</p>
-                <p className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-amber-300" /> Paiement sécurisé par GeniusPay</p>
-              </div>
+              {ONLINE_PAYMENT_ENABLED ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={startCheckout}
+                    disabled={phase === 'redirecting' || phase === 'verifying'}
+                    className="mt-6 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-amber-300 text-sm font-semibold text-ink transition-colors hover:bg-amber-200 disabled:opacity-60"
+                  >
+                    {phase === 'redirecting' ? <><Loader2 className="h-4 w-4 animate-spin" /> Ouverture du paiement…</> : `Payer ${formatXof(PREMIUM_PRICE_XOF)}`}
+                  </button>
+                  <div className="mt-5 space-y-2 text-xs text-white/70">
+                    <p className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-amber-300" /> Wave, Orange Money, MTN MoMo, Moov Money</p>
+                    <p className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-amber-300" /> Carte bancaire</p>
+                    <p className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-amber-300" /> Paiement sécurisé par GeniusPay</p>
+                  </div>
+                </>
+              ) : (
+                // Activation par contact direct (paiement en ligne désactivé pour l'instant)
+                <>
+                  <p className="mt-6 text-sm text-white/80">Contactez-nous pour activer le Premium : nous vous indiquons comment régler et activons votre espace dès réception.</p>
+                  <a
+                    href={premiumWhatsappLink([marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & '), marriage?.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-amber-300 text-sm font-semibold text-ink transition-colors hover:bg-amber-200"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Écrire sur WhatsApp
+                  </a>
+                  <a
+                    href={`tel:${PREMIUM_CONTACT.phone}`}
+                    className="mt-2 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-white/25 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                  >
+                    <Phone className="h-4 w-4" /> Appeler le {PREMIUM_CONTACT.display}
+                  </a>
+                  <div className="mt-5 space-y-2 text-xs text-white/70">
+                    <p className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-amber-300" /> Wave, Orange Money, MTN MoMo ou Moov Money</p>
+                    {marriage?.id && (
+                      <p className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-amber-300" /> Votre référence : <span className="font-mono text-white">{marriage.id.slice(0, 8)}</span></p>
+                    )}
+                  </div>
+                </>
+              )}
               <p className="mt-auto pt-6 text-[11px] leading-relaxed text-white/50">
-                En payant, vous acceptez nos <Link href="/conditions#vente" className="underline hover:text-white">conditions de vente</Link>.
+                {ONLINE_PAYMENT_ENABLED ? 'En payant' : 'En passant au Premium'}, vous acceptez nos <Link href="/conditions#vente" className="underline hover:text-white">conditions de vente</Link>.
               </p>
             </section>
           </div>

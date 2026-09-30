@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, Section } from '../../components/LegalPage';
 import { LEGAL } from '../../lib/legal';
-import { FREE_GUEST_LIMIT, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
+import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
 
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation et de vente",
@@ -21,7 +21,7 @@ export default function ConditionsPage() {
           {LEGAL.siteName} est un service en ligne d&apos;organisation de mariage édité par <strong>{LEGAL.editorName}</strong>, {LEGAL.editorStatus}, {LEGAL.editorCity}.
           Contact : <strong>{LEGAL.contactEmail}</strong>.
         </p>
-        <p>Le site est hébergé par Vercel Inc. (États-Unis) ; les données sont stockées par Supabase Inc. Le paiement est assuré par GeniusPay.</p>
+        <p>Le site est hébergé par Vercel Inc. (États-Unis) ; les données sont stockées par Supabase Inc.{ONLINE_PAYMENT_ENABLED && ' Le paiement est assuré par GeniusPay.'}</p>
       </Section>
 
       <Section title="2. Le service">
@@ -57,8 +57,17 @@ export default function ConditionsPage() {
         <ul>
           <li><strong>Gratuit :</strong> toutes les fonctionnalités, jusqu&apos;à {FREE_GUEST_LIMIT} fiches invités.</li>
           <li><strong>Premium :</strong> {formatXof(PREMIUM_PRICE_XOF)}, paiement unique, invités illimités. L&apos;accès Premium est valable jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après la date de votre mariage indiquée dans votre espace.</li>
-          <li><strong>Paiement :</strong> Wave, Orange Money, MTN MoMo, Moov Money ou carte bancaire, via la page sécurisée de GeniusPay. Nous n&apos;avons jamais accès à vos données de carte ni à votre code de paiement mobile.</li>
-          <li><strong>Activation :</strong> immédiate, dès la confirmation du paiement par GeniusPay. En cas de souci, écrivez-nous avec la référence du paiement.</li>
+          {ONLINE_PAYMENT_ENABLED ? (
+            <>
+              <li><strong>Paiement :</strong> Wave, Orange Money, MTN MoMo, Moov Money ou carte bancaire, via la page sécurisée de GeniusPay. Nous n&apos;avons jamais accès à vos données de carte ni à votre code de paiement mobile.</li>
+              <li><strong>Activation :</strong> immédiate, dès la confirmation du paiement par GeniusPay. En cas de souci, écrivez-nous avec la référence du paiement.</li>
+            </>
+          ) : (
+            <>
+              <li><strong>Paiement :</strong> sur demande, par appel ou WhatsApp au <strong>{PREMIUM_CONTACT.display}</strong>. Le règlement se fait par Wave, Orange Money, MTN MoMo ou Moov Money. Ne communiquez jamais votre code secret de paiement mobile.</li>
+              <li><strong>Activation :</strong> dès réception du paiement, avec la référence de votre espace (affichée sur la page Premium).</li>
+            </>
+          )}
           <li><strong>Remboursement :</strong> vous pouvez demander le remboursement dans les 7 jours suivant le paiement, tant que vous n&apos;avez pas dépassé {FREE_GUEST_LIMIT} fiches invités. Au-delà, le service ayant été pleinement utilisé, il n&apos;est pas remboursable, sauf dysfonctionnement de notre fait.</li>
           <li>À la fin de l&apos;accès Premium, vos données restent consultables ; seul l&apos;ajout d&apos;invités au-delà de la limite gratuite est de nouveau bloqué.</li>
         </ul>

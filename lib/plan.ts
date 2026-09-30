@@ -5,6 +5,19 @@ export const FREE_GUEST_LIMIT = 30;
 export const PREMIUM_PRICE_XOF = 25000;
 export const PREMIUM_ACCESS_MONTHS_AFTER_WEDDING = 6;
 
+// Paiement en ligne GeniusPay : désactivé pour l'instant, l'activation se fait par contact direct.
+// Passer à true (et configurer les variables GENIUSPAY_* sur Vercel) pour réactiver le paiement en ligne.
+export const ONLINE_PAYMENT_ENABLED = false;
+
+// Contact pour activer le Premium (appel ou WhatsApp)
+export const PREMIUM_CONTACT = { display: '01 01 54 06 87', phone: '+2250101540687' };
+
+export function premiumWhatsappLink(couple: string, marriageId?: string | null) {
+  const ref = marriageId ? ` (référence ${marriageId.slice(0, 8)})` : '';
+  const text = `Bonjour, je souhaite activer WeddingStudio Premium pour le mariage${couple ? ` de ${couple}` : ''}${ref}.`;
+  return `https://api.whatsapp.com/send?phone=${PREMIUM_CONTACT.phone.replace('+', '')}&text=${encodeURIComponent(text)}`;
+}
+
 export const PREMIUM_FEATURES = [
   'Invités illimités (au-delà de 30 fiches)',
   'Import CSV sans limite',
