@@ -697,16 +697,16 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
     return (
         <motion.div 
             whileHover={{ y: -2 }}
-            className="flex items-center justify-between p-4 bg-white rounded-3xl border border-slate-100 shadow-sm group transition-all duration-300 hover:border-slate-200 hover:shadow-md"
+            className="flex items-center justify-between gap-3 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm group transition-all duration-300 hover:border-slate-200 hover:shadow-md"
         >
-            <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="flex items-center gap-3.5 flex-1 min-w-0">
                 <div className={`grid h-11 w-11 place-items-center rounded-full shrink-0 ${colors[color]}`}>
                     <Icon size={19} strokeWidth={1.6} />
                 </div>
                 <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-amber-700">{time || 'Horaire à venir'}</p>
-                    <h4 className="mt-0.5 font-display text-[17px] text-ink leading-tight truncate">{title}</h4>
-                    <p className="text-xs text-slate-500 truncate pr-2">{loc}</p>
+                    <h4 className="mt-0.5 font-display text-[17px] text-ink leading-tight text-balance break-words">{title}</h4>
+                    {loc && <p className="mt-0.5 text-xs leading-snug text-slate-500 line-clamp-2 break-words">{loc}</p>}
                 </div>
             </div>
             
@@ -715,10 +715,11 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
                   href={maps} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-950 text-slate-600 hover:text-white rounded-xl transition-all duration-300 border border-slate-100 shrink-0 shadow-sm active:scale-95"
+                  aria-label={`Plan : ${title}`}
+                  className="flex min-h-[44px] w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 shadow-sm transition-all duration-300 hover:bg-slate-950 hover:text-white active:scale-95"
                 >
-                    <MapPin size={13} className="shrink-0" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Plan</span>
+                    <MapPin size={15} className="shrink-0" />
+                    <span className="text-[9px] font-black uppercase tracking-wider">Plan</span>
                 </a>
             )}
         </motion.div>

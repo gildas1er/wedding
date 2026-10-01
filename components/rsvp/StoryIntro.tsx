@@ -184,7 +184,7 @@ export default function StoryIntro({ m, flags, infos, guestName, canRespond, onI
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold text-amber-200">{p.time || 'Horaire à venir'}</span>
                           <span className={`block font-display text-xl leading-snug [@media(max-height:700px)]:text-lg ${dense ? '[@media(max-height:700px)]:text-base' : ''}`}>{p.title}</span>
-                          {p.loc && <span className={`mt-0.5 block text-sm text-white/70 ${dense ? '[@media(max-height:700px)]:truncate' : ''}`}>{p.loc}</span>}
+                          {p.loc && <span className={`mt-0.5 block text-sm text-white/70 ${dense ? '[@media(max-height:700px)]:line-clamp-1' : 'line-clamp-2'}`}>{p.loc}</span>}
                         </span>
                         {p.maps && (
                           <a href={p.maps} target="_blank" rel="noopener noreferrer" {...stop} aria-label={`Itinéraire : ${p.title}`} className="flex min-h-[44px] w-12 shrink-0 flex-col items-center justify-center gap-0.5 self-center rounded-xl bg-white/10 text-[10px] font-semibold uppercase tracking-wide text-white hover:bg-white/20">
