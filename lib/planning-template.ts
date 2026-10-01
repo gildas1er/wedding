@@ -58,9 +58,10 @@ export function buildTemplate(m: MarriageLike) {
 
   const civilNote = civil ? otherDayNote(m, 'mairie_date') : null;
   const churchNote = religious ? otherDayNote(m, 'religious_date') : null;
+  const receptionNote = reception ? otherDayNote(m, 'reception_date') : null;
 
   // Les préparatifs se calent sur la première cérémonie du jour J (pas sur une mairie la veille)
-  const sameDay = [civilNote ? null : civilAt, churchNote ? null : churchAt, receptionAt].filter(Boolean) as string[];
+  const sameDay = [civilNote ? null : civilAt, churchNote ? null : churchAt, receptionNote ? null : receptionAt].filter(Boolean) as string[];
   const first = sameDay.sort()[0] ?? '10:00';
   add('preparatifs', shift(first, -180), 150, 'Préparatifs des mariés', {
     responsible: 'Coiffure & maquillage',
@@ -91,7 +92,7 @@ export function buildTemplate(m: MarriageLike) {
 
   if (receptionAt) {
     const location = str(m.reception_location);
-    add('cocktail', receptionAt, 60, 'Accueil des invités et cocktail', { location, responsible: 'Protocole / hôtesses' });
+    add('cocktail', receptionAt, 60, 'Accueil des invités et cocktail', { location, responsible: 'Protocole / hôtesses', description: receptionNote, dayNote: receptionNote });
     add('entree', shift(receptionAt, 60), 15, 'Entrée des mariés', {
       location, is_major_step: true, responsible: 'Maître de cérémonie',
       description: 'Ordre d’entrée : parents, témoins, garçons et demoiselles d’honneur, mariés.\nMusique d’entrée à confirmer avec le DJ.',

@@ -37,6 +37,7 @@ type Config = {
   religious_hour: string;
   religious_location: string;
   religious_maps_url: string;
+  reception_date: string;
   reception_hour: string;
   reception_location: string;
   reception_maps_url: string;
@@ -56,7 +57,7 @@ const EMPTY_CONFIG: Config = {
   show_reception: true,
   mairie_date: '', mairie_hour: '', mairie_location: '', mairie_maps_url: '',
   religious_date: '', religious_hour: '', religious_location: '', religious_maps_url: '',
-  reception_hour: '', reception_location: '', reception_maps_url: '',
+  reception_date: '', reception_hour: '', reception_location: '', reception_maps_url: '',
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
   music_url: '',
   practical_info: [],
@@ -68,6 +69,7 @@ const COVER_KEYS = ['bg_image_position'] as const;
 const ACCENT_KEYS = ['accent_color'] as const;
 const MUSIC_KEYS = ['music_url'] as const;
 const INFO_KEYS = ['practical_info'] as const;
+const RECEPTION_DATE_KEYS = ['reception_date'] as const;
 const MAX_MUSIC_MB = 10;
 
 const MAX_UPLOAD_MB = 15;
@@ -147,6 +149,7 @@ export default function InvitationStudio() {
           religious_hour: asHour('religious_hour'),
           religious_location: data.religious_location || '',
           religious_maps_url: data.religious_maps_url || '',
+          reception_date: asDate('reception_date'),
           reception_hour: asHour('reception_hour'),
           reception_location: data.reception_location || '',
           reception_maps_url: data.reception_maps_url || '',
@@ -252,6 +255,10 @@ export default function InvitationStudio() {
       {
         keys: INFO_KEYS, label: 'la migration 6 (rubriques pratiques)', onMissing: () => setInfosAvailable(false),
         values: { practical_info: preparedInfos.infos.length ? preparedInfos.infos : null },
+      },
+      {
+        keys: RECEPTION_DATE_KEYS, label: 'la migration 10 (date de la réception)', onMissing: () => {},
+        values: { reception_date: config.reception_date || null },
       },
       {
         keys: ACCENT_KEYS, label: "la migration 5 (couleur d'accent)", onMissing: () => setAccentAvailable(false),
@@ -452,9 +459,10 @@ export default function InvitationStudio() {
               <div className="md:col-span-2">
                 <CeremonyCard icon={PartyPopper} title="Réception & dîner" tone="amber" enabled={config.show_reception} onToggle={(v) => set('show_reception', v)}>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <DateField label="Date de la réception" value={config.reception_date} onChange={(v) => set('reception_date', v)} legacy={legacyValues.reception_date} />
                     <TimeField label="Heure de la réception" value={config.reception_hour} onChange={(v) => set('reception_hour', v)} legacy={legacyValues.reception_hour} />
-                    <IconInput icon={MapPin} placeholder="Lieu de la fête" value={config.reception_location} onChange={(v) => set('reception_location', v)} />
                   </div>
+                  <IconInput icon={MapPin} placeholder="Lieu de la fête" value={config.reception_location} onChange={(v) => set('reception_location', v)} />
                   <MapsField value={config.reception_maps_url} location={config.reception_location} onChange={(v) => set('reception_maps_url', v)} />
                 </CeremonyCard>
               </div>

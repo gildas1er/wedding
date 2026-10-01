@@ -142,7 +142,7 @@ function RSVPContent() {
     wedding_date: new Date(), 
     mairie_date: "", mairie_hour: "14:00", mairie_location: "Hôtel de Ville",
     religious_date: "", religious_hour: "", religious_location: "",
-    reception_hour: "19:00", reception_location: "Domaine de la Rose",
+    reception_date: "", reception_hour: "19:00", reception_location: "Domaine de la Rose",
     music_url: null
   };
   // En aperçu, la configuration du studio (non publiée) remplace celle enregistrée
@@ -368,7 +368,7 @@ function RSVPContent() {
               <ProgramItem 
                   icon={GlassWater} 
                   title="Le Cocktail & Dîner" 
-                  time={formatHourFr(m.reception_hour)} 
+                  time={[m.reception_date && formatDateFr(m.reception_date, { withYear: false }), formatHourFr(m.reception_hour)].filter(Boolean).join(' · ')} 
                   loc={m.reception_location} 
                   color="neutral"
                   maps={mapsUrl(m.reception_maps_url, m.reception_location)}
@@ -620,7 +620,7 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
                     <Icon size={19} strokeWidth={1.6} />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-amber-700">{time || '--:--'}</p>
+                    <p className="text-xs font-semibold text-amber-700">{time || 'Horaire à venir'}</p>
                     <h4 className="mt-0.5 font-display text-[17px] text-ink leading-tight truncate">{title}</h4>
                     <p className="text-xs text-slate-500 truncate pr-2">{loc}</p>
                 </div>
