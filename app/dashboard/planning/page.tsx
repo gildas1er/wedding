@@ -1,265 +1,389 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { 
-  Heart, LayoutDashboard, Users, Send, Utensils, ClipboardList, 
-  Banknote, Settings, LogOut, MessageSquare, Plus, Clock, 
-  MapPin, Trash2, Calendar, ChevronRight, AlertCircle
+import {
+  Plus, Clock, MapPin, Trash2, Calendar, AlertCircle, X, Save, Printer,
+  Pencil, UserRound, Phone, Star, Loader2,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import {
+  EXTRA_FIELDS, contactHref, daysUntil, formatTime, formatWeddingDate, isMissingColumnError,
+  liveStatus, sortEvents, timeRange, type PlanningEvent,
+} from '../../../lib/planning';
+
+type Marriage = { id: string; wedding_date?: string | null; partner_1_name?: string | null; partner_2_name?: string | null };
+
+type EventForm = {
+  start_time: string; end_time: string; title: string; location: string;
+  responsible: string; responsible_contact: string; description: string; is_major_step: boolean;
+};
+
+const EMPTY_FORM: EventForm = {
+  start_time: '', end_time: '', title: '', location: '',
+  responsible: '', responsible_contact: '', description: '', is_major_step: false,
+};
 
 export default function PlanningPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [marriage, setMarriage] = useState<any>(null);
-  const [events, setEvents] = useState<any[]>([]);
-  const [nextEvent, setNextEvent] = useState<any>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  
-  const [newEvent, setNewEvent] = useState({ 
-    start_time: '', 
-    title: '', 
-    description: '', 
-    location: '', 
-    is_major_step: false 
-  });
+  const [marriage, setMarriage] = useState<Marriage | null>(null);
+  const [events, setEvents] = useState<PlanningEvent[]>([]);
+  const [editor, setEditor] = useState<{ id: string | null; values: EventForm } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
-  useEffect(() => {
-    fetchPlanning();
-  }, [router]);
-
-  // Calculer l'événement suivant en temps réel
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (events.length === 0) return;
-
-      const now = new Date();
-      const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
-
-      // Trouve le premier événement dont l'heure est supérieure à "maintenant"
-      const upcoming = [...events]
-        .sort((a, b) => a.start_time.localeCompare(b.start_time))
-        .find(e => e.start_time > currentTimeStr);
-      
-      setNextEvent(upcoming);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [events]);
-
-  const fetchPlanning = async () => {
+  const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/login'); return; }
-
-    const { data: marriageData } = await supabase
-      .from('marriages')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-    
-    setMarriage(marriageData);
-
-    if (marriageData) {
-      const { data } = await supabase
-        .from('planning_events')
-        .select('*')
-        .eq('marriage_id', marriageData.id)
-        .order('start_time', { ascending: true });
-      if (data) setEvents(data);
+    const { data: m } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    setMarriage(m);
+    if (m) {
+      const { data, error: err } = await supabase.from('planning_events').select('*').eq('marriage_id', m.id).order('start_time', { ascending: true });
+      if (err) setError('Impossible de charger le déroulé. Vérifiez votre connexion.');
+      else setEvents(data ?? []);
     }
     setLoading(false);
+  }, [router]);
+
+  useEffect(() => { Promise.resolve().then(load); }, [load]);
+
+  // Horloge pour le mode « jour même » (toutes les 30 s suffit)
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const openAdd = () => {
+    // Propose l'heure qui suit le dernier moment
+    const last = sortEvents(events).at(-1);
+    const start = last?.end_time ?? '';
+    setEditor({ id: null, values: { ...EMPTY_FORM, start_time: start ? start.slice(0, 5) : '' } });
   };
 
-  const addEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!marriage) return;
+  const openEdit = (e: PlanningEvent) => setEditor({
+    id: e.id,
+    values: {
+      start_time: e.start_time?.slice(0, 5) ?? '',
+      end_time: e.end_time?.slice(0, 5) ?? '',
+      title: e.title ?? '',
+      location: e.location ?? '',
+      responsible: e.responsible ?? '',
+      responsible_contact: e.responsible_contact ?? '',
+      description: e.description ?? '',
+      is_major_step: Boolean(e.is_major_step),
+    },
+  });
 
-    const { data, error } = await supabase
-      .from('planning_events')
-      .insert([{ ...newEvent, marriage_id: marriage.id }])
-      .select().single();
+  const save = async (v: EventForm) => {
+    if (!marriage || !editor) return;
+    setSaving(true);
+    setError(null);
+    const payload: Record<string, unknown> = {
+      start_time: v.start_time,
+      end_time: v.end_time || null,
+      title: v.title.trim(),
+      location: v.location.trim() || null,
+      responsible: v.responsible.trim() || null,
+      responsible_contact: v.responsible_contact.trim() || null,
+      description: v.description.trim() || null,
+      is_major_step: v.is_major_step,
+    };
 
-    if (!error) {
-      setEvents([...events, data].sort((a, b) => a.start_time.localeCompare(b.start_time)));
-      setShowAddForm(false);
-      setNewEvent({ start_time: '', title: '', description: '', location: '', is_major_step: false });
+    const write = (body: Record<string, unknown>) => editor.id
+      ? supabase.from('planning_events').update(body).eq('id', editor.id).select().single()
+      : supabase.from('planning_events').insert([{ ...body, marriage_id: marriage.id }]).select().single();
+
+    let { data, error: err } = await write(payload);
+    // Base pas encore à jour (migration 8) : on enregistre l'essentiel et on prévient
+    if (err && isMissingColumnError(err)) {
+      const basic = { ...payload };
+      EXTRA_FIELDS.forEach((k) => delete basic[k]);
+      ({ data, error: err } = await write(basic));
+      if (!err) setNotice("Moment enregistré, mais l'heure de fin et le responsable n'ont pas pu l'être : la base doit être mise à jour (migration 8).");
     }
+    setSaving(false);
+    if (err || !data) { setError("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez."); return; }
+    setEvents((prev) => sortEvents(editor.id ? prev.map((e) => (e.id === editor.id ? data : e)) : [...prev, data]));
+    setEditor(null);
   };
 
-  const deleteEvent = async (id: string) => {
-    const { error } = await supabase.from('planning_events').delete().eq('id', id);
-    if (!error) setEvents(events.filter(e => e.id !== id));
+  const remove = async (event: PlanningEvent) => {
+    if (!confirm(`Supprimer « ${event.title} » du déroulé ?`)) return;
+    const { error: err } = await supabase.from('planning_events').delete().eq('id', event.id);
+    if (err) { setError('La suppression a échoué. Réessayez.'); return; }
+    setEvents((prev) => prev.filter((e) => e.id !== event.id));
+    setEditor(null);
   };
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-white">
-      <div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>;
+
+  const days = daysUntil(marriage?.wedding_date);
+  const isToday = days === 0;
+  const live = isToday ? liveStatus(events, now) : null;
+  const hasResponsible = events.some((e) => e.responsible);
 
   return (
     <div className="min-h-screen bg-ivory text-ink">
-      
-
-      {/* MAIN CONTENT */}
-      <main className="p-4 sm:p-8 lg:p-12 relative overflow-x-hidden">
-
-        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10">
-          <div>
+      <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-8 sm:py-10 lg:py-12">
+        <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             <p className="eyebrow">Chronologie</p>
             <h1 className="mt-2 text-3xl font-normal text-ink sm:text-4xl">Le déroulé du <span className="italic text-rose-500">Jour J</span></h1>
           </div>
-          <button 
-            onClick={() => setShowAddForm(true)}
-            className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 hover:bg-rose-600 transition-all shadow-lg shadow-slate-200"
-          >
-            <Plus size={18} /> Ajouter un moment
-          </button>
+          <div className="flex gap-2">
+            <Link
+              href="/dashboard/planning/print"
+              className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-ink transition-colors hover:border-amber-300 sm:flex-none ${events.length ? '' : 'pointer-events-none opacity-50'}`}
+              aria-disabled={!events.length}
+            >
+              <Printer className="h-4 w-4" /> Imprimer le déroulé
+            </Link>
+            <button onClick={openAdd} className="hidden min-h-[44px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 lg:inline-flex">
+              <Plus className="h-4 w-4" /> Ajouter un moment
+            </button>
+          </div>
         </header>
 
-        {/* RAPPEL AUTOMATIQUE (NEXT EVENT) */}
         <AnimatePresence>
-          {nextEvent && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-8 sm:mb-12 bg-slate-900 rounded-[1.5rem] sm:rounded-[1.75rem] p-5 sm:p-8 text-white relative overflow-hidden shadow-2xl"
-            >
-              <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-rose-500/20 blur-[80px] rounded-full" />
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4 sm:gap-6">
-                  <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 backdrop-blur-md rounded-[1.5rem] border border-white/10 flex flex-col items-center justify-center">
-                    <Clock size={24} className="text-rose-400 mb-1" />
-                    <span className="text-sm font-black">{nextEvent.start_time.substring(0, 5)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-400">Prochaine étape</span>
-                    <h3 className="text-xl sm:text-2xl font-black break-words">{nextEvent.title}</h3>
-                    <p className="text-slate-400 text-sm flex items-center gap-2 mt-1 italic">
-                      <MapPin size={14} /> {nextEvent.location || "Lieu à confirmer"}
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex items-center gap-4">
-                  <div className="animate-pulse w-2 h-2 bg-rose-500 rounded-full" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Rappel intelligent actif</span>
-                </div>
-              </div>
+          {error && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} role="alert" className="mb-5 flex items-start gap-3 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> <span className="flex-1">{error}</span>
+              <button onClick={() => setError(null)} aria-label="Fermer"><X className="h-4 w-4" /></button>
+            </motion.div>
+          )}
+          {notice && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} role="status" className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> <span className="flex-1">{notice}</span>
+              <button onClick={() => setNotice(null)} aria-label="Fermer"><X className="h-4 w-4" /></button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* TIMELINE SECTION */}
-        <div className="max-w-3xl mx-auto relative pt-4">
-          <div className="absolute left-[31px] top-0 bottom-0 w-1 bg-slate-100 rounded-full" />
+        {/* Bandeau : compte à rebours avant le mariage, moment en cours le jour J */}
+        {isToday && live ? (
+          <section className="mb-8 overflow-hidden rounded-[1.5rem] bg-ink p-5 text-white shadow-xl sm:p-7">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-rose-400" /> C&apos;est aujourd&apos;hui
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <LiveBlock label="En ce moment" event={live.current} empty="Pas de moment en cours" />
+              <LiveBlock label="Ensuite" event={live.next} empty="C'était le dernier moment, profitez !" />
+            </div>
+          </section>
+        ) : days !== null && days > 0 ? (
+          <section className="mb-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+            <p className="font-display text-4xl text-rose-500">J-{days}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-ink">{formatWeddingDate(marriage?.wedding_date)}</p>
+              <p className="text-sm text-slate-500">
+                {events.length
+                  ? `${events.length} moment${events.length > 1 ? 's' : ''} prévu${events.length > 1 ? 's' : ''}, de ${formatTime(sortEvents(events)[0].start_time)} à ${formatTime(sortEvents(events).at(-1)!.end_time || sortEvents(events).at(-1)!.start_time)}`
+                  : 'Aucun moment prévu pour l’instant'}
+              </p>
+            </div>
+          </section>
+        ) : null}
 
-          <div className="space-y-8 sm:space-y-12">
-            {events.map((event, index) => (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                key={event.id} 
-                className="relative flex gap-4 sm:gap-8 group"
-              >
-                {/* Heure / Point de Timeline */}
-                <div className={`z-10 shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-all ${event.is_major_step ? 'bg-rose-500 text-white scale-110 shadow-rose-200' : 'bg-white text-slate-500 border border-slate-100'}`}>
-                  <span className="text-xs font-black">{event.start_time.substring(0, 5)}</span>
-                </div>
-
-                {/* Contenu */}
-                <div className={`flex-1 min-w-0 p-5 sm:p-7 rounded-[1.5rem] sm:rounded-[1.75rem] border transition-all ${event.is_major_step ? 'bg-white border-rose-100 shadow-xl shadow-rose-50/30' : 'bg-white border-slate-50 shadow-sm hover:shadow-md'}`}>
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className={`font-bold text-lg sm:text-xl break-words ${event.is_major_step ? 'text-rose-600' : 'text-slate-800'}`}>
-                      {event.title}
-                    </h3>
-                    <button 
-                      onClick={() => deleteEvent(event.id)}
-                      className="p-2 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all lg:opacity-0 lg:group-hover:opacity-100"
-                    >
-                      <Trash2 size={18}/>
-                    </button>
+        {/* Chronologie */}
+        {events.length > 0 ? (
+          <ol className="relative space-y-3 sm:space-y-4">
+            <span aria-hidden className="absolute bottom-4 left-[1.6rem] top-4 w-px bg-slate-200 sm:left-[2.35rem]" />
+            {events.map((event) => {
+              const href = contactHref(event.responsible_contact);
+              const active = live?.current?.id === event.id;
+              return (
+                <li key={event.id} className="relative flex gap-3 sm:gap-5">
+                  <div className={`z-10 grid h-[3.25rem] w-[3.25rem] shrink-0 place-items-center rounded-2xl text-[13px] font-bold shadow-sm sm:h-[4.75rem] sm:w-[4.75rem] sm:text-base ${event.is_major_step ? 'bg-rose-500 text-white' : 'border border-slate-200 bg-white text-ink'} ${active ? 'ring-4 ring-amber-300' : ''}`}>
+                    {formatTime(event.start_time)}
                   </div>
-                  <p className="text-slate-500 text-sm leading-relaxed mb-5">{event.description}</p>
-                  {event.location && (
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 w-fit px-3 py-1.5 rounded-lg">
-                      <MapPin size={12} className="text-rose-400" /> {event.location}
+                  <article className={`min-w-0 flex-1 rounded-[1.25rem] border bg-white p-4 shadow-sm sm:p-5 ${event.is_major_step ? 'border-rose-200' : 'border-slate-200/80'}`}>
+                    <div className="flex items-start gap-2">
+                      <button onClick={() => openEdit(event)} className="min-w-0 flex-1 text-left">
+                        <p className="text-xs font-semibold text-slate-500">
+                          {timeRange(event)}
+                          {event.is_major_step && <span className="ml-2 inline-flex items-center gap-1 text-rose-600"><Star className="h-3 w-3 fill-current" /> Moment clé</span>}
+                        </p>
+                        <h3 className="mt-0.5 break-words font-display text-lg text-ink sm:text-xl">{event.title}</h3>
+                      </button>
+                      <div className="flex shrink-0">
+                        <button onClick={() => openEdit(event)} aria-label={`Modifier ${event.title}`} className="grid h-10 w-10 place-items-center rounded-xl text-slate-400 hover:bg-slate-50 hover:text-ink"><Pencil className="h-4 w-4" /></button>
+                        <button onClick={() => remove(event)} aria-label={`Supprimer ${event.title}`} className="grid h-10 w-10 place-items-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                    {event.description && <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">{event.description}</p>}
+                    {(event.location || event.responsible) && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        {event.location && (
+                          <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 text-slate-600"><MapPin className="h-3.5 w-3.5 shrink-0 text-rose-400" /><span className="truncate">{event.location}</span></span>
+                        )}
+                        {event.responsible && (
+                          <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-900"><UserRound className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{event.responsible}</span></span>
+                        )}
+                        {href && (
+                          <a href={href} className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-emerald-800 hover:bg-emerald-100"><Phone className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{event.responsible_contact}</span></a>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+            <Calendar className="mx-auto mb-4 h-10 w-10 text-slate-300" />
+            <p className="font-display text-xl text-ink">Votre journée, heure par heure</p>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">Ajoutez chaque moment (mairie, église, cocktail, entrée des mariés…) avec son lieu et la personne qui s&apos;en occupe.</p>
+            <button onClick={openAdd} className="mt-6 inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700">
+              <Plus className="h-4 w-4" /> Ajouter le premier moment
+            </button>
           </div>
+        )}
 
-          {events.length === 0 && !showAddForm && (
-            <div className="text-center py-20 bg-white rounded-[1.75rem] border border-dashed border-slate-200">
-               <Calendar className="mx-auto text-slate-200 mb-4" size={48} />
-               <p className="text-slate-400 font-medium italic">Commencez à planifier le déroulement de votre journée.</p>
-            </div>
-          )}
-        </div>
-
-        {/* MODAL FORMULAIRE */}
-        <AnimatePresence>
-          {showAddForm && (
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-              <motion.form 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                onSubmit={addEvent} 
-                className="bg-white p-10 rounded-[2rem] w-full max-w-xl shadow-2xl relative"
-              >
-                <button type="button" onClick={() => setShowAddForm(false)} className="absolute top-8 right-8 text-slate-400 hover:text-slate-600">
-                  <XCircle size={24} />
-                </button>
-
-                <h2 className="text-2xl font-normal mb-8 flex items-center gap-3">
-                  <Plus className="text-rose-500" /> Nouvel événement
-                </h2>
-
-                <div className="space-y-6">
-                  <div className="grid grid-cols-3 gap-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Heure</label>
-                      <input type="time" required className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 outline-none focus:border-rose-300 font-bold" value={newEvent.start_time} onChange={e => setNewEvent({...newEvent, start_time: e.target.value})} />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Titre</label>
-                      <input type="text" required className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 outline-none focus:border-rose-300 font-bold" placeholder="Ex: Cérémonie Civile" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Lieu</label>
-                    <input type="text" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 outline-none focus:border-rose-300 font-bold" placeholder="Ex: Hôtel de Ville" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Notes / Description</label>
-                    <textarea className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 outline-none min-h-[100px] font-semibold" placeholder="Détails importants..." value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} />
-                  </div>
-                  <label className="flex items-center gap-4 cursor-pointer p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-rose-200 transition-all">
-                    <input type="checkbox" className="w-6 h-6 accent-rose-500 rounded-lg" checked={newEvent.is_major_step} onChange={e => setNewEvent({...newEvent, is_major_step: e.target.checked})} />
-                    <span className="text-sm font-black text-slate-700">Moment clé (Étape majeure)</span>
-                  </label>
-                </div>
-
-                <div className="flex gap-4 mt-10">
-                  <button type="submit" className="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-rose-100 hover:bg-rose-600 transition-all uppercase tracking-widest text-xs">Enregistrer</button>
-                  <button type="button" onClick={() => setShowAddForm(false)} className="px-8 py-4 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase tracking-widest text-xs">Annuler</button>
-                </div>
-              </motion.form>
-            </div>
-          )}
-        </AnimatePresence>
-
+        {events.length > 0 && !hasResponsible && (
+          <p className="mt-6 text-center text-sm text-slate-500">Astuce : indiquez qui s&apos;occupe de chaque moment, il apparaîtra sur la feuille de route de l&apos;équipe.</p>
+        )}
       </main>
+
+      {/* Bouton d'ajout flottant (mobile et tablette) */}
+      <button
+        onClick={openAdd}
+        aria-label="Ajouter un moment"
+        className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-rose-500 text-white shadow-xl shadow-rose-500/30 transition-transform active:scale-95 lg:hidden print:hidden"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      <AnimatePresence>
+        {editor && (
+          <EventModal
+            key={editor.id ?? 'new'}
+            isEdit={Boolean(editor.id)}
+            initial={editor.values}
+            saving={saving}
+            onClose={() => setEditor(null)}
+            onSave={save}
+            onDelete={editor.id ? () => { const e = events.find((x) => x.id === editor.id); if (e) remove(e); } : undefined}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// Icone X simple car non importée
-function XCircle({ size }: { size: number }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
+function LiveBlock({ label, event, empty }: { label: string; event: PlanningEvent | null; empty: string }) {
+  return (
+    <div className="min-w-0 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">{label}</p>
+      {event ? (
+        <>
+          <p className="mt-1 flex items-center gap-2 text-sm text-amber-300"><Clock className="h-4 w-4" /> {timeRange(event)}</p>
+          <p className="mt-1 break-words font-display text-2xl">{event.title}</p>
+          {event.location && <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70"><MapPin className="h-3.5 w-3.5 shrink-0" /> {event.location}</p>}
+          {event.responsible && <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70"><UserRound className="h-3.5 w-3.5 shrink-0" /> {event.responsible}</p>}
+        </>
+      ) : (
+        <p className="mt-2 text-white/70">{empty}</p>
+      )}
+    </div>
+  );
+}
+
+const labelCls = 'mb-1.5 ml-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500';
+const inputCls = 'w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-ink outline-none transition-colors focus:border-rose-300 focus:ring-2 focus:ring-rose-100 sm:text-sm';
+
+function EventModal({ isEdit, initial, saving, onClose, onSave, onDelete }: {
+  isEdit: boolean;
+  initial: EventForm;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (v: EventForm) => void;
+  onDelete?: () => void;
+}) {
+  const [v, setV] = useState<EventForm>(initial);
+  const set = (patch: Partial<EventForm>) => setV((prev) => ({ ...prev, ...patch }));
+  const endBeforeStart = Boolean(v.start_time && v.end_time && v.end_time <= v.start_time);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink/50 backdrop-blur-sm sm:items-center sm:p-4 print:hidden">
+      <motion.form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-title"
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        onSubmit={(e) => { e.preventDefault(); if (!endBeforeStart) onSave(v); }}
+        className="relative max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-[1.75rem] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[1.75rem] sm:p-8"
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200 sm:hidden" aria-hidden />
+        <button type="button" onClick={onClose} aria-label="Fermer" className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-slate-400 hover:bg-slate-50 hover:text-ink sm:right-5 sm:top-5"><X className="h-5 w-5" /></button>
+        <h2 id="event-title" className="mb-6 pr-10 font-display text-2xl text-ink">{isEdit ? 'Modifier le moment' : 'Nouveau moment'}</h2>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <label htmlFor="start_time" className={labelCls}><Clock className="h-3 w-3" /> Début *</label>
+              <input id="start_time" type="time" required className={inputCls} value={v.start_time} onChange={(e) => set({ start_time: e.target.value })} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="end_time" className={labelCls}>Fin</label>
+              <input id="end_time" type="time" className={`${inputCls} ${endBeforeStart ? 'border-rose-400' : ''}`} value={v.end_time} onChange={(e) => set({ end_time: e.target.value })} />
+            </div>
+          </div>
+          {endBeforeStart && <p className="-mt-2 text-sm text-rose-600">L&apos;heure de fin doit être après l&apos;heure de début.</p>}
+
+          <div>
+            <label htmlFor="title" className={labelCls}>Moment *</label>
+            <input id="title" required autoFocus={!isEdit} className={inputCls} placeholder="Ex : Cérémonie civile" value={v.title} onChange={(e) => set({ title: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="location" className={labelCls}><MapPin className="h-3 w-3" /> Lieu</label>
+            <input id="location" className={inputCls} placeholder="Ex : Mairie de Cocody" value={v.location} onChange={(e) => set({ location: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 rounded-2xl bg-amber-50/60 p-3 ring-1 ring-amber-100 sm:grid-cols-2 sm:p-4">
+            <div className="min-w-0">
+              <label htmlFor="responsible" className={labelCls}><UserRound className="h-3 w-3" /> Responsable</label>
+              <input id="responsible" className={inputCls} placeholder="Ex : Maître de cérémonie" value={v.responsible} onChange={(e) => set({ responsible: e.target.value })} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="responsible_contact" className={labelCls}><Phone className="h-3 w-3" /> Contact</label>
+              <input id="responsible_contact" type="tel" inputMode="tel" className={inputCls} placeholder="07 00 00 00 00" value={v.responsible_contact} onChange={(e) => set({ responsible_contact: e.target.value })} />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="description" className={labelCls}>Notes pour l&apos;équipe</label>
+            <textarea id="description" rows={3} className={`${inputCls} resize-none`} placeholder="Musique d'entrée, ordre du cortège, matériel…" value={v.description} onChange={(e) => set({ description: e.target.value })} />
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-rose-200">
+            <input type="checkbox" className="h-5 w-5 shrink-0 accent-rose-500" checked={v.is_major_step} onChange={(e) => set({ is_major_step: e.target.checked })} />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-ink">Moment clé</span>
+              <span className="block text-xs text-slate-500">Mis en avant et repris sur le déroulé des invités.</span>
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
+          {onDelete && (
+            <button type="button" onClick={onDelete} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-rose-100 px-5 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+              <Trash2 className="h-4 w-4" /> Supprimer
+            </button>
+          )}
+          <button type="submit" disabled={saving || endBeforeStart} className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:opacity-50">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer les modifications' : 'Ajouter au déroulé'}
+          </button>
+        </div>
+      </motion.form>
+    </div>
+  );
 }

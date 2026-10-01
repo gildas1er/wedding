@@ -240,6 +240,31 @@ export default function SettingsPage() {
                   ))}
                 </div>
 
+                <div>
+                  <p className="eyebrow">Déroulé du Jour J</p>
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {[
+                      { version: 'equipe', title: 'Feuille de route de l’équipe', description: 'Heures, lieux, responsables, contacts et notes, avec cases à cocher.', Icon: Users },
+                      { version: 'invites', title: 'Programme pour les invités', description: 'Les moments clés et les lieux, à afficher ou partager sur WhatsApp.', Icon: Heart },
+                    ].map(({ version, title, description, Icon }) => (
+                      <Link
+                        key={version}
+                        href={`/dashboard/planning/print?version=${version}`}
+                        className="group flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 transition-all hover:border-amber-300 hover:shadow-md"
+                      >
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300 text-amber-700 transition-colors group-hover:bg-amber-50">
+                          <Icon className="h-[18px] w-[18px]" strokeWidth={1.6} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold text-ink">{title}</span>
+                          <span className="mt-0.5 block text-sm text-slate-500">{description}</span>
+                        </span>
+                        <ChevronRight className="mt-2.5 h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-rose-500" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="rounded-2xl bg-ivory p-4 text-sm text-slate-600">
                   <span className="font-semibold text-ink">Autres documents :</span>{' '}
                   le plan de table s&apos;imprime depuis{' '}
