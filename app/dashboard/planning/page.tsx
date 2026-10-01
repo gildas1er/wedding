@@ -6,15 +6,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Clock, MapPin, Trash2, Calendar, AlertCircle, X, Save, Printer,
-  Pencil, UserRound, Phone, Star, Loader2,
+  Pencil, UserRound, Phone, Star, Loader2, Sparkles, Check,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   EXTRA_FIELDS, contactHref, daysUntil, formatTime, formatWeddingDate, isMissingColumnError,
   liveStatus, sortEvents, timeRange, type PlanningEvent,
 } from '../../../lib/planning';
+import { buildTemplate, type TemplateMoment } from '../../../lib/planning-template';
 
-type Marriage = { id: string; wedding_date?: string | null; partner_1_name?: string | null; partner_2_name?: string | null };
+type Marriage = Record<string, unknown> & { id: string; wedding_date?: string | null; partner_1_name?: string | null; partner_2_name?: string | null };
 
 type EventForm = {
   start_time: string; end_time: string; title: string; location: string;
@@ -36,6 +37,7 @@ export default function PlanningPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -110,6 +112,23 @@ export default function PlanningPage() {
     if (err || !data) { setError("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez."); return; }
     setEvents((prev) => sortEvents(editor.id ? prev.map((e) => (e.id === editor.id ? data : e)) : [...prev, data]));
     setEditor(null);
+  };
+
+  const addFromTemplate = async (selected: TemplateMoment[]) => {
+    if (!marriage || !selected.length) return;
+    setSaving(true);
+    setError(null);
+    const rows: Record<string, unknown>[] = selected.map((m) => { const row: Record<string, unknown> = { ...m, marriage_id: marriage.id }; delete row.key; delete row.dayNote; return row; });
+    let { data, error: err } = await supabase.from('planning_events').insert(rows).select();
+    if (err && isMissingColumnError(err)) {
+      const basic = rows.map((r) => { const b = { ...r }; EXTRA_FIELDS.forEach((k) => delete b[k]); return b; });
+      ({ data, error: err } = await supabase.from('planning_events').insert(basic).select());
+      if (!err) setNotice("Moments ajoutés, sans les heures de fin ni les responsables : la base doit être mise à jour (migration 8).");
+    }
+    setSaving(false);
+    if (err || !data) { setError("Le modèle n'a pas pu être ajouté. Vérifiez votre connexion puis réessayez."); return; }
+    setEvents((prev) => sortEvents([...prev, ...data]));
+    setTemplateOpen(false);
   };
 
   const remove = async (event: PlanningEvent) => {
@@ -238,9 +257,22 @@ export default function PlanningPage() {
           <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
             <Calendar className="mx-auto mb-4 h-10 w-10 text-slate-300" />
             <p className="font-display text-xl text-ink">Votre journée, heure par heure</p>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">Ajoutez chaque moment (mairie, église, cocktail, entrée des mariés…) avec son lieu et la personne qui s&apos;en occupe.</p>
-            <button onClick={openAdd} className="mt-6 inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700">
-              <Plus className="h-4 w-4" /> Ajouter le premier moment
+            <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">Partez d&apos;une journée type calée sur les heures de votre Studio, ou ajoutez vos moments un par un.</p>
+            <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+              <button onClick={() => setTemplateOpen(true)} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700">
+                <Sparkles className="h-4 w-4 text-amber-300" /> Partir d&apos;un modèle
+              </button>
+              <button onClick={openAdd} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-ink hover:border-rose-200">
+                <Plus className="h-4 w-4" /> Ajouter un moment
+              </button>
+            </div>
+          </div>
+        )}
+
+        {events.length > 0 && (
+          <div className="mt-6 text-center">
+            <button onClick={() => setTemplateOpen(true)} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+              <Sparkles className="h-4 w-4" /> Compléter avec le modèle de journée
             </button>
           </div>
         )}
@@ -258,6 +290,18 @@ export default function PlanningPage() {
       >
         <Plus className="h-6 w-6" />
       </button>
+
+      <AnimatePresence>
+        {templateOpen && marriage && (
+          <TemplateSheet
+            marriage={marriage}
+            existing={events}
+            saving={saving}
+            onClose={() => setTemplateOpen(false)}
+            onConfirm={addFromTemplate}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {editor && (
@@ -384,6 +428,86 @@ function EventModal({ isEdit, initial, saving, onClose, onSave, onDelete }: {
           </button>
         </div>
       </motion.form>
+    </div>
+  );
+}
+
+const normalize = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+
+function TemplateSheet({ marriage, existing, saving, onClose, onConfirm }: {
+  marriage: Marriage;
+  existing: PlanningEvent[];
+  saving: boolean;
+  onClose: () => void;
+  onConfirm: (selected: TemplateMoment[]) => void;
+}) {
+  const [{ moments, fromStudio }] = useState(() => buildTemplate(marriage));
+  const existingTitles = new Set(existing.map((e) => normalize(e.title)));
+  // Les moments déjà présents dans le déroulé sont décochés
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(moments.filter((m) => !existingTitles.has(normalize(m.title))).map((m) => m.key)));
+  const toggle = (key: string) => setPicked((prev) => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  const selected = moments.filter((m) => picked.has(m.key));
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink/50 backdrop-blur-sm sm:items-center sm:p-4 print:hidden">
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="template-title"
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        className="relative flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-[1.75rem] bg-white shadow-2xl sm:rounded-[1.75rem]"
+      >
+        <div className="shrink-0 p-5 pb-3 sm:p-8 sm:pb-4">
+          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200 sm:hidden" aria-hidden />
+          <button type="button" onClick={onClose} aria-label="Fermer" className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-slate-400 hover:bg-slate-50 hover:text-ink sm:right-5 sm:top-5"><X className="h-5 w-5" /></button>
+          <h2 id="template-title" className="pr-10 font-display text-2xl text-ink">Une journée type</h2>
+          <p className="mt-1.5 text-sm text-slate-600">
+            {fromStudio.length
+              ? <>Heures reprises de votre Studio ({fromStudio.join(', ')}). Décochez ce qui ne vous concerne pas : tout reste modifiable ensuite.</>
+              : <>Heures indicatives : renseignez vos cérémonies dans le <Link href="/dashboard/studio" className="font-semibold text-rose-600 underline-offset-4 hover:underline">Studio</Link> pour un modèle calé sur votre journée.</>}
+          </p>
+        </div>
+
+        <ul className="min-h-0 flex-1 overflow-y-auto border-y border-slate-100 px-3 py-2 sm:px-6">
+          {moments.map((m) => {
+            const on = picked.has(m.key);
+            const already = existingTitles.has(normalize(m.title));
+            return (
+              <li key={m.key}>
+                <label className={`flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-colors hover:bg-slate-50 ${on ? '' : 'opacity-60'}`}>
+                  <input type="checkbox" className="sr-only" checked={on} onChange={() => toggle(m.key)} />
+                  <span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 ${on ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-300'}`}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
+                  <span className="w-[4.75rem] shrink-0 pt-px text-sm font-bold tabular-nums text-ink">{timeRange({ start_time: m.start_time, end_time: m.end_time })}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-1.5 text-sm font-semibold text-ink">
+                      {m.title}
+                      {m.is_major_step && <Star className="h-3 w-3 fill-rose-400 text-rose-400" aria-label="Moment clé" />}
+                    </span>
+                    {(m.location || m.responsible) && (
+                      <span className="mt-0.5 block truncate text-xs text-slate-500">{[m.location, m.responsible].filter(Boolean).join(' · ')}</span>
+                    )}
+                    {m.dayNote && <span className="mt-0.5 block text-xs font-semibold text-rose-600">{`Le ${m.dayNote.replace('⚠️ ', '').replace(/^./, (c) => c.toLowerCase())}`}</span>}
+                    {already && <span className="mt-0.5 block text-xs text-amber-700">Déjà dans votre déroulé</span>}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="shrink-0 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-5">
+          <button
+            onClick={() => onConfirm(selected)}
+            disabled={saving || !selected.length}
+            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {selected.length ? `Ajouter ${selected.length} moment${selected.length > 1 ? 's' : ''} au déroulé` : 'Aucun moment sélectionné'}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
