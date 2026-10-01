@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, DollarSign, LayoutDashboard, 
+  Plus, DollarSign,
   AlertCircle, CheckCircle2, Calendar, 
   Wallet, Trash2, X, Edit3, Save, Coins,
-  User, Phone, Heart, Users, MapPin, LogOut, Printer
+  User, Phone, Printer
 } from 'lucide-react';
 
 // --- COMPOSANT DES PÉTALES ROUGES ---
@@ -22,8 +22,7 @@ export default function BudgetDashboard() {
   const [marriage, setMarriage] = useState<any>(null);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [currency, setCurrency] = useState('FCFA');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [editor, setEditor] = useState<{ id: string | null; values: ExpenseForm } | null>(null);
 
   const categories = [
     'Réception & Traiteur', 
@@ -34,13 +33,6 @@ export default function BudgetDashboard() {
     "Fonds d'Imprévus", 
     'Autre'
   ];
-  const statuses = ['À planifier', 'En cours', 'Payé'];
-
-  const [formData, setFormData] = useState({
-    label: '', category: 'Réception & Traiteur', amount_estimated: '', amount_actual: '', 
-    amount_paid: '', due_date: '', status: 'À planifier', 
-    vendor_name: '', vendor_contact: '', notes: ''
-  });
 
   useEffect(() => { loadData(); }, []);
 
@@ -122,64 +114,56 @@ export default function BudgetDashboard() {
     }).format(converted) + ' ' + CURRENCY_SYMBOLS[currency];
   };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const openAdd = () => setEditor({ id: null, values: { ...EMPTY_FORM } });
+  const openEdit = (expense: any) => setEditor({
+    id: expense.id,
+    values: {
+      label: expense.label ?? '',
+      category: expense.category ?? categories[0],
+      status: expense.status ?? 'À planifier',
+      amount_estimated: expense.amount_estimated ? String(expense.amount_estimated) : '',
+      amount_actual: expense.amount_actual ? String(expense.amount_actual) : '',
+      amount_paid: expense.amount_paid ? String(expense.amount_paid) : '',
+      due_date: expense.due_date ?? '',
+      vendor_name: expense.vendor_name ?? '',
+      vendor_contact: expense.vendor_contact ?? '',
+      notes: expense.notes ?? '',
+    },
+  });
+
+  const handleSaveExpense = async (values: ExpenseForm) => {
+    if (!editor) return;
     setActionLoading(true);
     setErrorMsg(null);
-
     try {
       if (!marriage?.id) throw new Error("ID du mariage introuvable.");
-
-      const expenseToInsert = {
-        marriage_id: marriage.id,
-        label: formData.label.trim(),
-        category: formData.category,
-        status: formData.status,
-        amount_estimated: parseFloat(formData.amount_estimated) || 0,
-        amount_actual: parseFloat(formData.amount_actual) || 0,
-        amount_paid: parseFloat(formData.amount_paid) || 0,
-        vendor_name: formData.vendor_name.trim() || null,
-        vendor_contact: formData.vendor_contact.trim() || null,
-        due_date: formData.due_date || null,
-        notes: formData.notes.trim() || null
+      const amountActual = parseFloat(values.amount_actual) || 0;
+      const amountPaid = parseFloat(values.amount_paid) || 0;
+      const payload = {
+        label: values.label.trim(),
+        category: values.category,
+        status: deriveStatus(values.status, amountActual, amountPaid),
+        amount_estimated: parseFloat(values.amount_estimated) || 0,
+        amount_actual: amountActual,
+        amount_paid: amountPaid,
+        vendor_name: values.vendor_name.trim() || null,
+        vendor_contact: values.vendor_contact.trim() || null,
+        due_date: values.due_date || null,
+        notes: values.notes.trim() || null,
       };
 
-      const { data, error } = await supabase
-        .from('budget_items')
-        .insert([expenseToInsert])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setExpenses([data, ...expenses]);
-      setShowAddModal(false);
-      setFormData({ label: '', category: 'Réception & Traiteur', amount_estimated: '', amount_actual: '', amount_paid: '', due_date: '', status: 'À planifier', vendor_name: '', vendor_contact: '', notes: '' });
+      if (editor.id) {
+        const { data, error } = await supabase.from('budget_items').update(payload).eq('id', editor.id).select().single();
+        if (error) throw error;
+        setExpenses((prev) => prev.map((ex) => (ex.id === editor.id ? data : ex)));
+      } else {
+        const { data, error } = await supabase.from('budget_items').insert([{ ...payload, marriage_id: marriage.id }]).select().single();
+        if (error) throw error;
+        setExpenses((prev) => [data, ...prev]);
+      }
+      setEditor(null);
     } catch (err: any) {
       setErrorMsg(err.message || "Erreur lors de l'enregistrement");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUpdateExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setActionLoading(true);
-    try {
-      const { data, error } = await supabase.from('budget_items')
-        .update({
-          amount_estimated: parseFloat(editingExpense.amount_estimated) || 0,
-          amount_actual: parseFloat(editingExpense.amount_actual) || 0,
-          amount_paid: parseFloat(editingExpense.amount_paid) || 0,
-          status: editingExpense.amount_paid >= editingExpense.amount_actual ? 'Payé' : editingExpense.status
-        })
-        .eq('id', editingExpense.id).select().single();
-
-      if (error) throw error;
-      setExpenses(expenses.map(ex => ex.id === editingExpense.id ? data : ex));
-      setEditingExpense(null);
-    } catch (err: any) {
-      setErrorMsg(err.message);
     } finally {
       setActionLoading(false);
     }
@@ -188,7 +172,7 @@ export default function BudgetDashboard() {
   const deleteExpense = async (id: string) => {
     if(!confirm("Supprimer cette dépense ?")) return;
     const { error } = await supabase.from('budget_items').delete().eq('id', id);
-    if (!error) setExpenses(expenses.filter(ex => ex.id !== id));
+    if (!error) { setExpenses((prev) => prev.filter(ex => ex.id !== id)); setEditor(null); }
     else setErrorMsg("Erreur de suppression");
   };
 
@@ -365,7 +349,7 @@ export default function BudgetDashboard() {
               <Printer size={18} />
             </button>
 
-            <button onClick={() => setShowAddModal(true)} className="bg-amber-500 text-white px-5 sm:px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-amber-600 transition-all flex items-center gap-3">
+            <button onClick={openAdd} className="bg-amber-500 text-white px-5 sm:px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-amber-600 transition-all flex items-center gap-3">
               <Plus size={16} /> Ajouter une dépense
             </button>
           </div>
@@ -414,7 +398,7 @@ export default function BudgetDashboard() {
                       <div>
                         <h4 className="font-bold text-slate-800 text-sm">{expense.label}</h4>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                          {expense.category} {expense.due_date && `• ${expense.due_date}`}
+                          {expense.category} {expense.due_date && `• échéance ${formatDate(expense.due_date)}`}
                         </p>
                       </div>
                     </div>
@@ -426,8 +410,8 @@ export default function BudgetDashboard() {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => setEditingExpense(expense)} className="p-2 text-slate-300 hover:text-amber-600 transition-colors"><Edit3 size={18}/></button>
-                        <button onClick={() => deleteExpense(expense.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                        <button onClick={() => openEdit(expense)} aria-label="Modifier la dépense" className="p-2 text-slate-300 hover:text-amber-600 transition-colors"><Edit3 size={18}/></button>
+                        <button onClick={() => deleteExpense(expense.id)} aria-label="Supprimer la dépense" className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                       </div>
                     </div>
                   </motion.div>
@@ -486,7 +470,7 @@ export default function BudgetDashboard() {
                         </td>
                         <td style={{ textAlign: 'right', fontSize: '12px', color: '#64748b', border: 'none', padding: 0 }}>
                           <p style={{ margin: 0 }}>Généré le : {new Date().toLocaleDateString('fr-FR')}</p>
-                          <p style={{ margin: '2px 0 0 0' }}>Devise d'édition : {currency}</p>
+                          <p style={{ margin: '2px 0 0 0' }}>Devise d&apos;édition : {currency}</p>
                         </td>
                       </tr>
                     </tbody>
@@ -582,84 +566,181 @@ export default function BudgetDashboard() {
         </table>
       </div>
 
-      {/* MODAL AJOUT */}
+      {/* FORMULAIRE DÉPENSE (ajout et modification) */}
       <AnimatePresence>
-        {showAddModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:hidden">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-10 w-full max-w-2xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
-              <h3 className="text-3xl font-luxury text-center mb-10 italic">Nouvelle dépense</h3>
-              <form onSubmit={handleAddExpense} className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Désignation *</label>
-                  <input required className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm outline-none border border-transparent focus:bg-white focus:ring-1 focus:ring-amber-400" placeholder="Ex: Décoration Florale" value={formData.label} onChange={e => setFormData({...formData, label: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Catégorie</label>
-                  <select className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm outline-none appearance-none" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Statut</label>
-                  <select className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm outline-none appearance-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Estimé (FCFA)</label>
-                  <input type="number" className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm" value={formData.amount_estimated} onChange={e => setFormData({...formData, amount_estimated: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">Réel (FCFA)</label>
-                  <input type="number" className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm" value={formData.amount_actual} onChange={e => setFormData({...formData, amount_actual: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest flex items-center gap-2"><User size={10}/> Prestataire</label>
-                  <input className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm" placeholder="Nom" value={formData.vendor_name} onChange={e => setFormData({...formData, vendor_name: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest flex items-center gap-2"><Phone size={10}/> Contact</label>
-                  <input className="w-full bg-slate-50 rounded-2xl p-4 font-bold text-sm" placeholder="Tél / Email" value={formData.vendor_contact} onChange={e => setFormData({...formData, vendor_contact: e.target.value})} />
-                </div>
-                <div className="sm:col-span-2 pt-4">
-                  <button type="submit" disabled={actionLoading} className="w-full bg-slate-900 text-white py-5 rounded-full font-black text-[10px] uppercase tracking-[0.3em] shadow-xl hover:bg-amber-600 transition-all disabled:opacity-50">
-                    {actionLoading ? "Enregistrement..." : "Enregistrer la dépense"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
+        {editor && (
+          <ExpenseModal
+            key={editor.id ?? 'new'}
+            isEdit={Boolean(editor.id)}
+            initial={editor.values}
+            categories={categories}
+            saving={actionLoading}
+            onClose={() => setEditor(null)}
+            onSave={handleSaveExpense}
+            onDelete={editor.id ? () => deleteExpense(editor.id as string) : undefined}
+          />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+// --- FORMULAIRE DÉPENSE : le même pour l'ajout et la modification ---
+const STATUSES = ['À planifier', 'En cours', 'Payé'];
 
-      {/* MODAL EDITION */}
-      <AnimatePresence>
-        {editingExpense && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:hidden">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-12 w-full max-w-xl border border-amber-100 relative max-h-[90dvh] overflow-y-auto">
-              <button onClick={() => setEditingExpense(null)} className="absolute top-5 right-5 sm:top-8 sm:right-8 text-slate-300 hover:text-slate-600"><X size={24}/></button>
-              <h3 className="text-3xl font-luxury text-center mb-10 italic">Mise à jour paiement</h3>
-              <form onSubmit={handleUpdateExpense} className="space-y-6">
-                <div className="bg-amber-50 p-8 rounded-[1.5rem] flex items-center justify-between border border-amber-100">
-                  <div className="text-left">
-                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">À régler</p>
-                    <p className="text-2xl font-luxury text-slate-900">{formatPrice(editingExpense.amount_actual)}</p>
-                  </div>
-                  <button type="button" onClick={() => setEditingExpense({...editingExpense, amount_paid: editingExpense.amount_actual})} className="bg-white text-amber-600 px-6 py-3 rounded-full text-[10px] font-black uppercase shadow-sm border border-amber-200 hover:bg-amber-600 hover:text-white transition-all">Tout payer</button>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest block">Montant versé (FCFA)</label>
-                  <input type="number" className="w-full bg-slate-50 rounded-2xl p-6 font-bold text-2xl text-amber-600 outline-none focus:ring-2 focus:ring-amber-100 transition-all" value={editingExpense.amount_paid} onChange={e => setEditingExpense({...editingExpense, amount_paid: e.target.value})} />
-                </div>
-                <button type="submit" disabled={actionLoading} className="w-full bg-amber-500 text-white py-6 rounded-full font-black text-[11px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-3 disabled:opacity-50">
-                  <Save size={18}/> {actionLoading ? "Enregistrement..." : "Enregistrer"}
-                </button>
-              </form>
-            </motion.div>
+type ExpenseForm = {
+  label: string; category: string; status: string;
+  amount_estimated: string; amount_actual: string; amount_paid: string;
+  due_date: string; vendor_name: string; vendor_contact: string; notes: string;
+};
+
+const EMPTY_FORM: ExpenseForm = {
+  label: '', category: 'Réception & Traiteur', status: 'À planifier',
+  amount_estimated: '', amount_actual: '', amount_paid: '',
+  due_date: '', vendor_name: '', vendor_contact: '', notes: '',
+};
+
+// Le statut suit les montants : tout réglé => Payé ; « Payé » sans le paiement complet => En cours / À planifier
+function deriveStatus(status: string, actual: number, paid: number) {
+  if (actual > 0 && paid >= actual) return 'Payé';
+  if (status === 'Payé') return paid > 0 ? 'En cours' : 'À planifier';
+  if (status === 'À planifier' && paid > 0) return 'En cours';
+  return status;
+}
+
+const formatDate = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const fcfa = (n: number) => `${new Intl.NumberFormat('fr-FR').format(n)} FCFA`;
+
+const labelCls = 'ml-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400';
+const inputCls = 'w-full min-w-0 rounded-2xl border border-transparent bg-slate-50 p-4 text-sm font-bold text-slate-800 outline-none transition-colors focus:border-amber-300 focus:bg-white';
+
+function ExpenseModal({ isEdit, initial, categories, saving, onClose, onSave, onDelete }: {
+  isEdit: boolean;
+  initial: ExpenseForm;
+  categories: string[];
+  saving: boolean;
+  onClose: () => void;
+  onSave: (values: ExpenseForm) => void;
+  onDelete?: () => void;
+}) {
+  const [v, setV] = useState<ExpenseForm>(initial);
+  const set = (patch: Partial<ExpenseForm>) => setV((prev) => ({ ...prev, ...patch }));
+
+  const actual = parseFloat(v.amount_actual) || 0;
+  const paid = parseFloat(v.amount_paid) || 0;
+  const remaining = Math.max(0, actual - paid);
+
+  const changeStatus = (status: string) => {
+    // Choisir « Payé » remplit le montant réglé avec le montant facturé
+    if (status === 'Payé' && actual > 0) set({ status, amount_paid: String(actual) });
+    else set({ status });
+  };
+
+  const amountField = (key: 'amount_estimated' | 'amount_actual' | 'amount_paid', label: string) => (
+    <div className="min-w-0 space-y-1">
+      <label htmlFor={key} className={labelCls}>{label}</label>
+      <input
+        id={key}
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step="any"
+        placeholder="0"
+        className={inputCls.replace('bg-slate-50', 'bg-white')}
+        value={v[key]}
+        onChange={(e) => {
+          const next = { [key]: e.target.value } as Partial<ExpenseForm>;
+          const a = key === 'amount_actual' ? parseFloat(e.target.value) || 0 : actual;
+          const p = key === 'amount_paid' ? parseFloat(e.target.value) || 0 : paid;
+          set({ ...next, status: deriveStatus(v.status, a, p) });
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/60 backdrop-blur-md sm:items-center sm:p-4 print:hidden">
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="expense-title"
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        className="relative max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-[1.75rem] border border-amber-100 bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-[2rem] sm:p-10"
+      >
+        <button type="button" onClick={onClose} aria-label="Fermer" className="absolute right-4 top-4 p-2 text-slate-300 hover:text-slate-600 sm:right-6 sm:top-6"><X size={22} /></button>
+        <h3 id="expense-title" className="mb-6 text-center font-luxury text-2xl italic sm:mb-8 sm:text-3xl">{isEdit ? 'Modifier la dépense' : 'Nouvelle dépense'}</h3>
+
+        <form onSubmit={(e) => { e.preventDefault(); onSave(v); }} className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+          <div className="space-y-1 sm:col-span-2">
+            <label htmlFor="label" className={labelCls}>Désignation *</label>
+            <input id="label" required autoFocus={!isEdit} className={inputCls} placeholder="Ex : Décoration florale" value={v.label} onChange={(e) => set({ label: e.target.value })} />
           </div>
-        )}
-      </AnimatePresence>
+          <div className="min-w-0 space-y-1">
+            <label htmlFor="category" className={labelCls}>Catégorie</label>
+            <select id="category" className={`${inputCls} appearance-none`} value={v.category} onChange={(e) => set({ category: e.target.value })}>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="min-w-0 space-y-1">
+            <label htmlFor="status" className={labelCls}>Statut</label>
+            <select id="status" className={`${inputCls} appearance-none`} value={v.status} onChange={(e) => changeStatus(e.target.value)}>
+              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          {/* Montants */}
+          <div className="grid grid-cols-1 gap-4 rounded-[1.5rem] border border-amber-100 bg-amber-50/50 p-4 sm:col-span-2 sm:grid-cols-3 sm:p-5">
+            {amountField('amount_estimated', 'Estimé (FCFA)')}
+            {amountField('amount_actual', 'Facturé (FCFA)')}
+            {amountField('amount_paid', 'Déjà réglé (FCFA)')}
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">
+              <p className="text-sm text-slate-600">
+                {actual > 0 && remaining === 0
+                  ? <span className="inline-flex items-center gap-1.5 font-bold text-emerald-700"><CheckCircle2 size={16} /> Entièrement réglé</span>
+                  : <>Reste à régler : <strong className="text-slate-900">{fcfa(remaining)}</strong></>}
+              </p>
+              {actual > 0 && remaining > 0 && (
+                <button type="button" onClick={() => set({ amount_paid: String(actual), status: 'Payé' })} className="min-h-[40px] rounded-full border border-amber-200 bg-white px-4 text-[10px] font-black uppercase tracking-widest text-amber-700 shadow-sm transition-colors hover:bg-amber-600 hover:text-white">
+                  Tout réglé
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="min-w-0 space-y-1">
+            <label htmlFor="due_date" className={labelCls}><Calendar size={10} /> Échéance</label>
+            <input id="due_date" type="date" className={inputCls} value={v.due_date} onChange={(e) => set({ due_date: e.target.value })} />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <label htmlFor="vendor_name" className={labelCls}><User size={10} /> Prestataire</label>
+            <input id="vendor_name" className={inputCls} placeholder="Nom" value={v.vendor_name} onChange={(e) => set({ vendor_name: e.target.value })} />
+          </div>
+          <div className="min-w-0 space-y-1 sm:col-span-2">
+            <label htmlFor="vendor_contact" className={labelCls}><Phone size={10} /> Contact du prestataire</label>
+            <input id="vendor_contact" className={inputCls} placeholder="Téléphone ou e-mail" value={v.vendor_contact} onChange={(e) => set({ vendor_contact: e.target.value })} />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <label htmlFor="notes" className={labelCls}>Notes</label>
+            <textarea id="notes" rows={3} className={`${inputCls} resize-none`} placeholder="Acompte versé, conditions, rappel…" value={v.notes} onChange={(e) => set({ notes: e.target.value })} />
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:col-span-2 sm:flex-row">
+            {onDelete && (
+              <button type="button" onClick={onDelete} className="flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-red-100 px-6 text-[10px] font-black uppercase tracking-widest text-red-500 transition-colors hover:bg-red-50">
+                <Trash2 size={16} /> Supprimer
+              </button>
+            )}
+            <button type="submit" disabled={saving} className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-full bg-slate-900 text-[10px] font-black uppercase tracking-[0.25em] text-white shadow-xl transition-colors hover:bg-amber-600 disabled:opacity-50">
+              <Save size={16} /> {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer les modifications' : 'Enregistrer la dépense'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   );
 }
