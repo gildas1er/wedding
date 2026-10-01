@@ -1,6 +1,6 @@
 // Listes imprimables des invités : partagées entre la page d'impression et les paramètres (onglet Export).
 import {
-  CheckCircle2, Clock, Heart, Briefcase, Landmark, Cross, GlassWater, Sparkles, Layers,
+  CheckCircle2, Clock, Heart, Briefcase, Landmark, Cross, GlassWater, Sparkles, Layers, Handshake,
 } from 'lucide-react';
 
 const isConfirmed = (g: any) => 
@@ -51,29 +51,37 @@ export const PRINT_REPORTS = [
     filter: (g: any) => String(g.category || '').toLowerCase() === 'parents' && (g.side === 'partenaire_2' || g.side === 'mariée' || g.side === 'mariee')
   },
   {
+    id: 'dot',
+    title: '7. Cérémonie de Dot',
+    description: 'Invités confirmés présents à la dot (mariage coutumier).',
+    icon: Handshake,
+    requiresDot: true,
+    filter: (g: any) => isConfirmed(g) && g.attending_dot === true
+  },
+  {
     id: 'civil',
-    title: '7. Cérémonie Civile (Mairie)',
+    title: '8. Cérémonie Civile (Mairie)',
     description: 'Invités confirmés présents à la Mairie.',
     icon: Landmark,
     filter: (g: any) => isConfirmed(g) && Boolean(g.attending_civil || g.civil)
   },
   {
     id: 'church',
-    title: '8. Cérémonie Religieuse',
+    title: '9. Cérémonie Religieuse',
     description: 'Invités confirmés présents à l\'Église/Lieu de culte.',
     icon: Cross,
     filter: (g: any) => isConfirmed(g) && Boolean(g.attending_church || g.church)
   },
   {
     id: 'dinner',
-    title: '9. Dîner / Réception',
+    title: '10. Dîner / Réception',
     description: 'Invités confirmés présents au Dîner avec leurs catégories.',
     icon: GlassWater,
     filter: (g: any) => isConfirmed(g) && Boolean(g.attending_reception || g.reception || g.dinner)
   },
   {
     id: 'full_presence',
-    title: '10. Présents à TOUTES les Cérémonies',
+    title: '11. Présents à TOUTES les Cérémonies',
     description: 'Invités confirmés présents à la Mairie, l\'Église ET au Dîner.',
     icon: Layers,
     filter: (g: any) => isConfirmed(g) && Boolean((g.attending_civil || g.civil) && (g.attending_church || g.church) && (g.attending_reception || g.reception || g.dinner))
@@ -81,3 +89,6 @@ export const PRINT_REPORTS = [
 ];
 
 export const DEFAULT_REPORT_ID = PRINT_REPORTS[0].id;
+
+// La liste de la dot n'a de sens que si la cérémonie figure au programme
+export const reportsFor = (dotEnabled: boolean) => PRINT_REPORTS.filter((r) => dotEnabled || !('requiresDot' in r));

@@ -5,7 +5,7 @@
 // Le dernier écran mène au formulaire de réponse de la page.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Landmark, Cross, GlassWater, MapPin, X, Pause, type LucideIcon } from 'lucide-react';
+import { Landmark, Cross, GlassWater, MapPin, X, Pause, Handshake, type LucideIcon } from 'lucide-react';
 import { formatDateFr, formatHourFr } from '../../lib/event-datetime';
 import { mapsUrl } from '../../lib/ceremonies';
 import { daysUntil, formatWeddingDate } from '../../lib/planning';
@@ -15,11 +15,12 @@ type Text = string | null | undefined;
 type StoryMarriage = {
   partner_1_name?: Text; partner_2_name?: Text; wedding_date?: string | Date | null;
   bg_image_url?: Text; bg_image_position?: Text; invitation_text?: Text;
+  dot_date?: Text; dot_hour?: Text; dot_location?: Text; dot_maps_url?: Text;
   mairie_date?: Text; mairie_hour?: Text; mairie_location?: Text; mairie_maps_url?: Text;
   religious_date?: Text; religious_hour?: Text; religious_location?: Text; religious_maps_url?: Text;
   reception_date?: Text; reception_hour?: Text; reception_location?: Text; reception_maps_url?: Text;
 };
-type Flags = { civil: boolean; religious: boolean; reception: boolean };
+type Flags = { dot: boolean; civil: boolean; religious: boolean; reception: boolean };
 
 const FALLBACK_COVER = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80';
 
@@ -46,9 +47,13 @@ export default function StoryIntro({ m, flags, infos, guestName, canRespond, onI
 
   const program: { icon: LucideIcon; title: string; time: string; loc?: Text; maps: string | null }[] = [];
   const when = (date?: Text, hour?: Text) => [date && formatDateFr(date, { withYear: false }), formatHourFr(hour)].filter(Boolean).join(' · ');
+  if (flags.dot) program.push({ icon: Handshake, title: 'Cérémonie de dot', time: when(m.dot_date, m.dot_hour), loc: m.dot_location, maps: mapsUrl(m.dot_maps_url, m.dot_location) });
   if (flags.civil) program.push({ icon: Landmark, title: 'Cérémonie civile', time: when(m.mairie_date, m.mairie_hour), loc: m.mairie_location, maps: mapsUrl(m.mairie_maps_url, m.mairie_location) });
   if (flags.religious) program.push({ icon: Cross, title: 'Cérémonie religieuse', time: when(m.religious_date, m.religious_hour), loc: m.religious_location, maps: mapsUrl(m.religious_maps_url, m.religious_location) });
   if (flags.reception) program.push({ icon: GlassWater, title: 'Réception & dîner', time: when(m.reception_date, m.reception_hour), loc: m.reception_location, maps: mapsUrl(m.reception_maps_url, m.reception_location) });
+
+  // Quatre cérémonies : affichage resserré sur les petits écrans
+  const dense = program.length > 3;
 
   const slides = [
     { id: 'cover', ms: 5500 },
@@ -172,24 +177,20 @@ export default function StoryIntro({ m, flags, infos, guestName, canRespond, onI
               {slide.id === 'program' && (
                 <div className="absolute inset-0 flex flex-col justify-center px-5 pb-8 pt-24 [@media(max-height:700px)]:pt-[5.5rem]" style={{ background: 'linear-gradient(170deg, var(--color-rose-900), #120c10 75%)' }}>
                   <motion.p {...rise(0)} className="text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">Le programme</motion.p>
-                  <ol className="mt-4 space-y-3 [@media(max-height:700px)]:mt-3 [@media(max-height:700px)]:space-y-2">
+                  <ol className={`mt-4 space-y-3 [@media(max-height:700px)]:mt-3 [@media(max-height:700px)]:space-y-2 ${dense ? '[@media(max-height:700px)]:space-y-1.5' : ''}`}>
                     {program.map((p, i) => (
-                      <motion.li key={p.title} {...rise(i + 1)} className="flex items-start gap-3.5 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10 [@media(max-height:700px)]:p-3">
+                      <motion.li key={p.title} {...rise(i + 1)} className={`flex items-start gap-3.5 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10 [@media(max-height:700px)]:p-3 ${dense ? '[@media(max-height:700px)]:gap-2.5 [@media(max-height:700px)]:py-2' : ''}`}>
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-400/15 text-amber-200 [@media(max-height:700px)]:h-8 [@media(max-height:700px)]:w-8"><p.icon className="h-[18px] w-[18px]" /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold text-amber-200">{p.time || 'Horaire à venir'}</span>
-                          <span className="block font-display text-xl leading-snug [@media(max-height:700px)]:text-lg">{p.title}</span>
-                          {(p.loc || p.maps) && (
-                            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                              {p.loc && <span className="min-w-0 text-sm text-white/70">{p.loc}</span>}
-                              {p.maps && (
-                                <a href={p.maps} target="_blank" rel="noopener noreferrer" {...stop} className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-white/10 px-2.5 text-xs font-semibold text-white hover:bg-white/20">
-                                  <MapPin className="h-3.5 w-3.5" /> Itinéraire
-                                </a>
-                              )}
-                            </span>
-                          )}
+                          <span className={`block font-display text-xl leading-snug [@media(max-height:700px)]:text-lg ${dense ? '[@media(max-height:700px)]:text-base' : ''}`}>{p.title}</span>
+                          {p.loc && <span className={`mt-0.5 block text-sm text-white/70 ${dense ? '[@media(max-height:700px)]:truncate' : ''}`}>{p.loc}</span>}
                         </span>
+                        {p.maps && (
+                          <a href={p.maps} target="_blank" rel="noopener noreferrer" {...stop} aria-label={`Itinéraire : ${p.title}`} className="flex min-h-[44px] w-12 shrink-0 flex-col items-center justify-center gap-0.5 self-center rounded-xl bg-white/10 text-[10px] font-semibold uppercase tracking-wide text-white hover:bg-white/20">
+                            <MapPin className="h-4 w-4" /> Plan
+                          </a>
+                        )}
                       </motion.li>
                     ))}
                   </ol>

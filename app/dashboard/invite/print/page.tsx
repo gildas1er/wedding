@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PRINT_REPORTS, DEFAULT_REPORT_ID } from '../../../../lib/print-reports';
+import { PRINT_REPORTS, DEFAULT_REPORT_ID, reportsFor } from '../../../../lib/print-reports';
 import { 
   Printer, ArrowLeft, CheckCircle2, Clock, 
   Heart, Briefcase, Landmark, Cross, GlassWater, 
@@ -25,6 +25,7 @@ function PrintContent() {
   const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<any[]>([]);
   const [coupleTitle, setCoupleTitle] = useState<string>('');
+  const [dotEnabled, setDotEnabled] = useState(false);
   // ?report=dinner ouvre directement la liste demandée (liens de l'onglet Export)
   const searchParams = useSearchParams();
   const requestedReport = searchParams.get('report');
@@ -44,6 +45,7 @@ function PrintContent() {
         .maybeSingle();
 
       if (marriageData) {
+        setDotEnabled(Boolean(marriageData.show_dot));
         const p1 = marriageData.partner1_name || marriageData.partner_1_name || marriageData.groom_name || '';
         const p2 = marriageData.partner2_name || marriageData.partner_2_name || marriageData.bride_name || '';
         
@@ -207,13 +209,13 @@ function PrintContent() {
 
             <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm">
               <h2 className="font-sans text-xs font-black uppercase text-slate-400 tracking-wider">
-                10 Listes Disponibles
+                {reportsFor(dotEnabled).length} listes disponibles
               </h2>
               <p className="text-xs text-slate-500 mt-1">Cliquez sur une liste pour mettre à jour l'aperçu.</p>
             </div>
 
             <div className="space-y-2 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-1">
-              {PRINT_REPORTS.map((report) => {
+              {reportsFor(dotEnabled).map((report) => {
                 const Icon = report.icon;
                 const isSelected = selectedReportId === report.id;
                 const reportCount = guests.filter(report.filter).reduce((acc, g) => acc + (Number(g.guests_count || g.count || 1)), 0);

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Calendar, MapPin, GlassWater, 
   CheckCircle2, Clock, Users, Loader2, Sparkles,
-  Landmark, Cross, Check, MessageSquare, Volume2, VolumeX, Music
+  Landmark, Cross, Check, MessageSquare, Volume2, VolumeX, Music, Handshake
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../../lib/supabase';
@@ -72,6 +72,7 @@ function RSVPContent() {
     status: '',
     guests_count: 1,
     notes: '',
+    attending_dot: true,
     attending_civil: true,
     attending_church: true,
     attending_reception: true
@@ -95,6 +96,7 @@ function RSVPContent() {
 
           if (gData) {
             setGuestName(gData.name);
+            const isDot = gData.attending_dot ?? true;
             const isCivil = gData.attending_civil ?? true;
             const isChurch = gData.attending_church ?? true;
             const isReception = gData.attending_reception ?? true;
@@ -104,13 +106,14 @@ function RSVPContent() {
               status: '', // Laissé vide au chargement pour masquer le bouton
               guests_count: gData.guests_count || 1,
               notes: gData.notes || '',
+              attending_dot: isDot,
               attending_civil: isCivil,
               attending_church: isChurch,
               attending_reception: isReception
             }));
 
             // Vérifier si toutes les options sont cochées
-            if (!isCivil || !isChurch || !isReception) {
+            if (!isDot || !isCivil || !isChurch || !isReception) {
               setAllEventsSelected(false);
             }
           }
@@ -207,6 +210,7 @@ function RSVPContent() {
     if (selectAll) {
       setForm(prev => ({
         ...prev,
+        attending_dot: true,
         attending_civil: true,
         attending_church: true,
         attending_reception: true
@@ -215,13 +219,14 @@ function RSVPContent() {
   };
 
   // Toggle individuel d'un événement
-  const handleToggleEvent = (key: 'attending_civil' | 'attending_church' | 'attending_reception') => {
+  const handleToggleEvent = (key: 'attending_dot' | 'attending_civil' | 'attending_church' | 'attending_reception') => {
     const newValue = !form[key];
     const updatedForm = { ...form, [key]: newValue };
     setForm(updatedForm);
 
     // Si tout est coché à nouveau, réactiver le bouton "Tous les événements"
-    const isAllChecked = (!flags.civil || updatedForm.attending_civil)
+    const isAllChecked = (!flags.dot || updatedForm.attending_dot)
+      && (!flags.civil || updatedForm.attending_civil)
       && (!flags.religious || updatedForm.attending_church)
       && (!flags.reception || updatedForm.attending_reception);
     setAllEventsSelected(isAllChecked);
@@ -235,7 +240,7 @@ function RSVPContent() {
 
     setSending(true);
 
-    const { data: updated, error } = await supabase.rpc('submit_rsvp', {
+    const answer = {
       p_marriage_id: id,
       p_guest_id: guestId,
       p_status: form.status,
@@ -243,7 +248,12 @@ function RSVPContent() {
       p_attending_civil: flags.civil && form.attending_civil,
       p_attending_church: flags.religious && form.attending_church,
       p_attending_reception: flags.reception && form.attending_reception,
-    });
+    };
+    // La présence à la dot n'est envoyée que si la cérémonie figure au programme (migration 12)
+    let { data: updated, error } = await supabase.rpc('submit_rsvp', flags.dot ? { ...answer, p_attending_dot: form.attending_dot } : answer);
+    if (error && flags.dot && (error.code === 'PGRST202' || /function/i.test(error.message))) {
+      ({ data: updated, error } = await supabase.rpc('submit_rsvp', answer));
+    }
 
     if (error || !updated) {
       alert("Erreur lors de l'enregistrement : " + (error?.message ?? "invitation introuvable."));
@@ -393,6 +403,17 @@ function RSVPContent() {
             transition={{ delay: 0.3, staggerChildren: 0.1 }}
             className="space-y-4 mb-10"
           >
+            {flags.dot && (
+              <ProgramItem 
+                  icon={Handshake} 
+                  title="La Cérémonie de Dot" 
+                  time={[m.dot_date && formatDateFr(m.dot_date, { withYear: false }), formatHourFr(m.dot_hour)].filter(Boolean).join(' · ')} 
+                  loc={m.dot_location} 
+                  color="emerald"
+                  maps={mapsUrl(m.dot_maps_url, m.dot_location)}
+              />
+            )}
+
             {flags.civil && (
               <ProgramItem 
                   icon={Landmark} 
@@ -524,6 +545,16 @@ function RSVPContent() {
 
                         {/* LISTE DES ÉVÉNEMENTS À COCHER */}
                         <div className="space-y-2 pt-1">
+                          {/* Dot */}
+                          {flags.dot && (
+                            <EventCheckbox 
+                              icon={Handshake}
+                              title="Dot"
+                              checked={form.attending_dot}
+                              onChange={() => handleToggleEvent('attending_dot')}
+                            />
+                          )}
+
                           {/* Mairie */}
                           {flags.civil && (
                             <EventCheckbox 
@@ -659,7 +690,8 @@ function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
         rose: "text-rose-500 bg-rose-50",
         blue: "text-blue-600 bg-blue-50",
         neutral: "text-slate-700 bg-slate-100",
-        amber: "text-amber-600 bg-amber-50"
+        amber: "text-amber-600 bg-amber-50",
+        emerald: "text-emerald-700 bg-emerald-50"
     };
 
     return (

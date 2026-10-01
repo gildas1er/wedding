@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
-  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, type LucideIcon,
+  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, Handshake, type LucideIcon,
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
@@ -28,9 +28,14 @@ type Config = {
   invitation_text: string;
   bg_image_url: string;
   bg_image_position: string;
+  show_dot: boolean;
   show_civil: boolean;
   show_religious: boolean;
   show_reception: boolean;
+  dot_date: string;
+  dot_hour: string;
+  dot_location: string;
+  dot_maps_url: string;
   mairie_date: string;
   mairie_hour: string;
   mairie_location: string;
@@ -57,6 +62,8 @@ const EMPTY_CONFIG: Config = {
   show_civil: true,
   show_religious: false,
   show_reception: true,
+  show_dot: false,
+  dot_date: '', dot_hour: '', dot_location: '', dot_maps_url: '',
   mairie_date: '', mairie_hour: '', mairie_location: '', mairie_maps_url: '',
   religious_date: '', religious_hour: '', religious_location: '', religious_maps_url: '',
   reception_date: '', reception_hour: '', reception_location: '', reception_maps_url: '',
@@ -74,6 +81,7 @@ const MUSIC_KEYS = ['music_url'] as const;
 const INFO_KEYS = ['practical_info'] as const;
 const RECEPTION_DATE_KEYS = ['reception_date'] as const;
 const TEMPLATE_KEYS = ['invitation_template'] as const;
+const DOT_KEYS = ['show_dot', 'dot_date', 'dot_hour', 'dot_location', 'dot_maps_url'] as const;
 const MAX_MUSIC_MB = 10;
 
 const MAX_UPLOAD_MB = 15;
@@ -96,6 +104,7 @@ export default function InvitationStudio() {
   const [accentAvailable, setAccentAvailable] = useState(true);
   const [infosAvailable, setInfosAvailable] = useState(true);
   const [templateAvailable, setTemplateAvailable] = useState(true);
+  const [dotAvailable, setDotAvailable] = useState(true);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -123,6 +132,7 @@ export default function InvitationStudio() {
         setAccentAvailable('accent_color' in data);
         setInfosAvailable('practical_info' in data);
         setTemplateAvailable('invitation_template' in data);
+        setDotAvailable('show_dot' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -145,6 +155,11 @@ export default function InvitationStudio() {
           invitation_text: data.invitation_text || EMPTY_CONFIG.invitation_text,
           bg_image_url: data.bg_image_url || '',
           bg_image_position: data.bg_image_position || DEFAULT_COVER_POSITION,
+          show_dot: flags.dot,
+          dot_date: asDate('dot_date'),
+          dot_hour: asHour('dot_hour'),
+          dot_location: data.dot_location || '',
+          dot_maps_url: data.dot_maps_url || '',
           show_civil: flags.civil,
           show_religious: flags.religious,
           show_reception: flags.reception,
@@ -206,7 +221,7 @@ export default function InvitationStudio() {
 
   const handleSave = async () => {
     if (!marriage) return;
-    for (const [key, label] of [['mairie_maps_url', 'mairie'], ['religious_maps_url', 'église'], ['reception_maps_url', 'réception']] as const) {
+    for (const [key, label] of [['dot_maps_url', 'dot'], ['mairie_maps_url', 'mairie'], ['religious_maps_url', 'église'], ['reception_maps_url', 'réception']] as const) {
       if (config[key] && !isHttpUrl(config[key])) {
         flash({ type: 'error', text: `Le lien Google Maps (${label}) n'est pas valide. Laissez-le vide pour qu'il soit créé automatiquement.` }, 5000);
         return;
@@ -267,6 +282,16 @@ export default function InvitationStudio() {
       {
         keys: INFO_KEYS, label: 'la migration 6 (rubriques pratiques)', onMissing: () => setInfosAvailable(false),
         values: { practical_info: preparedInfos.infos.length ? preparedInfos.infos : null },
+      },
+      {
+        keys: DOT_KEYS, label: 'la migration 12 (cérémonie de dot)', onMissing: () => setDotAvailable(false),
+        values: {
+          show_dot: config.show_dot,
+          dot_date: config.dot_date || null,
+          dot_hour: config.dot_hour || null,
+          dot_location: config.dot_location,
+          dot_maps_url: config.dot_maps_url,
+        },
       },
       {
         keys: TEMPLATE_KEYS, label: "la migration 11 (modèle d'invitation)", onMissing: () => setTemplateAvailable(false),
@@ -494,6 +519,14 @@ export default function InvitationStudio() {
           <Card icon={Clock} title="Le programme" subtitle="Activez uniquement les cérémonies prévues : les autres n'apparaîtront pas aux invités.">
             {!extendedAvailable && <MigrationHint />}
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <CeremonyCard icon={Handshake} title="Cérémonie de dot" tone="emerald" enabled={config.show_dot} onToggle={(v) => set('show_dot', v)}>
+                <DateField label="Date de la cérémonie de dot" value={config.dot_date} onChange={(v) => set('dot_date', v)} legacy={legacyValues.dot_date} />
+                <TimeField label="Heure de la cérémonie de dot" value={config.dot_hour} onChange={(v) => set('dot_hour', v)} legacy={legacyValues.dot_hour} />
+                <IconInput icon={MapPin} placeholder="Lieu (ex : Domicile familial, Yopougon)" value={config.dot_location} onChange={(v) => set('dot_location', v)} />
+                <MapsField value={config.dot_maps_url} location={config.dot_location} onChange={(v) => set('dot_maps_url', v)} />
+                {!dotAvailable && <p className="text-xs text-amber-700">La dot sera enregistrée après la migration « 20261001_12_ceremonie_dot.sql ».</p>}
+              </CeremonyCard>
+
               <CeremonyCard icon={Landmark} title="Cérémonie civile" tone="rose" enabled={config.show_civil} onToggle={(v) => set('show_civil', v)}>
                 <DateField label="Date de la cérémonie civile" value={config.mairie_date} onChange={(v) => set('mairie_date', v)} legacy={legacyValues.mairie_date} />
                 <TimeField label="Heure de la cérémonie civile" value={config.mairie_hour} onChange={(v) => set('mairie_hour', v)} legacy={legacyValues.mairie_hour} />
@@ -508,16 +541,12 @@ export default function InvitationStudio() {
                 <MapsField value={config.religious_maps_url} location={config.religious_location} onChange={(v) => set('religious_maps_url', v)} />
               </CeremonyCard>
 
-              <div className="md:col-span-2">
-                <CeremonyCard icon={PartyPopper} title="Réception & dîner" tone="amber" enabled={config.show_reception} onToggle={(v) => set('show_reception', v)}>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <DateField label="Date de la réception" value={config.reception_date} onChange={(v) => set('reception_date', v)} legacy={legacyValues.reception_date} />
-                    <TimeField label="Heure de la réception" value={config.reception_hour} onChange={(v) => set('reception_hour', v)} legacy={legacyValues.reception_hour} />
-                  </div>
-                  <IconInput icon={MapPin} placeholder="Lieu de la fête" value={config.reception_location} onChange={(v) => set('reception_location', v)} />
-                  <MapsField value={config.reception_maps_url} location={config.reception_location} onChange={(v) => set('reception_maps_url', v)} />
-                </CeremonyCard>
-              </div>
+              <CeremonyCard icon={PartyPopper} title="Réception & dîner" tone="amber" enabled={config.show_reception} onToggle={(v) => set('show_reception', v)}>
+                <DateField label="Date de la réception" value={config.reception_date} onChange={(v) => set('reception_date', v)} legacy={legacyValues.reception_date} />
+                <TimeField label="Heure de la réception" value={config.reception_hour} onChange={(v) => set('reception_hour', v)} legacy={legacyValues.reception_hour} />
+                <IconInput icon={MapPin} placeholder="Lieu de la fête" value={config.reception_location} onChange={(v) => set('reception_location', v)} />
+                <MapsField value={config.reception_maps_url} location={config.reception_location} onChange={(v) => set('reception_maps_url', v)} />
+              </CeremonyCard>
             </div>
           </Card>
 
@@ -709,6 +738,7 @@ const TONES = {
   rose: { ring: 'border-rose-200', bg: 'bg-rose-50/40', text: 'text-rose-600', switch: 'bg-rose-500' },
   blue: { ring: 'border-blue-200', bg: 'bg-blue-50/40', text: 'text-blue-600', switch: 'bg-blue-500' },
   amber: { ring: 'border-amber-200', bg: 'bg-amber-50/40', text: 'text-amber-700', switch: 'bg-amber-500' },
+  emerald: { ring: 'border-emerald-200', bg: 'bg-emerald-50/40', text: 'text-emerald-700', switch: 'bg-emerald-500' },
 } as const;
 
 function CeremonyCard({ icon: Icon, title, tone, enabled, onToggle, children }: {

@@ -15,7 +15,7 @@ import {
   MessageSquare, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
   MessageCircle, Crown, Home, Briefcase, Smile, FileSpreadsheet,
-  Landmark, Cross, GlassWater, Filter, MessageSquareQuote
+  Landmark, Cross, GlassWater, Filter, MessageSquareQuote, Handshake
 } from 'lucide-react';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
@@ -30,7 +30,7 @@ function BentoStatCard({ label, value, color }: { label: string; value: number; 
   );
 }
 
-function StatusPill({ guest }: { guest: any }) {
+function StatusPill({ guest, dotEnabled = false }: { guest: any; dotEnabled?: boolean }) {
   const status = guest.status;
 
   if (status === 'confirmé') {
@@ -42,6 +42,12 @@ function StatusPill({ guest }: { guest: any }) {
         </span>
 
         <div className="flex items-center gap-1 flex-wrap mt-0.5">
+          {dotEnabled && guest.attending_dot !== false && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100/60" title="Présent à la dot">
+              <Handshake size={11} /> Dot
+            </span>
+          )}
+
           {guest.attending_civil && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-100/60" title="Présent à la Mairie">
               <Landmark size={11} /> Mairie
@@ -83,7 +89,7 @@ function StatusPill({ guest }: { guest: any }) {
 
 // --- 2. MODAL D'AJOUT ET ÉDITION ---
 
-function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any) {
+function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEnabled = false }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAccompanist, setHasAccompanist] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -97,6 +103,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
     category: 'amis',
     is_vip: false,
     notes: '',
+    attending_dot: true,
     attending_civil: true,
     attending_church: true,
     attending_reception: true
@@ -115,6 +122,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
           category: guestToEdit.category || 'amis',
           is_vip: guestToEdit.is_vip || false,
           notes: guestToEdit.notes || '',
+          attending_dot: guestToEdit.attending_dot ?? true,
           attending_civil: guestToEdit.attending_civil ?? true,
           attending_church: guestToEdit.attending_church ?? true,
           attending_reception: guestToEdit.attending_reception ?? true
@@ -130,6 +138,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
           category: 'amis',
           is_vip: false,
           notes: '',
+          attending_dot: true,
           attending_civil: true,
           attending_church: true,
           attending_reception: true
@@ -155,7 +164,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
 
     try {
       let error;
-      const dataToSave = {
+      const dataToSave: Record<string, unknown> = {
         marriage_id: marriageId,
         name: formData.name,
         phone,
@@ -167,7 +176,9 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
         notes: formData.notes,
         attending_civil: formData.attending_civil,
         attending_church: formData.attending_church,
-        attending_reception: formData.attending_reception
+        attending_reception: formData.attending_reception,
+        // Colonne ajoutée par la migration 12 : envoyée seulement si la dot est au programme
+        ...(dotEnabled ? { attending_dot: formData.attending_dot } : {}),
       };
 
       if (guestToEdit) {
@@ -304,7 +315,13 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit }: any
               {formData.status === 'confirmé' && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Présence aux cérémonies</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={`grid gap-2 ${dotEnabled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+                    {dotEnabled && (
+                      <label className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 font-bold text-xs cursor-pointer ${formData.attending_dot ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                        <input type="checkbox" checked={formData.attending_dot} onChange={e => setFormData({...formData, attending_dot: e.target.checked})} className="sr-only" />
+                        <Handshake size={14} /> Dot
+                      </label>
+                    )}
                     <label className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 font-bold text-xs cursor-pointer ${formData.attending_civil ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
                       <input type="checkbox" checked={formData.attending_civil} onChange={e => setFormData({...formData, attending_civil: e.target.checked})} className="sr-only" />
                       <Landmark size={14} /> Mairie
@@ -373,6 +390,11 @@ export default function GuestPage() {
   // CALCUL DES STATISTIQUES DES CÉRÉMONIES
   const confirmedGuests = guests.filter(g => g.status === 'confirmé');
   
+  const dotEnabled = Boolean(marriage?.show_dot);
+  const totalDot = confirmedGuests
+    .filter(g => g.attending_dot !== false)
+    .reduce((acc, g) => acc + (g.guests_count || 1), 0);
+
   const totalCivil = confirmedGuests
     .filter(g => g.attending_civil)
     .reduce((acc, g) => acc + (g.guests_count || 1), 0);
@@ -646,11 +668,12 @@ export default function GuestPage() {
         )}
 
         {/* ── CHIFFRES CLÉS (défilent sur mobile) ── */}
-        <div className="-mx-4 mb-6 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-7 lg:overflow-visible">
+        <div className={`-mx-4 mb-6 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 lg:grid lg:overflow-visible ${dotEnabled ? 'lg:grid-cols-8' : 'lg:grid-cols-7'}`}>
           <BentoStatCard label="Personnes" value={totalPersons} color="text-ink" />
           <BentoStatCard label="Confirmés" value={guests.filter(g => g.status === 'confirmé').length} color="text-emerald-600" />
           <BentoStatCard label="En attente" value={guests.filter(g => g.status === 'en_attente').length} color="text-amber-600" />
           <BentoStatCard label="VIP" value={guests.filter(g => g.is_vip).length} color="text-amber-600" />
+          {dotEnabled && <BentoStatCard label="Dot" value={totalDot} color="text-emerald-700" />}
           <BentoStatCard label="Mairie" value={totalCivil} color="text-rose-600" />
           <BentoStatCard label="Église" value={totalChurch} color="text-blue-600" />
           <BentoStatCard label="Dîner" value={totalReception} color="text-amber-700" />
@@ -757,7 +780,7 @@ export default function GuestPage() {
             {/* ── MOBILE : une carte par invité ── */}
             <ul className="space-y-3 md:hidden">
               {currentGuests.map((guest) => (
-                <GuestCard key={guest.id} guest={guest} onInvite={() => sendWhatsAppInvitation(guest)} onEdit={() => openEdit(guest)} onDelete={() => handleDelete(guest.id)} />
+                <GuestCard key={guest.id} guest={guest} dotEnabled={dotEnabled} onInvite={() => sendWhatsAppInvitation(guest)} onEdit={() => openEdit(guest)} onDelete={() => handleDelete(guest.id)} />
               ))}
             </ul>
 
@@ -800,7 +823,7 @@ export default function GuestPage() {
                           <p className="mt-0.5 text-xs text-slate-400">{sideName(guest.side)}</p>
                         </td>
                         <td className="px-5 py-4 text-center font-display text-lg text-ink">{guest.guests_count || 1}</td>
-                        <td className="px-5 py-4"><StatusPill guest={guest} /></td>
+                        <td className="px-5 py-4"><StatusPill guest={guest} dotEnabled={dotEnabled} /></td>
                         <td className="max-w-xs px-5 py-4">
                           {guest.notes
                             ? <p className="line-clamp-2 text-sm italic text-slate-600" title={guest.notes}>« {guest.notes} »</p>
@@ -869,6 +892,7 @@ export default function GuestPage() {
         marriageId={marriage?.id} 
         onSuccess={loadData} 
         guestToEdit={selectedGuest} 
+        dotEnabled={dotEnabled}
       />
     </div>
   );
@@ -917,7 +941,7 @@ const STATUS = {
 } as const;
 
 // Carte d'un invité sur mobile : l'essentiel d'un coup d'œil, actions à portée de pouce
-function GuestCard({ guest, onInvite, onEdit, onDelete }: { guest: any; onInvite: () => void; onEdit: () => void; onDelete: () => void }) {
+function GuestCard({ guest, dotEnabled = false, onInvite, onEdit, onDelete }: { guest: any; dotEnabled?: boolean; onInvite: () => void; onEdit: () => void; onDelete: () => void }) {
   const status = STATUS[guest.status as keyof typeof STATUS] ?? STATUS.en_attente;
   const n = guest.guests_count || 1;
   const confirmed = guest.status === 'confirmé';
@@ -943,6 +967,7 @@ function GuestCard({ guest, onInvite, onEdit, onDelete }: { guest: any; onInvite
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{sideName(guest.side)}</span>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 capitalize text-slate-600">{guest.category || 'amis'}</span>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{n} pers.</span>
+        {confirmed && dotEnabled && guest.attending_dot !== false && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700"><Handshake size={11} /> Dot</span>}
         {confirmed && guest.attending_civil && <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><Landmark size={11} /> Mairie</span>}
         {confirmed && guest.attending_church && <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-blue-700"><Cross size={11} /> Église</span>}
         {confirmed && guest.attending_reception && <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-amber-800"><GlassWater size={11} /> Dîner</span>}

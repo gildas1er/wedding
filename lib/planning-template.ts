@@ -52,21 +52,31 @@ export function buildTemplate(m: MarriageLike) {
       location: null, responsible: null, description: null, is_major_step: false, ...extra,
     });
 
+  const dot = m.show_dot === true;
+  const dotAt = dot ? anchor('dot_hour', '08:00', 'dot') : null;
   const civilAt = civil ? anchor('mairie_hour', '10:00', 'mairie') : null;
   const churchAt = religious ? anchor('religious_hour', civil ? '14:00' : '11:00', 'église') : null;
   const receptionAt = reception ? anchor('reception_hour', '19:00', 'réception') : null;
 
+  const dotNote = dot ? otherDayNote(m, 'dot_date') : null;
   const civilNote = civil ? otherDayNote(m, 'mairie_date') : null;
   const churchNote = religious ? otherDayNote(m, 'religious_date') : null;
   const receptionNote = reception ? otherDayNote(m, 'reception_date') : null;
 
   // Les préparatifs se calent sur la première cérémonie du jour J (pas sur une mairie la veille)
-  const sameDay = [civilNote ? null : civilAt, churchNote ? null : churchAt, receptionNote ? null : receptionAt].filter(Boolean) as string[];
+  const sameDay = [dotNote ? null : dotAt, civilNote ? null : civilAt, churchNote ? null : churchAt, receptionNote ? null : receptionAt].filter(Boolean) as string[];
   const first = sameDay.sort()[0] ?? '10:00';
   add('preparatifs', shift(first, -180), 150, 'Préparatifs des mariés', {
     responsible: 'Coiffure & maquillage',
     description: 'Coiffure, maquillage, habillage. Photos des préparatifs.',
   });
+
+  if (dotAt) {
+    add('dot', dotAt, 120, 'Cérémonie de dot', {
+      location: str(m.dot_location), is_major_step: true, responsible: 'Les familles', dayNote: dotNote,
+      description: ['Présentation des familles, remise de la dot, bénédiction des aînés.', dotNote].filter(Boolean).join('\n'),
+    });
+  }
 
   if (civilAt) {
     const location = str(m.mairie_location);

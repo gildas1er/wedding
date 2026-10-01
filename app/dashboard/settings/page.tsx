@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
-import { PRINT_REPORTS } from '../../../lib/print-reports';
+import { reportsFor } from '../../../lib/print-reports';
 import { usePathname } from 'next/navigation';
 
 export default function SettingsPage() {
@@ -17,6 +17,7 @@ export default function SettingsPage() {
   
   // États des données
   const [marriageId, setMarriageId] = useState<string | null>(null);
+  const [dotEnabled, setDotEnabled] = useState(false);
   const [partner1, setPartner1] = useState("");
   const [partner2, setPartner2] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -48,6 +49,7 @@ export default function SettingsPage() {
 
       if (marriageData) {
         setMarriageId(marriageData.id);
+        setDotEnabled(Boolean(marriageData.show_dot));
         setPartner1(marriageData.partner_1_name || "");
         setPartner2(marriageData.partner_2_name || "");
         setPrimaryColor(marriageData.primary_color || "#f43f5e");
@@ -222,7 +224,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {PRINT_REPORTS.map(({ id, title, description, icon: Icon }) => (
+                  {reportsFor(dotEnabled).map(({ id, title, description, icon: Icon }) => (
                     <Link
                       key={id}
                       href={`/dashboard/invite/print?report=${id}`}

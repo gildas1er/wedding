@@ -1,6 +1,7 @@
 // Cérémonies du mariage : lesquelles sont prévues, et lien Google Maps de chacune.
 
 type MarriageLike = {
+  show_dot?: boolean | null;
   show_civil?: boolean | null;
   show_religious?: boolean | null;
   show_reception?: boolean | null;
@@ -10,8 +11,10 @@ type MarriageLike = {
 
 // Sans choix explicite (anciennes données, ou migration 3 pas encore lancée) :
 // mairie et réception sont prévues, l'église seulement si une date ou une heure est renseignée.
+// La dot n'apparaît que si le couple l'a activée (migration 12).
 export function ceremonyFlags(m: MarriageLike | null | undefined) {
   return {
+    dot: m?.show_dot ?? false,
     civil: m?.show_civil ?? true,
     religious: m?.show_religious ?? Boolean(m?.religious_date || m?.religious_hour),
     reception: m?.show_reception ?? true,
