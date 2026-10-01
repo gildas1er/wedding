@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
-  MessageCircle, Smartphone, RotateCcw, Music, Info, type LucideIcon,
+  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, type LucideIcon,
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
@@ -16,11 +16,13 @@ import { prepareInfosForSave, sanitizeInfos, type PracticalInfo } from '../../..
 import { DEFAULT_PALETTE, resolveAccent } from '../../../lib/palettes';
 import { toISODate, toHHMM } from '../../../lib/event-datetime';
 import { ceremonyFlags, isHttpUrl, mapsUrl } from '../../../lib/ceremonies';
+import { DEFAULT_TEMPLATE, INVITATION_TEMPLATES, resolveTemplate, type InvitationTemplate } from '../../../lib/invitation-templates';
 import {
   DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS, buildInvitationMessage, hasLinkPlaceholder,
 } from '../../../lib/whatsapp-message';
 
 type Config = {
+  invitation_template: InvitationTemplate;
   primary_color: string;
   accent_color: string;
   invitation_text: string;
@@ -58,6 +60,7 @@ const EMPTY_CONFIG: Config = {
   mairie_date: '', mairie_hour: '', mairie_location: '', mairie_maps_url: '',
   religious_date: '', religious_hour: '', religious_location: '', religious_maps_url: '',
   reception_date: '', reception_hour: '', reception_location: '', reception_maps_url: '',
+  invitation_template: DEFAULT_TEMPLATE,
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
   music_url: '',
   practical_info: [],
@@ -70,6 +73,7 @@ const ACCENT_KEYS = ['accent_color'] as const;
 const MUSIC_KEYS = ['music_url'] as const;
 const INFO_KEYS = ['practical_info'] as const;
 const RECEPTION_DATE_KEYS = ['reception_date'] as const;
+const TEMPLATE_KEYS = ['invitation_template'] as const;
 const MAX_MUSIC_MB = 10;
 
 const MAX_UPLOAD_MB = 15;
@@ -91,6 +95,7 @@ export default function InvitationStudio() {
   const [coverPositionAvailable, setCoverPositionAvailable] = useState(true);
   const [accentAvailable, setAccentAvailable] = useState(true);
   const [infosAvailable, setInfosAvailable] = useState(true);
+  const [templateAvailable, setTemplateAvailable] = useState(true);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -117,6 +122,7 @@ export default function InvitationStudio() {
         setCoverPositionAvailable('bg_image_position' in data);
         setAccentAvailable('accent_color' in data);
         setInfosAvailable('practical_info' in data);
+        setTemplateAvailable('invitation_template' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -133,6 +139,7 @@ export default function InvitationStudio() {
         };
         const flags = ceremonyFlags(data);
         const loaded: Config = {
+          invitation_template: resolveTemplate(data.invitation_template),
           primary_color: data.primary_color || EMPTY_CONFIG.primary_color,
           accent_color: resolveAccent(data.primary_color, data.accent_color),
           invitation_text: data.invitation_text || EMPTY_CONFIG.invitation_text,
@@ -183,6 +190,11 @@ export default function InvitationStudio() {
   }, [config]);
 
   useEffect(() => { postPreview(); }, [postPreview]);
+
+  const replayIntro = () => {
+    setPreviewTab('rsvp');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'studio-replay' }, window.location.origin);
+  };
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -255,6 +267,10 @@ export default function InvitationStudio() {
       {
         keys: INFO_KEYS, label: 'la migration 6 (rubriques pratiques)', onMissing: () => setInfosAvailable(false),
         values: { practical_info: preparedInfos.infos.length ? preparedInfos.infos : null },
+      },
+      {
+        keys: TEMPLATE_KEYS, label: "la migration 11 (modèle d'invitation)", onMissing: () => setTemplateAvailable(false),
+        values: { invitation_template: config.invitation_template },
       },
       {
         keys: RECEPTION_DATE_KEYS, label: 'la migration 10 (date de la réception)', onMissing: () => {},
@@ -404,6 +420,42 @@ export default function InvitationStudio() {
             <h1 className="mt-2 text-3xl font-normal sm:text-4xl">Le <span className="italic text-rose-500">studio</span></h1>
             <p className="mt-1 text-slate-500">Composez l&apos;invitation que vos proches recevront. L&apos;aperçu se met à jour en direct.</p>
           </header>
+
+          {/* Modèle */}
+          <Card icon={LayoutTemplate} title="Modèle de l'invitation" subtitle="La mise en scène que vos invités découvrent en ouvrant le lien. Le contenu reste le même.">
+            <div role="radiogroup" aria-label="Modèle de l'invitation" className="grid grid-cols-1 gap-2.5">
+              {INVITATION_TEMPLATES.map((t) => {
+                const active = config.invitation_template === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => { set('invitation_template', t.id); setPreviewTab('rsvp'); }}
+                    className={`group flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${active ? 'border-amber-400 bg-amber-50/60 ring-2 ring-amber-200' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                  >
+                    <TemplateThumb id={t.id} color={config.primary_color} accent={config.accent_color} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5 font-semibold text-ink">
+                        {t.label}
+                        {active && <Check className="h-4 w-4 text-amber-600" />}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{t.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {config.invitation_template !== 'classique' && (
+              <button type="button" onClick={replayIntro} className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-ink hover:border-amber-300">
+                <Play className="h-4 w-4" /> Revoir l&apos;animation dans l&apos;aperçu
+              </button>
+            )}
+            {!templateAvailable && (
+              <p className="text-xs text-amber-700">Le modèle sera enregistré après la migration « 20261001_11_modele_invitation.sql ».</p>
+            )}
+          </Card>
 
           {/* Identité & photo */}
           <div className="grid grid-cols-1 gap-6">
@@ -594,6 +646,38 @@ export default function InvitationStudio() {
 }
 
 /* ─────────── Composants ─────────── */
+
+// Vignettes des modèles, aux couleurs du couple
+function TemplateThumb({ id, color, accent }: { id: InvitationTemplate; color: string; accent: string }) {
+  return (
+    <span aria-hidden className="grid h-[4.5rem] w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-50 ring-1 ring-slate-200">
+      {id === 'story' ? (
+        <svg viewBox="0 0 56 72" className="h-full w-full">
+          <rect x="8" y="4" width="40" height="64" rx="5" fill="#1b1220" />
+          <rect x="8" y="4" width="40" height="40" rx="5" fill={color} opacity=".9" />
+          <g fill="white" opacity=".9"><rect x="11" y="7" width="8" height="1.6" rx=".8" /><rect x="20.5" y="7" width="8" height="1.6" rx=".8" opacity=".45" /><rect x="30" y="7" width="8" height="1.6" rx=".8" opacity=".45" /><rect x="39.5" y="7" width="6" height="1.6" rx=".8" opacity=".45" /></g>
+          <rect x="13" y="50" width="22" height="3" rx="1.5" fill={accent} />
+          <rect x="13" y="57" width="30" height="5" rx="2.5" fill="white" />
+        </svg>
+      ) : id === 'enveloppe' ? (
+        <svg viewBox="0 0 56 72" className="h-full w-full">
+          <rect x="6" y="22" width="44" height="30" rx="3" fill={color} />
+          <path d="M6,22 L28,40 L50,22" fill={color} stroke="white" strokeOpacity=".35" />
+          <path d="M6,52 L28,36 L50,52" fill="none" stroke="white" strokeOpacity=".25" />
+          <circle cx="28" cy="38" r="6" fill={accent} />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 56 72" className="h-full w-full">
+          <rect x="8" y="6" width="40" height="60" rx="4" fill="white" stroke="#e7e2db" />
+          <rect x="8" y="6" width="40" height="24" rx="4" fill={color} opacity=".85" />
+          <rect x="16" y="36" width="24" height="3" rx="1.5" fill={accent} />
+          <rect x="14" y="44" width="28" height="7" rx="2" fill="#efe9e2" />
+          <rect x="14" y="54" width="28" height="7" rx="2" fill="#efe9e2" />
+        </svg>
+      )}
+    </span>
+  );
+}
 
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[15px] text-ink outline-none transition-colors placeholder:text-slate-400 focus:border-amber-400';
 

@@ -15,6 +15,9 @@ import { rsvpThemeStyle, resolveAccent } from '../../../lib/palettes';
 import { resolveMusic } from '../../../lib/music';
 import { sanitizeInfos } from '../../../lib/practical-info';
 import PracticalInfoSection from '../../../components/rsvp/PracticalInfoSection';
+import EnvelopeIntro from '../../../components/rsvp/EnvelopeIntro';
+import StoryIntro from '../../../components/rsvp/StoryIntro';
+import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -43,6 +46,12 @@ function RSVPContent() {
   // Aperçu affiché dans le studio : la configuration non publiée arrive par postMessage
   const isPreview = searchParams.get('preview') === '1';
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, unknown>>({});
+  // Modèle « Enveloppe » : rejouable depuis le studio ; ouverte une fois par visite
+  const [replay, setReplay] = useState(0);
+  const [openedIntro, setOpenedIntro] = useState<string | null>(() => {
+    if (typeof window === 'undefined' || isPreview) return null;
+    try { return sessionStorage.getItem(`ws-intro-${String(params?.id ?? '')}`); } catch { return null; }
+  });
   
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -152,7 +161,9 @@ function RSVPContent() {
   useEffect(() => {
     if (!isPreview) return;
     const onMessage = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin || e.data?.type !== 'studio-preview') return;
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === 'studio-replay') { setReplay((n) => n + 1); return; }
+      if (e.data?.type !== 'studio-preview') return;
       setPreviewOverrides(e.data.config ?? {});
     };
     window.addEventListener('message', onMessage);
@@ -161,6 +172,20 @@ function RSVPContent() {
   }, [isPreview]);
 
   const music = resolveMusic(m.music_url);
+  const template = resolveTemplate(m.invitation_template);
+  const introKey = `${template}-${replay}`;
+  const showIntro = template !== 'classique' && openedIntro !== introKey;
+
+  const finishIntro = (goToForm = false) => {
+    setOpenedIntro(introKey);
+    if (goToForm) setTimeout(() => document.getElementById('reponse')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 450);
+    if (!isPreview) { try { sessionStorage.setItem(`ws-intro-${String(id ?? '')}`, introKey); } catch { /* navigation privée */ } }
+  };
+  // Le toucher sur le cachet est un geste de l'invité : la musique a le droit de démarrer
+  const startMusicFromIntro = () => {
+    if (!audioRef.current || isPlaying || isPreview) return;
+    audioRef.current.play().catch(() => {});
+  };
 
   // Changement de morceau (aperçu du studio) : on arrête la lecture en cours
   useEffect(() => { audioRef.current?.pause(); }, [music.url]);
@@ -279,6 +304,32 @@ function RSVPContent() {
       </>
       )}
 
+      <AnimatePresence>
+        {showIntro && template === 'story' && (
+          <StoryIntro
+            key={introKey}
+            m={m}
+            flags={flags}
+            infos={sanitizeInfos(m.practical_info)}
+            guestName={guestName || undefined}
+            canRespond={Boolean(guestId) || isPreview}
+            onInteract={startMusicFromIntro}
+            onDone={finishIntro}
+          />
+        )}
+        {showIntro && template === 'enveloppe' && (
+          <EnvelopeIntro
+            key={introKey}
+            initials={coupleInitials(m.partner_1_name, m.partner_2_name)}
+            couple={[m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ')}
+            guestName={guestName || undefined}
+            dateLabel={m.wedding_date ? formatDateFr(typeof m.wedding_date === 'string' ? m.wedding_date : m.wedding_date.toISOString().slice(0, 10)) : undefined}
+            onOpen={startMusicFromIntro}
+            onDone={() => finishIntro()}
+          />
+        )}
+      </AnimatePresence>
+
       {isPreview && (
         <div className="fixed top-4 left-4 z-50 rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
           Aperçu · aucune réponse envoyée
@@ -381,6 +432,7 @@ function RSVPContent() {
 
           {/* FORMULAIRE RSVP */}
           <motion.div 
+            id="reponse"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
