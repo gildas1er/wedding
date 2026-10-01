@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { taskState, type Task } from '../../lib/checklist';
 import { useRouter } from 'next/navigation';
 import PricingModal from '@/components/dashboard/PricingModal';
 import { 
@@ -186,10 +187,7 @@ export default function WeddingDashboard() {
         if (tasks) {
           totalTasks = tasks.length;
           const completed = tasks.filter(t => t.is_completed).length;
-          const today = new Date();
-          const wedding = new Date(marriageData.wedding_date);
-          const diffMonths = (wedding.getFullYear() - today.getFullYear()) * 12 + (wedding.getMonth() - today.getMonth());
-          const urgent = tasks.filter(t => !t.is_completed && diffMonths <= t.due_months_before).length;
+          const urgent = tasks.filter(t => taskState(t as Task, marriageData.wedding_date) === 'late').length;
           setTaskStats({ total: totalTasks, completed, urgent, percentage: totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0 });
         }
 
@@ -363,7 +361,7 @@ export default function WeddingDashboard() {
               <p className="eyebrow">Checklist</p>
               {taskStats.urgent > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600 ring-1 ring-rose-100">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" /> {taskStats.urgent} urgente{taskStats.urgent > 1 ? 's' : ''}
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" /> {taskStats.urgent} en retard
                 </span>
               )}
             </div>
