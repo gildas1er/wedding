@@ -18,6 +18,8 @@ class UploadError extends Error {}
 // Message compréhensible à partir d'une erreur Supabase
 function describeError(error: { message?: string; statusCode?: string | number }, fallback: string) {
   const msg = (error.message || '').toLowerCase();
+  if (msg.includes('space_archived')) return "Le mariage a eu lieu : l'envoi de photos est terminé.";
+  if (msg.includes('album_required') || msg.includes('album_path')) return "Ce lien est incomplet : demandez aux mariés leur lien d'envoi de photos.";
   if (msg.includes('row-level security') || msg.includes('unauthorized') || msg.includes('permission')) return `${fallback} (accès refusé : les mariés doivent vérifier la configuration du dépôt de photos).`;
   if (msg.includes('payload too large') || msg.includes('exceeded') || String(error.statusCode) === '413') return 'Cette photo est trop lourde pour être envoyée.';
   if (msg.includes('bucket not found')) return "L'album n'est pas encore configuré par les mariés.";
@@ -32,7 +34,11 @@ export default function DepotPhotosPage() {
     const id = new URLSearchParams(window.location.search).get('id');
     queueMicrotask(() => setMarriageId(id));
   }, []);
-  const { coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
+  const { marriage, coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
+  // Mode souvenir (J+1 mois) : l'envoi de photos est clos
+  const photosClosed = marriage?.space_phase === 'souvenir';
+  // Chaque photo appartient à un mariage : sans lien complet (?id=…), pas d'envoi possible
+  const validMarriageId = marriageId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(marriageId) ? marriageId : null;
 
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [guestName, setGuestName] = useState('');
@@ -99,7 +105,9 @@ export default function DepotPhotosPage() {
         }
 
         // 2. Envoi du fichier (toujours en tant qu'invité, voir lib/supabase-guest)
-        const filePath = `invites/${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
+        if (!validMarriageId) throw new UploadError("Ce lien est incomplet : demandez aux mariés leur lien d'envoi de photos.");
+        // Rangée dans le dossier du mariage (migration 14)
+        const filePath = `invites/${validMarriageId}/${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
         const { error: storageError } = await guestSupabase.storage
           .from('wedding-photos')
           .upload(filePath, compressedFile, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
@@ -111,7 +119,7 @@ export default function DepotPhotosPage() {
         // 3. Nom et message de l'invité
         const { error: dbError } = await guestSupabase
           .from('photos_metadata')
-          .insert([{ file_name: filePath, guest_name: guestName.trim() || 'Invité anonyme', message: message.trim() || null }]);
+          .insert([{ marriage_id: validMarriageId, file_name: filePath, guest_name: guestName.trim() || 'Invité anonyme', message: message.trim() || null }]);
         if (dbError) {
           console.error('Enregistrement du message refusé :', dbError);
           // Pas de photo orpheline sans son nom ni son message
@@ -160,6 +168,17 @@ export default function DepotPhotosPage() {
         </div>
 
         {/* FORMULAIRE */}
+        {marriageId !== undefined && !validMarriageId ? (
+          <div className="flex flex-1 flex-col items-center justify-center rounded-[1.5rem] bg-slate-50 p-8 text-center">
+            <p className="font-display text-xl text-ink">Lien incomplet</p>
+            <p className="mt-2 text-sm text-slate-500">Pour envoyer vos photos, utilisez le lien ou le QR code partagé par les mariés.</p>
+          </div>
+        ) : photosClosed ? (
+          <div className="flex flex-1 flex-col items-center justify-center rounded-[1.5rem] bg-slate-50 p-8 text-center">
+            <p className="font-display text-xl text-ink">L&apos;envoi de photos est terminé</p>
+            <p className="mt-2 text-sm text-slate-500">Le mariage a eu lieu. Merci pour tous les souvenirs partagés !</p>
+          </div>
+        ) : (
         <form onSubmit={handleUpload} className="space-y-4 flex-1 flex flex-col">
           
           {/* ZONE DE SÉLECTION */}
@@ -301,6 +320,7 @@ export default function DepotPhotosPage() {
             </button>
           )}
         </form>
+        )}
 
         {/* PIED DE PAGE */}
         <div className="text-center pt-6 mt-6 border-t border-slate-50">

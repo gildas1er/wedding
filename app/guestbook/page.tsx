@@ -7,7 +7,7 @@ import { usePublicMarriage } from '../../lib/use-public-marriage';
 import { useSearchParams } from 'next/navigation';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';
 
-function GuestbookContent() {
+function GuestbookContent({ closed = false }: { closed?: boolean }) {
   const searchParams = useSearchParams();
   const marriageId = searchParams.get('id');
 
@@ -154,7 +154,13 @@ function GuestbookContent() {
 
   return (
     <div className="max-w-xl mx-auto px-6 mt-8 space-y-8">
-      {/* FORMULAIRE D'AJOUT */}
+      {/* FORMULAIRE D'AJOUT (fermé en mode souvenir) */}
+      {closed ? (
+        <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+          <p className="font-display text-xl text-ink">Le livre d&apos;or est maintenant fermé</p>
+          <p className="mt-2 text-sm text-slate-500">Le mariage a eu lieu. Merci pour tous vos mots doux, les mariés les gardent précieusement.</p>
+        </div>
+      ) : (
       <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
         <h2 className="font-sans text-sm font-black uppercase tracking-wider text-slate-400 mb-6 flex items-center gap-2">
           <MessageSquare size={16} className="text-rose-500" /> Rédiger vos vœux
@@ -245,6 +251,7 @@ function GuestbookContent() {
           )}
         </AnimatePresence>
       </div>
+      )}
 
       {/* LISTE DES MESSAGES REÇUS */}
       <div className="space-y-4">
@@ -319,7 +326,7 @@ export default function PublicGuestbook() {
 // Palette et prénoms du couple, lus depuis ?id=
 function ThemedGuestbook() {
   const marriageId = useSearchParams().get('id');
-  const { coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
+  const { marriage, coupleNames, themeStyle, revealClass } = usePublicMarriage(marriageId);
   return (
     <div className={`min-h-screen bg-ivory text-ink pb-16 ${revealClass}`} style={themeStyle}>
       {/* HEADER */}
@@ -338,7 +345,7 @@ function ThemedGuestbook() {
           <p className="mt-4 font-bold text-rose-500 text-sm">Chargement du livre d'or...</p>
         </div>
       }>
-        <GuestbookContent />
+        <GuestbookContent closed={marriage?.space_phase === 'souvenir'} />
       </Suspense>
     </div>
   );

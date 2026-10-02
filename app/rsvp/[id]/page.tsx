@@ -176,6 +176,8 @@ function RSVPContent() {
 
   const music = resolveMusic(m.music_url);
   const template = resolveTemplate(m.invitation_template);
+  // Mode souvenir (J+1 mois) : les réponses sont closes
+  const closed = m.space_phase === 'souvenir' && !isPreview;
   const introKey = `${template}-${replay}`;
   const showIntro = template !== 'classique' && openedIntro !== introKey;
 
@@ -322,7 +324,8 @@ function RSVPContent() {
             flags={flags}
             infos={sanitizeInfos(m.practical_info)}
             guestName={guestName || undefined}
-            canRespond={Boolean(guestId) || isPreview}
+            canRespond={(Boolean(guestId) || isPreview) && !closed}
+            closed={closed}
             onInteract={startMusicFromIntro}
             onDone={finishIntro}
           />
@@ -459,7 +462,13 @@ function RSVPContent() {
             transition={{ delay: 0.4 }}
             className="bg-ivory rounded-[1.75rem] p-6 sm:p-8 border border-slate-200/70 relative"
           >
-            {!guestId && !isPreview ? (
+            {closed ? (
+              <div className="text-center">
+                <p className="eyebrow mb-2">Merci</p>
+                <p className="font-display text-xl text-ink">Le mariage a eu lieu</p>
+                <p className="mt-2 text-sm text-slate-500">Les réponses sont closes. Merci à tous d&apos;avoir partagé ce moment avec {[m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ') || 'les mariés'}.</p>
+              </div>
+            ) : !guestId && !isPreview ? (
               // Lien de faire-part partagé (sans invité) : la réponse se fait via le lien personnel
               <div className="text-center">
                 <p className="eyebrow mb-2">Votre réponse</p>

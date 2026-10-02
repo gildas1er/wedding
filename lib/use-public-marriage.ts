@@ -11,6 +11,7 @@ export type PublicMarriage = {
   primary_color?: string | null;
   accent_color?: string | null;
   wedding_date?: string | null;
+  space_phase?: string | null; // 'souvenir' : le mariage a eu lieu, les envois sont clos (migration 13)
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

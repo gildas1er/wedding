@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, Section } from '../../components/LegalPage';
 import { LEGAL } from '../../lib/legal';
+import { ACTIVE_MONTHS_AFTER_WEDDING, DELETE_MONTHS_AFTER_WEDDING, EXTENSION_MONTHS, EXTENSION_PRICE_XOF } from '../../lib/lifecycle';
 import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
 
 export const metadata: Metadata = {
@@ -73,15 +74,26 @@ export default function ConditionsPage() {
         </ul>
       </Section>
 
-      <Section title="8. Propriété intellectuelle">
+      <Section id="apres-le-mariage" title="8. Après le mariage">
+        <ul>
+          <li><strong>Jusqu&apos;à {ACTIVE_MONTHS_AFTER_WEDDING} mois après le mariage :</strong> votre espace reste complet (réponses, photos, livre d&apos;or, modifications).</li>
+          <li><strong>Mode souvenir :</strong> ensuite, l&apos;espace passe en lecture seule. Vous pouvez consulter et télécharger vos données, mais plus les modifier ; les invités ne peuvent plus répondre ni envoyer de photos ou de messages.</li>
+          <li><strong>Suppression automatique :</strong> {DELETE_MONTHS_AFTER_WEDDING} mois après la date du mariage, l&apos;espace, ses données, ses fichiers et le compte de connexion sont supprimés définitivement. La date de suppression est affichée dans votre espace.</li>
+          <li><strong>Prolongation :</strong> {formatXof(EXTENSION_PRICE_XOF)} pour {EXTENSION_MONTHS} mois, sur demande au {PREMIUM_CONTACT.display}. L&apos;espace redevient complet et n&apos;est pas supprimé avant la fin de la prolongation.</li>
+          <li><strong>Suppression à votre demande :</strong> vous pouvez supprimer définitivement votre compte à tout moment depuis votre espace (Paramètres ou Mes souvenirs). Cette suppression est immédiate et ne peut pas être annulée.</li>
+          <li>Une fois le mariage passé, sa date ne peut plus être modifiée.</li>
+        </ul>
+      </Section>
+
+      <Section title="9. Propriété intellectuelle">
         <p>Le site, son design et ses textes appartiennent à l&apos;éditeur. Vos contenus restent les vôtres : vous nous autorisez seulement à les héberger et à les afficher pour faire fonctionner le service.</p>
       </Section>
 
-      <Section title="9. Modification des conditions">
+      <Section title="10. Modification des conditions">
         <p>Ces conditions peuvent évoluer. En cas de changement important, vous en serez informé dans votre espace ; la version applicable est celle en vigueur à la date d&apos;utilisation.</p>
       </Section>
 
-      <Section title="10. Droit applicable">
+      <Section title="11. Droit applicable">
         <p>Ces conditions sont soumises au droit ivoirien. En cas de litige, une solution amiable sera recherchée avant toute action ; à défaut, les tribunaux d&apos;Abidjan seront compétents.</p>
       </Section>
     </LegalPage>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ArrowRight, Chrome, Mail, Lock, Eye, EyeOff, Facebook, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -18,10 +18,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   
   // Gestion des messages
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | '', content: string }>({ 
-    type: '', 
-    content: '' 
-  });
+  // Après une suppression de compte : /login?compte=supprime
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | '', content: string }>({ type: '', content: '' });
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('compte') !== 'supprime') return;
+    Promise.resolve().then(() => setMessage({ type: 'success', content: 'Votre compte a été supprimé définitivement. Merci d’avoir organisé votre mariage avec WeddingStudio.' }));
+  }, []);
 
   const allValid = email.trim() !== '' && password !== '';
 

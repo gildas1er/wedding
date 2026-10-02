@@ -29,8 +29,16 @@ export async function GET(request: NextRequest) {
 
   const { supabase, usesServiceKey } = getServerSupabase();
 
+  // Galerie historique à mot de passe : seulement les photos envoyées avant l'album par mariage
+  // (migration 14). Les photos rattachées à un mariage se consultent dans l'espace du couple.
+  const legacyMeta = async () => {
+    const res = await supabase.from('photos_metadata').select('*').is('marriage_id', null).order('created_at', { ascending: false });
+    return res.error && /marriage_id/i.test(res.error.message)
+      ? supabase.from('photos_metadata').select('*').order('created_at', { ascending: false })
+      : res;
+  };
   const [{ data: dbData, error: dbError }, { data: storageData, error: storageError }] = await Promise.all([
-    supabase.from('photos_metadata').select('*').order('created_at', { ascending: false }),
+    legacyMeta(),
     supabase.storage.from(BUCKET).list(FOLDER, { limit: 150 }),
   ]);
 
@@ -39,7 +47,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Impossible de charger l'album." }, { status: 500 });
   }
 
-  const files = (storageData ?? []).filter((file) => file.name !== '.emptyFolderPlaceholder');
+  // Fichiers à la racine de invites/ uniquement (les dossiers sont ceux des mariages)
+  const legacyNames = new Set((dbData ?? []).map((d) => d.file_name));
+  const files = (storageData ?? []).filter((file) => file.name !== '.emptyFolderPlaceholder' && file.id !== null && (legacyNames.size === 0 || legacyNames.has(`${FOLDER}/${file.name}`)));
   const paths = files.map((file) => `${FOLDER}/${file.name}`);
 
   // URLs signées si la clé service est disponible (fonctionne aussi avec un bucket privé)

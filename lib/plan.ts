@@ -3,7 +3,7 @@
 
 export const FREE_GUEST_LIMIT = 30;
 export const PREMIUM_PRICE_XOF = 25000;
-export const PREMIUM_ACCESS_MONTHS_AFTER_WEDDING = 6;
+export const PREMIUM_ACCESS_MONTHS_AFTER_WEDDING = 1;
 
 // Paiement en ligne GeniusPay : désactivé pour l'instant, l'activation se fait par contact direct.
 // Passer à true (et configurer les variables GENIUSPAY_* sur Vercel) pour réactiver le paiement en ligne.

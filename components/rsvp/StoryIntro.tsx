@@ -24,12 +24,13 @@ type Flags = { dot: boolean; civil: boolean; religious: boolean; reception: bool
 
 const FALLBACK_COVER = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80';
 
-export default function StoryIntro({ m, flags, infos, guestName, canRespond, onInteract, onDone }: {
+export default function StoryIntro({ m, flags, infos, guestName, canRespond, closed = false, onInteract, onDone }: {
   m: StoryMarriage;
   flags: Flags;
   infos: PracticalInfo[];
   guestName?: string;
   canRespond: boolean; // lien personnel (ou aperçu) : le formulaire de réponse est disponible
+  closed?: boolean; // mode souvenir : le mariage a eu lieu, les réponses sont closes
   onInteract?: () => void; // premier toucher : la musique peut démarrer
   onDone: (goToForm: boolean) => void;
 }) {
@@ -218,10 +219,10 @@ export default function StoryIntro({ m, flags, infos, guestName, canRespond, onI
               {slide.id === 'answer' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center" style={{ background: 'radial-gradient(100% 60% at 50% 100%, var(--color-rose-600), #150d12 72%)' }}>
                   <motion.h2 {...rise(0)} className="font-display text-[clamp(2.4rem,11vw,3.2rem)] font-normal leading-[1.05]">
-                    Serez-vous<br /><span className="italic text-amber-300">des nôtres ?</span>
+                    {closed ? <>Merci d&apos;avoir<br /><span className="italic text-amber-300">partagé ce jour</span></> : <>Serez-vous<br /><span className="italic text-amber-300">des nôtres ?</span></>}
                   </motion.h2>
                   <motion.p {...rise(1)} className="mt-4 max-w-xs text-white/80">
-                    {canRespond ? 'Votre réponse nous aide à tout préparer.' : 'Répondez depuis le lien personnel reçu par WhatsApp.'}
+                    {closed ? 'Le mariage a eu lieu : les réponses sont closes.' : canRespond ? 'Votre réponse nous aide à tout préparer.' : 'Répondez depuis le lien personnel reçu par WhatsApp.'}
                   </motion.p>
                   <motion.div {...rise(2)} className="mt-9 grid w-full max-w-xs gap-3">
                     {canRespond && (

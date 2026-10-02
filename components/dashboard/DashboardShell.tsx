@@ -6,11 +6,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Wallet, LogOut, Settings, LayoutGrid,
-  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, type LucideIcon,
+  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
+import SouvenirModal from './SouvenirModal';
+import DeleteAccountModal from './DeleteAccountModal';
 import { isPremium } from '../../lib/plan';
+import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -25,6 +28,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/dashboard/invite', label: 'Invités', icon: Users },
       { href: '/dashboard/studio', label: 'Faire-part & RSVP', icon: Mail },
       { href: '/dashboard/partage', label: 'Partager', icon: QrCode },
+      { href: '/dashboard/album', label: 'Album photos', icon: Images },
       { href: '/dashboard/table', label: 'Plan de table', icon: Armchair },
       { href: '/dashboard/tasks', label: 'Checklist', icon: ListChecks },
       { href: '/dashboard/budget', label: 'Budget', icon: Wallet },
@@ -37,7 +41,15 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-type Couple = { p1: string; p2: string; date: string | null; premium: boolean };
+type Couple = {
+  id: string; p1: string; p2: string; date: string | null; premium: boolean;
+  lifecycle: ReturnType<typeof spaceLifecycle>;
+};
+
+const SOUVENIR_ITEM: NavItem = { href: '/dashboard/souvenir', label: 'Mes souvenirs', icon: Heart };
+const ALBUM_ITEM: NavItem = { href: '/dashboard/album', label: 'Album photos', icon: Images };
+const SOUVENIR_ITEMS = [SOUVENIR_ITEM, ALBUM_ITEM];
+const isAllowedInSouvenir = (pathname: string) => SOUVENIR_ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard';
@@ -95,17 +107,37 @@ function CoupleCard({ couple }: { couple: Couple | null }) {
 function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
   pathname: string; couple: Couple | null; onUpgrade: () => void; onLogout: () => void; onNavigate?: () => void;
 }) {
+  const souvenir = couple?.lifecycle.phase === 'souvenir';
+  // Mode souvenir : « Mes souvenirs » et l'album en tête, le reste verrouillé
+  const sections = souvenir
+    ? [{ title: 'Souvenirs', items: SOUVENIR_ITEMS }, ...NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => it.href !== ALBUM_ITEM.href) }))]
+    : NAV_SECTIONS;
   return (
     <>
       <CoupleCard couple={couple} />
 
       <nav id="dashboard-sidebar-nav" className="flex-1 px-3 overflow-y-auto">
-        {NAV_SECTIONS.map((section, i) => (
+        {sections.map((section, i) => (
           <div key={section.title} className={i > 0 ? 'pt-4' : ''}>
             <p className="px-3 pb-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-slate-400">{section.title}</p>
             <div className="space-y-0.5">
               {section.items.map(({ href, label, icon: Icon }) => {
                 const active = isActive(pathname, href);
+                // Mode souvenir : les rubriques restent visibles mais ne sont plus accessibles
+                if (souvenir && !SOUVENIR_ITEMS.some((it) => it.href === href)) {
+                  return (
+                    <span
+                      key={href}
+                      aria-disabled="true"
+                      title="Indisponible en mode souvenir"
+                      className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium text-slate-400/80"
+                    >
+                      <Icon size={18} strokeWidth={1.6} className="text-slate-300" />
+                      <span className="flex-1">{label}</span>
+                      <Lock size={13} className="text-slate-300" />
+                    </span>
+                  );
+                }
                 return (
                   <Link
                     key={href}
@@ -128,8 +160,15 @@ function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
           </div>
         ))}
 
-        {/* Offre Premium */}
-        {couple?.premium ? (
+        {/* Offre Premium / mode souvenir */}
+        {souvenir ? (
+          <Link href="/dashboard/souvenir" onClick={onNavigate} className="mt-6 mb-3 block rounded-2xl border border-amber-300 bg-amber-50/70 p-3.5 text-sm">
+            <span className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-700"><Heart size={13} /> Mode souvenir</span>
+            <span className="mt-1 block text-xs leading-relaxed text-slate-600">
+              Lecture seule. Suppression le {formatLongDate(couple?.lifecycle.deleteAt ?? null)}.
+            </span>
+          </Link>
+        ) : couple?.premium ? (
           <Link href="/dashboard/premium" onClick={onNavigate} className="mt-6 mb-3 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50/70 p-3 text-sm">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink text-amber-300"><Crown size={15} /></span>
             <span><span className="block font-semibold text-ink">Premium actif</span><span className="text-xs text-slate-500">Invités illimités</span></span>
@@ -172,6 +211,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
   const [couple, setCouple] = useState<Couple | null>(null);
+  const [souvenirModal, setSouvenirModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
 
   // Noms et date du couple pour la carte du menu
   useEffect(() => {
@@ -182,9 +223,25 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (data) setCouple({ p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data) });
+      if (!data) return;
+      const lifecycle = spaceLifecycle(data);
+      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), lifecycle });
+      // Mode souvenir : le pop-up s'affiche une fois par visite
+      if (lifecycle.phase === 'souvenir') {
+        let seen = false;
+        try { seen = sessionStorage.getItem(`ws-souvenir-${data.id}`) === '1'; sessionStorage.setItem(`ws-souvenir-${data.id}`, '1'); } catch { /* navigation privée */ }
+        if (!seen) setSouvenirModal(true);
+      }
     });
   }, []);
+
+  const souvenir = couple?.lifecycle.phase === 'souvenir';
+  const pageAllowed = !souvenir || isAllowedInSouvenir(pathname);
+
+  // Mode souvenir : les pages fermées renvoient vers « Mes souvenirs »
+  useEffect(() => {
+    if (souvenir && !isAllowedInSouvenir(pathname)) router.replace('/dashboard/souvenir');
+  }, [souvenir, pathname, router]);
 
   // Bloque le scroll de la page et permet de fermer avec Échap quand le menu est ouvert
   useEffect(() => {
@@ -265,8 +322,32 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <AnimatePresence>
         {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
       </AnimatePresence>
+      <AnimatePresence>
+        {souvenirModal && couple && (
+          <SouvenirModal
+            couple={[couple.p1, couple.p2].filter(Boolean).join(' & ')}
+            marriageId={couple.id}
+            deleteAt={couple.lifecycle.deleteAt}
+            daysBeforeDeletion={couple.lifecycle.daysBeforeDeletion}
+            onClose={() => setSouvenirModal(false)}
+            onDelete={() => { setSouvenirModal(false); setDeleteModal(true); }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {deleteModal && <DeleteAccountModal onClose={() => setDeleteModal(false)} />}
+      </AnimatePresence>
 
-      <div className="lg:pl-[17rem] min-w-0 print:pl-0">{children}</div>
+      <div className="lg:pl-[17rem] min-w-0 print:pl-0">
+        {/* Après le mariage : l'espace reste complet jusqu'à J+1 mois */}
+        {couple && !souvenir && couple.lifecycle.weddingPassed && couple.lifecycle.activeUntil && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm text-amber-900 print:hidden">
+            Félicitations ! Votre espace reste complet jusqu&apos;au <strong>{formatLongDate(couple.lifecycle.activeUntil)}</strong>, puis passera en mode souvenir (lecture seule).{' '}
+            <Link href="/dashboard/souvenir" className="font-semibold underline underline-offset-2">Télécharger mes données</Link>
+          </div>
+        )}
+        {pageAllowed ? children : <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>}
+      </div>
     </div>
   );
 }

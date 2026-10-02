@@ -9,6 +9,8 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import { reportsFor } from '../../../lib/print-reports';
+import DeleteAccountModal from '../../../components/dashboard/DeleteAccountModal';
+import { isSpaceArchivedError } from '../../../lib/lifecycle';
 import { usePathname } from 'next/navigation';
 
 export default function SettingsPage() {
@@ -18,6 +20,7 @@ export default function SettingsPage() {
   // États des données
   const [marriageId, setMarriageId] = useState<string | null>(null);
   const [dotEnabled, setDotEnabled] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [partner1, setPartner1] = useState("");
   const [partner2, setPartner2] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -82,6 +85,10 @@ export default function SettingsPage() {
 
     if (!error) {
       showToast("Changements enregistrés !");
+    } else if (error.message?.includes('WEDDING_DATE_LOCKED')) {
+      showToast("La date d'un mariage passé ne peut plus être modifiée", "error");
+    } else if (isSpaceArchivedError(error)) {
+      showToast("Votre espace est en mode souvenir : il ne peut plus être modifié", "error");
     } else {
       showToast("Erreur de sauvegarde", "error");
     }
@@ -278,10 +285,16 @@ export default function SettingsPage() {
             )}
 
             <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-between">
-              <button className="flex items-center gap-2 text-slate-300 hover:text-red-500 transition-colors">
-                <Trash2 className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Zone de danger</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <Link href="/dashboard/souvenir" className="flex items-center gap-2 text-slate-400 hover:text-ink transition-colors">
+                  <Download className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Télécharger mes données</span>
+                </Link>
+                <button type="button" onClick={() => setShowDelete(true)} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Supprimer mon compte</span>
+                </button>
+              </div>
               
               <button 
                 onClick={handleSave}
@@ -304,6 +317,9 @@ export default function SettingsPage() {
             <span className="font-black text-xs uppercase tracking-widest">{toast.message}</span>
           </motion.div>
         )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showDelete && <DeleteAccountModal onClose={() => setShowDelete(false)} />}
       </AnimatePresence>
     </div>
   );
