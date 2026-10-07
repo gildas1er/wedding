@@ -9,6 +9,7 @@ import {
   Pencil, UserRound, Phone, Star, Loader2, Sparkles, Check,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useConfirm } from '../../../components/ui/ConfirmDialog';
 import {
   EXTRA_FIELDS, contactHref, daysUntil, formatTime, formatWeddingDate, isMissingColumnError,
   liveStatus, sortEvents, timeRange, type PlanningEvent,
@@ -36,6 +37,7 @@ export default function PlanningPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, notify } = useConfirm();
   const [now, setNow] = useState(() => new Date());
   const [templateOpen, setTemplateOpen] = useState(false);
 
@@ -132,11 +134,12 @@ export default function PlanningPage() {
   };
 
   const remove = async (event: PlanningEvent) => {
-    if (!confirm(`Supprimer « ${event.title} » du déroulé ?`)) return;
+    if (!(await confirm({ title: 'Retirer ce moment du déroulé ?', item: event.title, message: 'Il disparaîtra aussi de la feuille de route imprimée et du programme des invités.' }))) return;
     const { error: err } = await supabase.from('planning_events').delete().eq('id', event.id);
-    if (err) { setError('La suppression a échoué. Réessayez.'); return; }
+    if (err) { notify('La suppression a échoué. Réessayez.', 'error'); return; }
     setEvents((prev) => prev.filter((e) => e.id !== event.id));
     setEditor(null);
+    notify('Moment retiré du déroulé');
   };
 
   if (loading) return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>;

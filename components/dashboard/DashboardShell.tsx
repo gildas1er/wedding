@@ -12,6 +12,7 @@ import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
 import SouvenirModal from './SouvenirModal';
 import DeleteAccountModal from './DeleteAccountModal';
+import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { isPremium } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 
@@ -265,6 +266,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const days = daysUntil(couple?.date ?? null);
 
   return (
+    <ConfirmProvider>
     <div className="min-h-screen bg-ivory">
       {/* BARRE LATÉRALE — ORDINATEUR */}
       <aside className="paper hidden lg:flex fixed inset-y-0 left-0 w-[17rem] z-40 flex-col border-r border-slate-200/80 print:hidden">
@@ -349,5 +351,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         {pageAllowed ? children : <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>}
       </div>
     </div>
+    </ConfirmProvider>
   );
 }

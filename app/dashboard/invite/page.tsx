@@ -15,10 +15,11 @@ import {
   MessageSquare, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
   MessageCircle, Crown, Home, Briefcase, Smile, FileSpreadsheet,
-  Landmark, Cross, GlassWater, Filter, MessageSquareQuote, Handshake, BookUser
+  Landmark, Cross, GlassWater, Filter, MessageSquareQuote, Handshake, BookUser, UserX
 } from 'lucide-react';
 import ContactImportSheet, { type ContactRow } from '../../../components/invite/ContactImportSheet';
 import { contactPickerSupported, pickPhoneContacts } from '../../../lib/contacts';
+import { useConfirm } from '../../../components/ui/ConfirmDialog';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
 
@@ -399,6 +400,7 @@ export default function GuestPage() {
   const [pricing, setPricing] = useState<null | 'limit' | 'discover'>(null);
   const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [contactsOpen, setContactsOpen] = useState(false);
+  const { confirm, notify } = useConfirm();
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -579,11 +581,23 @@ export default function GuestPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Voulez-vous retirer cet invité précieux ?")) {
-      const { error } = await supabase.from('invite').delete().eq('id', id);
-      if (error) alert("Erreur technique lors du retrait");
-      else loadData();
-    }
+    const guest = guests.find((g) => g.id === id);
+    const ok = await confirm({
+      title: 'Retirer cet invité ?',
+      item: guest?.name,
+      icon: UserX,
+      confirmLabel: 'Retirer',
+      consequences: [
+        'Sa réponse à l’invitation sera effacée.',
+        ...(guest?.table_id ? ['Sa place au plan de table sera libérée.'] : []),
+        ...((guest?.guests_count ?? 1) > 2 ? [`Ses ${guest.guests_count - 1} accompagnants ne seront plus comptés.`]
+          : (guest?.guests_count ?? 1) === 2 ? ['Son accompagnant ne sera plus compté.'] : []),
+      ],
+    });
+    if (!ok) return;
+    const { error } = await supabase.from('invite').delete().eq('id', id);
+    if (error) notify("Le retrait a échoué. Vérifiez votre connexion puis réessayez.", 'error');
+    else { notify(`${guest?.name ?? 'Invité'} a été retiré de la liste`); loadData(); }
   };
 
   const sendWhatsAppInvitation = async (guest: any) => {
@@ -599,7 +613,7 @@ export default function GuestPage() {
     // Numéro au format international (ex. 07… -> 22507…) : sinon WhatsApp répond « Ce lien n'a pas pu être ouvert »
     const whatsappUrl = whatsappLink(guest.phone, message);
     if (!whatsappUrl) {
-      alert(`Le numéro de ${guest.name} (${guest.phone}) n'est pas valide. Modifiez la fiche puis réessayez.`);
+      notify(`Le numéro de ${guest.name} n'est pas valide. Modifiez la fiche puis réessayez.`, 'error');
       return;
     }
     window.open(whatsappUrl, '_blank');

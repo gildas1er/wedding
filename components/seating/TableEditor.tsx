@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Crown, Minus, Plus, Trash2, UserMinus, Circle, RectangleHorizontal } from 'lucide-react';
+import { useConfirm } from '../ui/ConfirmDialog';
 import Sheet from './Sheet';
 import { DEFAULT_CAPACITY, capacityOf, seats, type SeatGuest, type SeatTable } from '../../lib/seating';
 
@@ -37,7 +38,7 @@ function EditorBody({ mode, tables, occupancy, guests, onClose, onCreate, onUpda
   const [shape, setShape] = useState(editing?.shape === 'rectangle' ? 'rectangle' : 'circle');
   const [vip, setVip] = useState(Boolean(editing?.is_vip));
   const [busy, setBusy] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { confirm } = useConfirm();
 
   const seated = editing ? guests.filter((g) => g.table_id === editing.id) : [];
   const occupied = editing ? occupancy.get(editing.id) ?? 0 : 0;
@@ -70,16 +71,27 @@ function EditorBody({ mode, tables, occupancy, guests, onClose, onCreate, onUpda
       footer={
         <div className="flex items-center gap-3">
           {editing && (
-            confirmDelete ? (
-              <button type="button" onClick={async () => { setBusy(true); const ok = await onDelete(editing.id); setBusy(false); if (ok) onClose(); }}
-                className="inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">
-                <Trash2 className="h-4 w-4" /> Confirmer
-              </button>
-            ) : (
-              <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex min-h-[48px] items-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600">
-                <Trash2 className="h-4 w-4" /> Supprimer
-              </button>
-            )
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Supprimer cette table ?',
+                  item: editing.name,
+                  consequences: seated.length
+                    ? [`${seated.length} invité${seated.length > 1 ? 's' : ''} retourne${seated.length > 1 ? 'nt' : ''} dans « À placer ».`, 'Sa place sur le plan de salle sera libérée.']
+                    : ['Sa place sur le plan de salle sera libérée.'],
+                });
+                if (!ok) return;
+                setBusy(true);
+                const done = await onDelete(editing.id);
+                setBusy(false);
+                if (done) onClose();
+              }}
+              className="inline-flex min-h-[48px] items-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600"
+            >
+              <Trash2 className="h-4 w-4" /> Supprimer
+            </button>
           )}
           <button type="button" onClick={submit} disabled={busy}
             className="ml-auto inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50 sm:flex-none">
@@ -89,12 +101,6 @@ function EditorBody({ mode, tables, occupancy, guests, onClose, onCreate, onUpda
       }
     >
       <div className="space-y-5">
-        {confirmDelete && editing && (
-          <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-100">
-            Supprimer « {editing.name} » ? {seated.length ? `Ses ${seated.length} invité${seated.length > 1 ? 's' : ''} retourneront dans « À placer ».` : ''}
-          </p>
-        )}
-
         {!editing && (
           <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
             {[false, true].map((m) => (

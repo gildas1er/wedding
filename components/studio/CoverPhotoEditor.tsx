@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useRef, useState } from 'react';
-import { Upload, Loader2, RefreshCw, Crosshair, Trash2, Move } from 'lucide-react';
+import { Upload, Loader2, RefreshCw, Crosshair, Trash2, Move, ImageOff } from 'lucide-react';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 export const DEFAULT_COVER_POSITION = '50% 50%';
 
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export default function CoverPhotoEditor({ url, position, busyLabel, onPickFile, onChangePosition, onRemove }: Props) {
+  const { confirm } = useConfirm();
   const inputRef = useRef<HTMLInputElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -139,7 +141,7 @@ export default function CoverPhotoEditor({ url, position, busyLabel, onPickFile,
         <button type="button" onClick={() => onChangePosition(DEFAULT_COVER_POSITION)} disabled={position === DEFAULT_COVER_POSITION} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-ink disabled:opacity-40">
           <Crosshair className="h-4 w-4" /> Recentrer
         </button>
-        <button type="button" onClick={onRemove} disabled={Boolean(busyLabel)} className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50">
+        <button type="button" onClick={async () => { if (await confirm({ title: 'Retirer la photo de couverture ?', tone: 'neutral', icon: ImageOff, confirmLabel: 'Retirer', message: 'Une image de réception par défaut la remplacera. Le changement sera visible après publication.' })) onRemove(); }} disabled={Boolean(busyLabel)} className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50">
           <Trash2 className="h-4 w-4" /> Retirer
         </button>
       </div>

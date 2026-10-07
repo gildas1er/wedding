@@ -10,6 +10,7 @@ import {
   StickyNote, ArrowRight, Sparkles, ClipboardList, Pencil, CalendarClock,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useConfirm } from '../../../components/ui/ConfirmDialog';
 import { isMissingColumnError } from '../../../lib/planning';
 import {
   ASSIGNEES, CATEGORIES, DUE_OPTIONS, PERIODS, PRIORITIES, TASK_EXTRA_FIELDS, TEMPLATE_TASKS,
@@ -38,6 +39,7 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, notify } = useConfirm();
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -130,11 +132,12 @@ export default function TasksPage() {
   };
 
   const remove = async (task: Task) => {
-    if (!confirm(`Supprimer la tâche « ${task.title} » ?`)) return;
+    if (!(await confirm({ title: 'Supprimer cette tâche ?', item: task.title, message: 'Elle disparaîtra de votre checklist.' }))) return;
     const { error: err } = await supabase.from('tasks').delete().eq('id', task.id);
-    if (err) { setError('La suppression a échoué. Réessayez.'); return; }
+    if (err) { notify('La suppression a échoué. Réessayez.', 'error'); return; }
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
     setEditor(null);
+    notify('Tâche supprimée');
   };
 
   const addFromTemplate = async (selected: TemplateTask[]) => {

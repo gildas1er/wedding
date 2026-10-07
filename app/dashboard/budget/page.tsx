@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
+import { useConfirm } from '../../../components/ui/ConfirmDialog';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, DollarSign,
@@ -23,6 +24,7 @@ export default function BudgetDashboard() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [currency, setCurrency] = useState('FCFA');
   const [editor, setEditor] = useState<{ id: string | null; values: ExpenseForm } | null>(null);
+  const { confirm, notify } = useConfirm();
 
   const categories = [
     'Réception & Traiteur', 
@@ -170,10 +172,11 @@ export default function BudgetDashboard() {
   };
 
   const deleteExpense = async (id: string) => {
-    if(!confirm("Supprimer cette dépense ?")) return;
+    const expense = expenses.find((ex) => ex.id === id);
+    if (!(await confirm({ title: 'Supprimer cette dépense ?', item: expense?.label, message: 'Ses montants seront retirés du total de votre budget.' }))) return;
     const { error } = await supabase.from('budget_items').delete().eq('id', id);
-    if (!error) { setExpenses((prev) => prev.filter(ex => ex.id !== id)); setEditor(null); }
-    else setErrorMsg("Erreur de suppression");
+    if (!error) { setExpenses((prev) => prev.filter(ex => ex.id !== id)); setEditor(null); notify('Dépense supprimée'); }
+    else notify('La suppression a échoué. Réessayez.', 'error');
   };
 
   const handlePrint = () => {

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ArrowUp, ArrowDown, Trash2, Plus, X } from 'lucide-react';
+import { useConfirm } from '../ui/ConfirmDialog';
 import { INFO_PRESETS, LIMITS, MAX_INFOS, newInfo, type InfoKind, type PracticalInfo } from '../../lib/practical-info';
 import { INFO_ICONS } from '../practical-info-icons';
 
@@ -11,7 +12,14 @@ type Props = { value: PracticalInfo[]; onChange: (infos: PracticalInfo[]) => voi
 
 export default function PracticalInfoEditor({ value, onChange }: Props) {
   const update = (id: string, patch: Partial<PracticalInfo>) => onChange(value.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-  const remove = (id: string) => onChange(value.filter((i) => i.id !== id));
+  const { confirm } = useConfirm();
+  // Une rubrique remplie demande confirmation ; une rubrique vide part directement
+  const remove = async (id: string) => {
+    const info = value.find((i) => i.id === id);
+    const filled = Boolean(info && (info.text?.trim() || info.name?.trim() || info.phone?.trim() || info.url?.trim() || info.colors?.length));
+    if (filled && !(await confirm({ title: 'Supprimer cette rubrique ?', item: info?.title || undefined, tone: 'neutral', confirmLabel: 'Supprimer', message: 'Elle disparaîtra de l’invitation à la prochaine publication.' }))) return;
+    onChange(value.filter((i) => i.id !== id));
+  };
   const move = (index: number, delta: number) => {
     const next = [...value];
     const [item] = next.splice(index, 1);
