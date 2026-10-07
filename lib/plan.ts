@@ -2,7 +2,7 @@
 // La limite est aussi appliquée par la base (migration 7) : ce fichier sert à l'affichage.
 
 export const FREE_GUEST_LIMIT = 30;
-export const PREMIUM_PRICE_XOF = 25000;
+export const PREMIUM_PRICE_XOF = 50000;
 export const PREMIUM_ACCESS_MONTHS_AFTER_WEDDING = 1;
 
 // Paiement en ligne GeniusPay : désactivé pour l'instant, l'activation se fait par contact direct.

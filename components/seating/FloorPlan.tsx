@@ -16,7 +16,8 @@ type Props = {
   onSavePositions: (p: { id: string; x: number; y: number }[]) => void;
 };
 
-const FLOOR_SIZE = { w: 320, h: 190 };
+export const FLOOR_SIZE = { w: 320, h: 190 };
+export const floorStorageKey = (marriageId: string) => `seating:floor:${marriageId}`;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 1.8;
 
@@ -37,7 +38,7 @@ export default function FloorPlan({ marriageId, tables, occupancy, selectionSeat
   const camera = { x: view.x, y: view.y };
   const setCamera = (f: (c: Pos) => Pos) => setView((v) => ({ ...v, ...f({ x: v.x, y: v.y }) }));
   const [local, setLocal] = useState<Record<string, Pos>>({}); // positions pendant un déplacement
-  const floorKey = `seating:floor:${marriageId}`;
+  const floorKey = floorStorageKey(marriageId);
   const [floor, setFloor] = useState<Pos>(() => {
     try { const v = JSON.parse(localStorage.getItem(floorKey) || 'null'); if (v && typeof v.x === 'number') return v; } catch {}
     return { x: 460, y: 200 };

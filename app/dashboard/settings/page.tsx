@@ -284,22 +284,23 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-between">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                <Link href="/dashboard/souvenir" className="flex items-center gap-2 text-slate-400 hover:text-ink transition-colors">
-                  <Download className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Télécharger mes données</span>
+            {/* Mobile : bouton pleine largeur en premier, liens alignés dessous ; ordinateur : liens à gauche, bouton à droite */}
+            <div className="mt-12 flex flex-col-reverse gap-5 border-t border-slate-100 pt-8 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <Link href="/dashboard/souvenir" className="inline-flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-1 text-slate-500 transition-colors hover:text-ink">
+                  <Download className="h-4 w-4 shrink-0" />
+                  <span className="text-[11px] font-black uppercase tracking-widest">Télécharger mes données</span>
                 </Link>
-                <button type="button" onClick={() => setShowDelete(true)} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Supprimer mon compte</span>
+                <button type="button" onClick={() => setShowDelete(true)} className="inline-flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-1 text-slate-500 transition-colors hover:text-red-600">
+                  <Trash2 className="h-4 w-4 shrink-0" />
+                  <span className="text-[11px] font-black uppercase tracking-widest">Supprimer mon compte</span>
                 </button>
               </div>
-              
+
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
-                className="text-white px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-3 rounded-[1.5rem] px-10 py-5 text-[10px] font-black uppercase tracking-widest text-white shadow-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 sm:w-auto"
                 style={{ backgroundColor: primaryColor }}
               >
                 {isSaving ? "Synchronisation..." : <><Save className="w-4 h-4" /> Sauvegarder</>}

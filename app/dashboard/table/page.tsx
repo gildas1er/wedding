@@ -7,6 +7,7 @@ import {
 } from '@dnd-kit/core';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Printer, FileText, MoreHorizontal, Loader2, LayoutList, Map as MapIcon, Users, UserX, Undo2 } from 'lucide-react';
+import FloorPlanPrint from '../../../components/seating/FloorPlanPrint';
 import { useSeating } from '../../../components/seating/useSeating';
 import GuestChip from '../../../components/seating/GuestChip';
 import TableCard from '../../../components/seating/TableCard';
@@ -37,6 +38,13 @@ export default function SeatingPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [editor, setEditor] = useState<EditorMode>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Document imprimé : listes pour le traiteur ou plan de salle
+  const [printMode, setPrintMode] = useState<'lists' | 'plan'>('lists');
+  const printDoc = (mode: 'lists' | 'plan') => {
+    setMenuOpen(false);
+    setPrintMode(mode);
+    setTimeout(() => window.print(), 150);
+  };
   const [dragIds, setDragIds] = useState<string[]>([]);
 
   const guestById = useMemo(() => new Map(s.guests.map((g) => [g.id, g])), [s.guests]);
@@ -101,9 +109,9 @@ export default function SeatingPage() {
   const pct = s.stats.total ? Math.round((s.stats.placed / s.stats.total) * 100) : 0;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] flex-col bg-ivory lg:h-screen print:h-auto">
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col bg-ivory lg:h-screen print:h-auto print:bg-white">
       {/* ── EN-TÊTE ── */}
-      <header className="shrink-0 border-b border-slate-200/80 bg-white/80 px-4 pb-3 pt-4 backdrop-blur sm:px-6 lg:px-8 print:hidden">
+      <header className="relative z-30 shrink-0 border-b border-slate-200/80 bg-white/80 px-4 pb-3 pt-4 backdrop-blur sm:px-6 lg:px-8 print:hidden">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="eyebrow">Plan de table</p>
@@ -140,7 +148,8 @@ export default function SeatingPage() {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
                   <div className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl">
-                    <MenuItem icon={Printer} onClick={() => { setMenuOpen(false); setTimeout(() => window.print(), 50); }}>Imprimer pour le traiteur</MenuItem>
+                    <MenuItem icon={MapIcon} onClick={() => printDoc('plan')}>Imprimer le plan de salle</MenuItem>
+                    <MenuItem icon={Printer} onClick={() => printDoc('lists')}>Imprimer pour le traiteur</MenuItem>
                     <MenuItem icon={FileText} onClick={() => { setMenuOpen(false); downloadWordPCO(s.marriage, s.tables, s.guests); }}>Télécharger en Word</MenuItem>
                   </div>
                 </>
@@ -271,7 +280,9 @@ export default function SeatingPage() {
       />
 
       <ToastView toast={s.toast} onClose={() => s.setToast(null)} raised={selected.size > 0} />
-      <PrintZone marriage={s.marriage} tables={s.tables} guests={s.guests} />
+      {printMode === 'plan'
+        ? <FloorPlanPrint marriage={s.marriage} tables={s.tables} guests={s.guests} occupancy={s.occupancy} />
+        : <PrintZone marriage={s.marriage} tables={s.tables} guests={s.guests} />}
     </div>
   );
 }
