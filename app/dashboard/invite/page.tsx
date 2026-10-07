@@ -15,8 +15,10 @@ import {
   MessageSquare, CheckCircle2, Clock, XCircle, Banknote, 
   ClipboardList, Utensils, Phone, Loader2, Check, AlertCircle, ChevronRight, ChevronLeft,
   MessageCircle, Crown, Home, Briefcase, Smile, FileSpreadsheet,
-  Landmark, Cross, GlassWater, Filter, MessageSquareQuote, Handshake
+  Landmark, Cross, GlassWater, Filter, MessageSquareQuote, Handshake, BookUser
 } from 'lucide-react';
+import ContactImportSheet, { type ContactRow } from '../../../components/invite/ContactImportSheet';
+import { contactPickerSupported, pickPhoneContacts } from '../../../lib/contacts';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
 
@@ -90,6 +92,7 @@ function StatusPill({ guest, dotEnabled = false }: { guest: any; dotEnabled?: bo
 // --- 2. MODAL D'AJOUT ET ÉDITION ---
 
 function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEnabled = false }: any) {
+  const [pickerSupported] = useState(() => contactPickerSupported());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAccompanist, setHasAccompanist] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -244,6 +247,21 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEn
                 </label>
               </div>
 
+              {!guestToEdit && pickerSupported && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const [c] = await pickPhoneContacts(false);
+                      if (c) setFormData((prev) => ({ ...prev, name: c.name || prev.name, phone: c.phones[0] ?? prev.phone }));
+                    } catch { /* accès refusé : saisie manuelle */ }
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600"
+                >
+                  <BookUser size={16} /> Choisir dans mes contacts
+                </button>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1"> Nom de l'invité</label>
                 <input required type="text" placeholder="Ex: Jean Dupont" className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-rose-400 outline-none transition-all font-bold" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
@@ -380,6 +398,7 @@ export default function GuestPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pricing, setPricing] = useState<null | 'limit' | 'discover'>(null);
   const [importNotice, setImportNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [contactsOpen, setContactsOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -456,6 +475,61 @@ export default function GuestPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Ajout groupé (import CSV ou contacts du téléphone) : respecte la limite gratuite et ignore les doublons
+  const bulkInsert = async (allGuests: Record<string, unknown>[]) => {
+    const room = limitActive ? Math.max(0, FREE_GUEST_LIMIT - guests.length) : Infinity;
+    if (room === 0) { setPricing('limit'); return false; }
+    const toImport = allGuests.slice(0, room);
+    const skippedForLimit = allGuests.length - toImport.length;
+
+    const batchSize = 5;
+    let insertedCount = 0;
+    let duplicates = 0;
+    let limitHit = false;
+
+    try {
+      for (let i = 0; i < toImport.length && !limitHit; i += batchSize) {
+        const batch = toImport.slice(i, i + batchSize);
+        const { error } = await supabase.from('invite').insert(batch);
+        if (!error) { insertedCount += batch.length; continue; }
+        if (isGuestLimitError(error)) { limitHit = true; break; }
+        if (error.code !== '23505') throw error;
+        // Un doublon fait échouer tout le lot : on réessaie ligne par ligne pour ne perdre personne
+        for (const row of batch) {
+          const { error: rowError } = await supabase.from('invite').insert(row);
+          if (!rowError) insertedCount++;
+          else if (rowError.code === '23505') duplicates++;
+          else if (isGuestLimitError(rowError)) { limitHit = true; break; }
+          else throw rowError;
+        }
+      }
+
+      const notLoaded = skippedForLimit + (limitHit ? toImport.length - insertedCount - duplicates : 0);
+      const parts = [`${insertedCount} proche${insertedCount > 1 ? 's' : ''} ajouté${insertedCount > 1 ? 's' : ''}`];
+      if (duplicates) parts.push(`${duplicates} numéro${duplicates > 1 ? 's' : ''} en double ignoré${duplicates > 1 ? 's' : ''}`);
+      if (notLoaded) parts.push(`${notLoaded} en attente : limite gratuite de ${FREE_GUEST_LIMIT} invités atteinte`);
+      setImportNotice({ type: notLoaded ? 'error' : 'success', message: `${parts.join(' · ')}.` });
+      if (notLoaded) setPricing('limit');
+      loadData();
+      return true;
+    } catch (err: any) {
+      setImportNotice({ type: 'error', message: err.message || "Erreur lors de l'ajout des invités." });
+      return false;
+    }
+  };
+
+  const importContacts = async (rows: ContactRow[]) => {
+    if (!marriage?.id) return;
+    setImporting(true);
+    setImportNotice(null);
+    const ok = await bulkInsert(rows.map((r) => ({
+      marriage_id: marriage.id, name: r.name, phone: r.phone, side: r.side, category: r.category,
+      guests_count: 1, is_vip: false, notes: null, status: 'en_attente',
+    })));
+    setImporting(false);
+    if (ok) setContactsOpen(false);
+  };
+
   const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !marriage?.id) return;
@@ -493,53 +567,9 @@ export default function GuestPage() {
           return;
         }
 
-        // Version gratuite : on importe jusqu'à la limite, le reste attendra le Premium
-        const room = limitActive ? Math.max(0, FREE_GUEST_LIMIT - guests.length) : Infinity;
-        if (room === 0) {
-          setImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-          setPricing('limit');
-          return;
-        }
-        const toImport = allGuests.slice(0, room);
-        const skippedForLimit = allGuests.length - toImport.length;
-
-        const batchSize = 5;
-        let insertedCount = 0;
-        let duplicates = 0;
-        let limitHit = false;
-
-        try {
-          for (let i = 0; i < toImport.length && !limitHit; i += batchSize) {
-            const batch = toImport.slice(i, i + batchSize);
-            const { error } = await supabase.from('invite').insert(batch);
-            if (!error) { insertedCount += batch.length; continue; }
-            if (isGuestLimitError(error)) { limitHit = true; break; }
-            if (error.code !== '23505') throw error;
-            // Un doublon fait échouer tout le lot : on réessaie ligne par ligne pour ne perdre personne
-            for (const row of batch) {
-              const { error: rowError } = await supabase.from('invite').insert(row);
-              if (!rowError) insertedCount++;
-              else if (rowError.code === '23505') duplicates++;
-              else if (isGuestLimitError(rowError)) { limitHit = true; break; }
-              else throw rowError;
-            }
-          }
-
-          const notLoaded = skippedForLimit + (limitHit ? toImport.length - insertedCount - duplicates : 0);
-          const parts = [`${insertedCount} proche${insertedCount > 1 ? 's' : ''} ajouté${insertedCount > 1 ? 's' : ''}`];
-          if (duplicates) parts.push(`${duplicates} numéro${duplicates > 1 ? 's' : ''} en double ignoré${duplicates > 1 ? 's' : ''}`);
-          if (notLoaded) parts.push(`${notLoaded} ligne${notLoaded > 1 ? 's' : ''} en attente : limite gratuite de ${FREE_GUEST_LIMIT} invités atteinte`);
-          setImportNotice({ type: notLoaded ? 'error' : 'success', message: `${parts.join(' · ')}.` });
-          if (notLoaded) setPricing('limit');
-
-          loadData();
-        } catch (err: any) {
-          setImportNotice({ type: 'error', message: err.message || "Erreur lors de l'intégration progressive." });
-        } finally {
-          setImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        }
+        await bulkInsert(allGuests);
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       },
       error: () => {
         setImportNotice({ type: 'error', message: "Impossible de lire ce fichier CSV." });
@@ -640,6 +670,15 @@ export default function GuestPage() {
             >
               {importing ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} className="text-emerald-600" />}
               <span className="hidden sm:inline">{importing ? 'Importation…' : 'Importer un CSV'}</span>
+            </button>
+            <button
+              onClick={() => { if (limitActive && guests.length >= FREE_GUEST_LIMIT) setPricing('limit'); else setContactsOpen(true); }}
+              disabled={importing}
+              aria-label="Ajouter depuis mes contacts"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50 sm:px-4"
+            >
+              <BookUser size={16} className="text-rose-500" />
+              <span>Contacts</span>
             </button>
             {/* Sur ordinateur : bouton classique ; sur mobile : bouton flottant en bas à droite */}
             <button onClick={openAdd} className="hidden min-h-[44px] items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-700 lg:inline-flex">
@@ -884,6 +923,17 @@ export default function GuestPage() {
 
       <AnimatePresence>
         {pricing && <PricingModal reason={pricing} onClose={() => setPricing(null)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {contactsOpen && (
+          <ContactImportSheet
+            existingPhones={new Set(guests.map((g) => normalizePhone(g.phone)).filter(Boolean) as string[])}
+            room={limitActive ? Math.max(0, FREE_GUEST_LIMIT - guests.length) : Infinity}
+            saving={importing}
+            onClose={() => setContactsOpen(false)}
+            onImport={importContacts}
+          />
+        )}
       </AnimatePresence>
 
       <GuestModal 
