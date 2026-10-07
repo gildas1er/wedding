@@ -5,6 +5,7 @@
 // du couple (variables rose / amber posées par rsvpThemeStyle sur la page).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { nameFontStyle } from '../../lib/name-fonts';
 
 type Phase = 'closed' | 'seal' | 'flap' | 'card' | 'reveal';
 
@@ -22,11 +23,12 @@ function sealPath(bumps = 16, r = 30, depth = 2.2) {
   return `M${pts.join('L')}Z`;
 }
 
-export default function EnvelopeIntro({ initials, couple, guestName, dateLabel, onOpen, onDone }: {
+export default function EnvelopeIntro({ initials, couple, guestName, dateLabel, namesFont, onOpen, onDone }: {
   initials: string[];
   couple: string;
   guestName?: string;
   dateLabel?: string;
+  namesFont?: string | null;
   onOpen?: () => void; // au toucher : l'occasion de lancer la musique (geste de l'utilisateur)
   onDone: () => void;
 }) {
@@ -107,7 +109,7 @@ export default function EnvelopeIntro({ initials, couple, guestName, dateLabel, 
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
         >
           <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-700">Mariage</span>
-          <span className="mt-1 font-display text-2xl leading-tight text-ink sm:text-[1.7rem]">{couple}</span>
+          <span className="mt-1 font-display text-2xl leading-tight text-ink sm:text-[1.7rem]"><span style={nameFontStyle(namesFont)}>{couple}</span></span>
           <span className="mt-1.5 h-px w-12 bg-amber-400" />
           {dateLabel && <span className="mt-1.5 text-xs text-slate-500">{dateLabel}</span>}
         </motion.div>

@@ -10,10 +10,11 @@ import { formatDateFr, formatHourFr } from '../../lib/event-datetime';
 import { mapsUrl } from '../../lib/ceremonies';
 import { daysUntil, formatWeddingDate } from '../../lib/planning';
 import type { PracticalInfo } from '../../lib/practical-info';
+import { nameFontStyle } from '../../lib/name-fonts';
 
 type Text = string | null | undefined;
 type StoryMarriage = {
-  partner_1_name?: Text; partner_2_name?: Text; wedding_date?: string | Date | null;
+  partner_1_name?: Text; partner_2_name?: Text; wedding_date?: string | Date | null; names_font?: Text;
   bg_image_url?: Text; bg_image_position?: Text; invitation_text?: Text;
   dot_date?: Text; dot_hour?: Text; dot_location?: Text; dot_maps_url?: Text;
   mairie_date?: Text; mairie_hour?: Text; mairie_location?: Text; mairie_maps_url?: Text;
@@ -153,7 +154,9 @@ export default function StoryIntro({ m, flags, infos, guestName, canRespond, clo
                   <div className="absolute inset-x-0 bottom-0 px-7 pb-[max(3.5rem,env(safe-area-inset-bottom))]">
                     <motion.p {...rise(0)} className="text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">{m.invitation_text || 'Vous êtes invités'}</motion.p>
                     <motion.h1 {...rise(1)} className="mt-3 font-display text-[clamp(2.6rem,13vw,3.6rem)] font-normal leading-[1.02]">
-                      {m.partner_1_name} <span className="italic text-amber-300">&amp;</span><br />{m.partner_2_name}
+                      <span className="block" style={nameFontStyle(m.names_font)}>
+                        {m.partner_1_name} <span className="italic text-amber-300">&amp;</span><br />{m.partner_2_name}
+                      </span>
                     </motion.h1>
                     {guestName && <motion.p {...rise(2)} className="mt-4 text-base text-white/85">{guestName}, cette invitation est pour vous.</motion.p>}
                   </div>

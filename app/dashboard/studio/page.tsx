@@ -17,12 +17,14 @@ import { DEFAULT_PALETTE, resolveAccent } from '../../../lib/palettes';
 import { toISODate, toHHMM } from '../../../lib/event-datetime';
 import { ceremonyFlags, isHttpUrl, mapsUrl } from '../../../lib/ceremonies';
 import { DEFAULT_TEMPLATE, INVITATION_TEMPLATES, resolveTemplate, type InvitationTemplate } from '../../../lib/invitation-templates';
+import { DEFAULT_NAME_FONT, NAME_FONTS, nameFontStyle, resolveNameFont, type NameFontId } from '../../../lib/name-fonts';
 import {
   DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS, buildInvitationMessage, hasLinkPlaceholder,
 } from '../../../lib/whatsapp-message';
 
 type Config = {
   invitation_template: InvitationTemplate;
+  names_font: NameFontId;
   primary_color: string;
   accent_color: string;
   invitation_text: string;
@@ -68,6 +70,7 @@ const EMPTY_CONFIG: Config = {
   religious_date: '', religious_hour: '', religious_location: '', religious_maps_url: '',
   reception_date: '', reception_hour: '', reception_location: '', reception_maps_url: '',
   invitation_template: DEFAULT_TEMPLATE,
+  names_font: DEFAULT_NAME_FONT,
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
   music_url: '',
   practical_info: [],
@@ -81,6 +84,7 @@ const MUSIC_KEYS = ['music_url'] as const;
 const INFO_KEYS = ['practical_info'] as const;
 const RECEPTION_DATE_KEYS = ['reception_date'] as const;
 const TEMPLATE_KEYS = ['invitation_template'] as const;
+const NAMES_FONT_KEYS = ['names_font'] as const;
 const DOT_KEYS = ['show_dot', 'dot_date', 'dot_hour', 'dot_location', 'dot_maps_url'] as const;
 const MAX_MUSIC_MB = 10;
 
@@ -105,6 +109,7 @@ export default function InvitationStudio() {
   const [infosAvailable, setInfosAvailable] = useState(true);
   const [templateAvailable, setTemplateAvailable] = useState(true);
   const [dotAvailable, setDotAvailable] = useState(true);
+  const [namesFontAvailable, setNamesFontAvailable] = useState(true);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -133,6 +138,7 @@ export default function InvitationStudio() {
         setInfosAvailable('practical_info' in data);
         setTemplateAvailable('invitation_template' in data);
         setDotAvailable('show_dot' in data);
+        setNamesFontAvailable('names_font' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -150,6 +156,7 @@ export default function InvitationStudio() {
         const flags = ceremonyFlags(data);
         const loaded: Config = {
           invitation_template: resolveTemplate(data.invitation_template),
+          names_font: resolveNameFont(data.names_font).id,
           primary_color: data.primary_color || EMPTY_CONFIG.primary_color,
           accent_color: resolveAccent(data.primary_color, data.accent_color),
           invitation_text: data.invitation_text || EMPTY_CONFIG.invitation_text,
@@ -292,6 +299,10 @@ export default function InvitationStudio() {
           dot_location: config.dot_location,
           dot_maps_url: config.dot_maps_url,
         },
+      },
+      {
+        keys: NAMES_FONT_KEYS, label: 'la migration 16 (police des prénoms)', onMissing: () => setNamesFontAvailable(false),
+        values: { names_font: config.names_font === DEFAULT_NAME_FONT ? null : config.names_font },
       },
       {
         keys: TEMPLATE_KEYS, label: "la migration 11 (modèle d'invitation)", onMissing: () => setTemplateAvailable(false),
@@ -493,6 +504,31 @@ export default function InvitationStudio() {
               {!accentAvailable && (
                 <p className="text-xs text-amber-700">La couleur d&apos;accent sera enregistrée après la migration « 20260930_05_couleur_accent.sql ».</p>
               )}
+              <Field label="Police des prénoms">
+                <div role="radiogroup" aria-label="Police des prénoms" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {NAME_FONTS.map((f) => {
+                    const active = config.names_font === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => { set('names_font', f.id); setPreviewTab('rsvp'); }}
+                        className={`flex min-w-0 flex-col items-center gap-1 rounded-2xl border px-2 pb-2 pt-3 transition-all ${active ? 'border-amber-400 bg-amber-50/60 ring-2 ring-amber-200' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                      >
+                        <span className="block w-full truncate text-center font-display text-[1.35rem] leading-tight text-ink" style={nameFontStyle(f.id)}>
+                          {[marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ') || 'Awa & Yao'}
+                        </span>
+                        <span className={`flex items-center gap-1 text-[11px] font-semibold ${active ? 'text-amber-700' : 'text-slate-500'}`}>
+                          {active && <Check className="h-3 w-3" />} {f.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {!namesFontAvailable && <p className="mt-2 text-xs text-amber-700">La police sera enregistrée après la migration « 20261007_16_police_prenoms.sql ».</p>}
+              </Field>
               <Field label="Titre de l'invitation">
                 <input type="text" value={config.invitation_text} onChange={(e) => set('invitation_text', e.target.value)} placeholder="Ex : Vous êtes invités" className={inputClass} />
               </Field>

@@ -18,6 +18,7 @@ import PracticalInfoSection from '../../../components/rsvp/PracticalInfoSection'
 import EnvelopeIntro from '../../../components/rsvp/EnvelopeIntro';
 import StoryIntro from '../../../components/rsvp/StoryIntro';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
+import { nameFontStyle } from '../../../lib/name-fonts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -337,6 +338,7 @@ function RSVPContent() {
             couple={[m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ')}
             guestName={guestName || undefined}
             dateLabel={m.wedding_date ? formatDateFr(typeof m.wedding_date === 'string' ? m.wedding_date : m.wedding_date.toISOString().slice(0, 10)) : undefined}
+            namesFont={m.names_font}
             onOpen={startMusicFromIntro}
             onDone={() => finishIntro()}
           />
@@ -392,10 +394,12 @@ function RSVPContent() {
                 <p className="eyebrow">{m.invitation_text}</p>
                 <div className="gold-rule w-10" />
              </div>
-             <h1 className="text-5xl font-normal text-ink leading-[1.05]">
-               {m.partner_1_name}
-               <span className="block my-1 text-4xl font-light italic text-amber-500">&amp;</span>
-               {m.partner_2_name}
+             <h1 className="text-5xl font-normal text-ink leading-[1.05] break-words">
+               <span className="block" style={nameFontStyle(m.names_font)}>
+                 {m.partner_1_name}
+                 <span className="block my-1 text-4xl font-light italic text-amber-500" style={m.names_font && m.names_font !== 'classique' ? { fontStyle: 'normal', fontSize: '0.8em' } : undefined}>&amp;</span>
+                 {m.partner_2_name}
+               </span>
              </h1>
           </motion.div>
 
