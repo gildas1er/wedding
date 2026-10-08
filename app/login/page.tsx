@@ -21,8 +21,12 @@ export default function LoginPage() {
   // Après une suppression de compte : /login?compte=supprime
   const [message, setMessage] = useState<{ type: 'success' | 'error' | '', content: string }>({ type: '', content: '' });
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('compte') !== 'supprime') return;
-    Promise.resolve().then(() => setMessage({ type: 'success', content: 'Votre compte a été supprimé définitivement. Merci d’avoir organisé votre mariage avec WeddingStudio.' }));
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('compte') === 'supprime') {
+      Promise.resolve().then(() => setMessage({ type: 'success', content: 'Votre compte a été supprimé définitivement. Merci d’avoir organisé votre mariage avec WeddingStudio.' }));
+    } else if (params.get('error') === 'auth_failed') {
+      Promise.resolve().then(() => setMessage({ type: 'error', content: 'Ce lien de connexion a expiré ou a déjà été utilisé. Connectez-vous avec votre mot de passe.' }));
+    }
   }, []);
 
   const allValid = email.trim() !== '' && password !== '';
@@ -144,7 +148,7 @@ export default function LoginPage() {
             <div>
               <div className="flex justify-between mb-2 ml-1">
                 <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500">Mot de passe</label>
-                <Link href="#" className="text-[11px] font-black uppercase tracking-widest text-rose-500">Oublié ?</Link>
+                <Link href={`/mot-de-passe-oublie${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`} className="text-[11px] font-black uppercase tracking-widest text-rose-500 hover:underline underline-offset-4">Oublié ?</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />

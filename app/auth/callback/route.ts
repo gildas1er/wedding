@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     }
   }
 
+  // Lien de réinitialisation expiré, déjà utilisé ou ouvert sur un autre appareil : on propose d'en redemander un
+  if (next === '/nouveau-mot-de-passe') return NextResponse.redirect(`${origin}/mot-de-passe-oublie?lien=expire`);
   // En cas d'erreur, retour au login
   return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }
