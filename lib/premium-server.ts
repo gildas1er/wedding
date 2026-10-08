@@ -122,7 +122,8 @@ export async function confirmAndActivate(reference: string): Promise<'activated'
   until.setMonth(until.getMonth() + PREMIUM_ACCESS_MONTHS_AFTER_WEDDING);
 
   await db.from('payments').update({ status: 'completed', completed_at: new Date().toISOString(), environment: payment.environment ?? null, raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
-  const { error } = await db.from('marriages').update({ plan: 'premium', premium_until: until.toISOString() }).eq('id', row.marriage_id);
+  // Paiement en ligne : premier palier (Intime). Les autres paliers s'activent pour l'instant par contact.
+  const { error } = await db.from('marriages').update({ plan: 'premium', tier: 'intime', guest_limit: 100, premium_until: until.toISOString() }).eq('id', row.marriage_id);
   if (error) throw new Error(`Activation du Premium impossible : ${error.message}`);
   return 'activated';
 }

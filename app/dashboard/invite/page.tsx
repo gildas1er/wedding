@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import { normalizePhone, whatsappLink } from '../../../lib/phone';
 import { buildInvitationMessage } from '../../../lib/whatsapp-message';
-import { FREE_GUEST_LIMIT, isGuestLimitError, isPremium } from '../../../lib/plan';
+import { countPersons, guestQuota, isGuestLimitError } from '../../../lib/plan';
 import PricingModal from '../../../components/dashboard/PricingModal';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
@@ -200,7 +200,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEn
       if (error.code === '23505') {
         setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité.");
       } else if (isGuestLimitError(error)) {
-        setErrorMessage(`Limite gratuite de ${FREE_GUEST_LIMIT} invités atteinte : passez au Premium pour en ajouter d'autres.`);
+        setErrorMessage("La limite d'invités de votre formule est atteinte : passez au palier supérieur pour en ajouter d'autres (ou réduisez le nombre d'accompagnants).");
       } else {
         setErrorMessage("Oups ! Une petite erreur technique s'est glissée.");
       }
@@ -405,8 +405,10 @@ export default function GuestPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Version gratuite : limite de fiches (la base l'applique aussi, voir migration 7)
-  const limitActive = Boolean(marriage && 'plan' in marriage && !isPremium(marriage));
+  // Limite de la formule (gratuit ou palier) : la base l'applique aussi, voir migrations 7 et 17
+  const quota = guestQuota(marriage, guests);
+  const limitActive = Boolean(marriage && 'plan' in marriage && quota.limit !== null);
+  const room = limitActive ? quota.remaining : Infinity;
 
   // CALCUL DES STATISTIQUES DES CÉRÉMONIES
   const confirmedGuests = guests.filter(g => g.status === 'confirmé');
@@ -479,9 +481,19 @@ export default function GuestPage() {
 
   // Ajout groupé (import CSV ou contacts du téléphone) : respecte la limite gratuite et ignore les doublons
   const bulkInsert = async (allGuests: Record<string, unknown>[]) => {
-    const room = limitActive ? Math.max(0, FREE_GUEST_LIMIT - guests.length) : Infinity;
-    if (room === 0) { setPricing('limit'); return false; }
-    const toImport = allGuests.slice(0, room);
+    if (room <= 0) { setPricing('limit'); return false; }
+    // En personnes : on ajoute les fiches tant que leurs accompagnants tiennent dans la limite
+    let toImport = allGuests;
+    if (Number.isFinite(room)) {
+      let left = room;
+      toImport = [];
+      for (const g of allGuests) {
+        const n = quota.byPersons ? Math.max(1, Number(g.guests_count) || 1) : 1;
+        if (n > left) break;
+        toImport.push(g);
+        left -= n;
+      }
+    }
     const skippedForLimit = allGuests.length - toImport.length;
 
     const batchSize = 5;
@@ -509,7 +521,7 @@ export default function GuestPage() {
       const notLoaded = skippedForLimit + (limitHit ? toImport.length - insertedCount - duplicates : 0);
       const parts = [`${insertedCount} proche${insertedCount > 1 ? 's' : ''} ajouté${insertedCount > 1 ? 's' : ''}`];
       if (duplicates) parts.push(`${duplicates} numéro${duplicates > 1 ? 's' : ''} en double ignoré${duplicates > 1 ? 's' : ''}`);
-      if (notLoaded) parts.push(`${notLoaded} en attente : limite gratuite de ${FREE_GUEST_LIMIT} invités atteinte`);
+      if (notLoaded) parts.push(`${notLoaded} en attente : limite de ${quota.limit} ${quota.unit} atteinte`);
       setImportNotice({ type: notLoaded ? 'error' : 'success', message: `${parts.join(' · ')}.` });
       if (notLoaded) setPricing('limit');
       loadData();
@@ -645,7 +657,7 @@ export default function GuestPage() {
   };
 
   const openAdd = () => {
-    if (limitActive && guests.length >= FREE_GUEST_LIMIT) { setPricing('limit'); return; }
+    if (room <= 0) { setPricing('limit'); return; }
     setSelectedGuest(null); setIsModalOpen(true);
   };
   const openEdit = (guest: any) => { setSelectedGuest(guest); setIsModalOpen(true); };
@@ -686,7 +698,7 @@ export default function GuestPage() {
               <span className="hidden sm:inline">{importing ? 'Importation…' : 'Importer un CSV'}</span>
             </button>
             <button
-              onClick={() => { if (limitActive && guests.length >= FREE_GUEST_LIMIT) setPricing('limit'); else setContactsOpen(true); }}
+              onClick={() => { if (room <= 0) setPricing('limit'); else setContactsOpen(true); }}
               disabled={importing}
               aria-label="Ajouter depuis mes contacts"
               className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50 sm:px-4"
@@ -701,21 +713,21 @@ export default function GuestPage() {
           </div>
         </header>
 
-        {limitActive && guests.length >= FREE_GUEST_LIMIT * 0.8 && (
-          <div className={`mb-6 flex flex-col gap-3 rounded-2xl p-4 ring-1 sm:flex-row sm:items-center ${guests.length >= FREE_GUEST_LIMIT ? 'bg-rose-50 ring-rose-200' : 'bg-amber-50 ring-amber-200'}`}>
+        {limitActive && quota.limit !== null && quota.used >= quota.limit * 0.8 && (
+          <div className={`mb-6 flex flex-col gap-3 rounded-2xl p-4 ring-1 sm:flex-row sm:items-center ${quota.remaining <= 0 ? 'bg-rose-50 ring-rose-200' : 'bg-amber-50 ring-amber-200'}`}>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-ink">
-                {guests.length >= FREE_GUEST_LIMIT
-                  ? `Limite gratuite atteinte : ${FREE_GUEST_LIMIT} invités`
-                  : `Plus que ${FREE_GUEST_LIMIT - guests.length} invité${FREE_GUEST_LIMIT - guests.length > 1 ? 's' : ''} dans la version gratuite`}
+                {quota.remaining <= 0
+                  ? `Limite atteinte : ${quota.limit} ${quota.unit}${quota.tier ? ` (palier ${quota.tier.label})` : ' en version gratuite'}`
+                  : `Plus que ${quota.remaining} ${quota.byPersons ? 'invité' : 'fiche'}${quota.remaining > 1 ? 's' : ''} ${quota.tier ? `dans le palier ${quota.tier.label}` : 'dans la version gratuite'}`}
               </p>
               <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-white">
-                <div className={`h-full rounded-full ${guests.length >= FREE_GUEST_LIMIT ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (guests.length / FREE_GUEST_LIMIT) * 100)}%` }} />
+                <div className={`h-full rounded-full ${quota.remaining <= 0 ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (quota.used / quota.limit) * 100)}%` }} />
               </div>
-              <p className="mt-1.5 text-xs text-slate-600">{guests.length} / {FREE_GUEST_LIMIT} fiches · vos invités actuels ne sont jamais bloqués.</p>
+              <p className="mt-1.5 text-xs text-slate-600">{quota.used} / {quota.limit} {quota.byPersons ? 'invités (accompagnants compris)' : 'fiches'} · vos invités actuels ne sont jamais bloqués.</p>
             </div>
-            <button onClick={() => setPricing(guests.length >= FREE_GUEST_LIMIT ? 'limit' : 'discover')} className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700">
-              Passer au Premium
+            <button onClick={() => setPricing(quota.remaining <= 0 ? 'limit' : 'discover')} className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700">
+              {quota.tier ? 'Passer au palier supérieur' : 'Voir les paliers'}
             </button>
           </div>
         )}
@@ -936,13 +948,13 @@ export default function GuestPage() {
       </button>
 
       <AnimatePresence>
-        {pricing && <PricingModal reason={pricing} onClose={() => setPricing(null)} />}
+        {pricing && <PricingModal reason={pricing} persons={countPersons(guests)} byPersons={quota.byPersons} currentTier={quota.tierId} marriageId={marriage?.id} couple={[marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ')} onClose={() => setPricing(null)} />}
       </AnimatePresence>
       <AnimatePresence>
         {contactsOpen && (
           <ContactImportSheet
             existingPhones={new Set(guests.map((g) => normalizePhone(g.phone)).filter(Boolean) as string[])}
-            room={limitActive ? Math.max(0, FREE_GUEST_LIMIT - guests.length) : Infinity}
+            room={room}
             saving={importing}
             onClose={() => setContactsOpen(false)}
             onImport={importContacts}

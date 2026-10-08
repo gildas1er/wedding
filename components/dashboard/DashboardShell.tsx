@@ -13,7 +13,7 @@ import PricingModal from './PricingModal';
 import SouvenirModal from './SouvenirModal';
 import DeleteAccountModal from './DeleteAccountModal';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
-import { isPremium } from '../../lib/plan';
+import { isPremium, tierById } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
@@ -43,7 +43,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 ];
 
 type Couple = {
-  id: string; p1: string; p2: string; date: string | null; premium: boolean;
+  id: string; p1: string; p2: string; date: string | null; premium: boolean; tierLabel: string | null; guestLimit: number | null;
   lifecycle: ReturnType<typeof spaceLifecycle>;
 };
 
@@ -172,7 +172,7 @@ function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
         ) : couple?.premium ? (
           <Link href="/dashboard/premium" onClick={onNavigate} className="mt-6 mb-3 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50/70 p-3 text-sm">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink text-amber-300"><Crown size={15} /></span>
-            <span><span className="block font-semibold text-ink">Premium actif</span><span className="text-xs text-slate-500">Invités illimités</span></span>
+            <span><span className="block font-semibold text-ink">{couple.tierLabel ? `Palier ${couple.tierLabel}` : 'Premium actif'}</span><span className="text-xs text-slate-500">{couple.guestLimit ? `Jusqu’à ${couple.guestLimit} invités` : 'Invités illimités'}</span></span>
           </Link>
         ) : (
           <div className="relative mt-6 mb-3 overflow-hidden rounded-2xl bg-ink p-4 text-white">
@@ -181,7 +181,7 @@ function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
               <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-300">
                 <Crown size={13} /> Premium
               </p>
-              <p className="mt-1.5 font-display text-[15px] leading-snug">Invités illimités pour votre grand jour</p>
+              <p className="mt-1.5 font-display text-[15px] leading-snug">Recevez tous vos proches, dès 50 000 F</p>
               <button
                 onClick={onUpgrade}
                 className="mt-3 w-full rounded-lg bg-amber-300 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-amber-200"
@@ -226,7 +226,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .maybeSingle();
       if (!data) return;
       const lifecycle = spaceLifecycle(data);
-      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), lifecycle });
+      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, lifecycle });
       // Mode souvenir : le pop-up s'affiche une fois par visite
       if (lifecycle.phase === 'souvenir') {
         let seen = false;

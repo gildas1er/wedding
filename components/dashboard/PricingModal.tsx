@@ -1,15 +1,32 @@
 "use client";
 
+// Présentation des paliers : le palier conseillé selon la liste actuelle, le prix (ou la différence
+// à payer pour monter de palier) et l'activation par WhatsApp.
 import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Check, Crown, X } from 'lucide-react';
-import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, PREMIUM_FEATURES, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
+import { ArrowRight, Check, Crown, MessageCircle, Sparkles, X } from 'lucide-react';
+import {
+  FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS,
+  formatXof, recommendedTier, tierById, tierWhatsappLink, upgradePrice,
+} from '../../lib/plan';
 
-type Props = { onClose: () => void; reason?: 'limit' | 'discover' };
+type Props = {
+  onClose: () => void;
+  reason?: 'limit' | 'discover';
+  persons?: number;              // personnes déjà prévues (fiches + accompagnants)
+  byPersons?: boolean;
+  currentTier?: string | null;   // palier déjà acheté
+  marriageId?: string | null;
+  couple?: string;
+};
 
-// Présentation de l'offre : ce qu'elle apporte vraiment, son prix, et l'accès au paiement
-export default function PricingModal({ onClose, reason = 'discover' }: Props) {
+export default function PricingModal({ onClose, reason = 'discover', persons = 0, currentTier = null, marriageId = null, couple = '' }: Props) {
+  const current = tierById(currentTier);
+  // Palier conseillé : celui qui accueille la liste actuelle plus au moins une personne
+  const need = reason === 'limit' ? persons + 1 : Math.max(persons, 1);
+  const advised = recommendedTier(Math.max(need, (current?.max ?? 0) + 1));
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -19,43 +36,96 @@ export default function PricingModal({ onClose, reason = 'discover' }: Props) {
       <motion.div
         initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        role="dialog" aria-modal="true" aria-label="Offre Premium"
-        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] bg-white p-6 shadow-2xl sm:rounded-[1.75rem] sm:p-8"
+        role="dialog" aria-modal="true" aria-labelledby="pricing-title"
+        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] bg-white p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[1.75rem] sm:p-8"
       >
         <button onClick={onClose} aria-label="Fermer" className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-ink">
           <X size={18} />
         </button>
 
         <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-600"><Crown size={14} /> Premium</p>
-        <h2 className="mt-2 text-2xl font-normal text-ink sm:text-3xl">
-          {reason === 'limit' ? `Vous avez atteint ${FREE_GUEST_LIMIT} invités` : 'Recevez tous vos proches'}
+        <h2 id="pricing-title" className="mt-2 pr-10 text-2xl font-normal text-ink sm:text-3xl">
+          {reason === 'limit' ? (current ? `Votre palier ${current.label} est complet` : 'Votre liste gratuite est complète') : 'Choisissez votre palier'}
         </h2>
-        <p className="mt-2 text-slate-500">
+        <p className="mt-2 text-sm text-slate-500">
           {reason === 'limit'
-            ? 'Vos invités, votre plan de table et vos réglages restent intacts. Passez au Premium pour continuer à ajouter des invités.'
-            : `La version gratuite accueille jusqu'à ${FREE_GUEST_LIMIT} fiches invités. Le Premium lève cette limite.`}
+            ? 'Vos invités, votre plan de table et vos réglages restent intacts. Choisissez un palier pour continuer à ajouter des proches.'
+            : `La version gratuite accueille ${FREE_GUEST_LIMIT} invités. Choisissez le palier qui correspond à la taille de votre mariage, accompagnants compris.`}
+          {persons > 0 && <> Votre liste compte aujourd&apos;hui <strong className="text-ink">{persons} invité{persons > 1 ? 's' : ''}</strong>.</>}
         </p>
 
-        <ul className="mt-6 space-y-2.5">
-          {PREMIUM_FEATURES.map((f) => (
-            <li key={f} className="flex items-start gap-3 text-sm text-slate-700">
-              <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Check size={12} /></span>{f}
-            </li>
-          ))}
+        <ul className="mt-5 space-y-2" aria-label="Paliers">
+          {TIERS.map((t) => {
+            const isCurrent = current?.id === t.id;
+            const below = current ? t.max <= current.max && !isCurrent : false;
+            const tooSmall = !isCurrent && t.max < need;
+            const isAdvised = advised?.id === t.id;
+            const price = current ? upgradePrice(current.id, t.id) : t.price;
+            const disabled = isCurrent || below || tooSmall;
+            return (
+              <li key={t.id}>
+                <a
+                  href={disabled ? undefined : tierWhatsappLink(couple, marriageId, t.id, current?.id, persons)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={disabled}
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
+                    isAdvised ? 'border-amber-400 bg-amber-50/70 ring-2 ring-amber-200' : 'border-slate-200 bg-white'
+                  } ${disabled ? 'pointer-events-none opacity-50' : 'hover:border-amber-400'}`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-display text-lg text-ink">{t.label}</span>
+                      {isAdvised && <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"><Sparkles size={10} /> Conseillé</span>}
+                      {isCurrent && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Votre palier</span>}
+                    </span>
+                    <span className="block text-xs text-slate-500">jusqu&apos;à {t.max} invités</span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block whitespace-nowrap font-semibold text-ink">{current && !isCurrent && !below ? `+ ${formatXof(price)}` : formatXof(t.price)}</span>
+                    {current && !isCurrent && !below && <span className="block text-[11px] text-slate-500">la différence</span>}
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+          <li>
+            <a
+              href={tierWhatsappLink(couple, marriageId, 'sur_mesure', current?.id, persons)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-3 rounded-2xl border border-dashed px-4 py-3 hover:border-amber-400 ${!advised ? 'border-amber-400 bg-amber-50/70' : 'border-slate-300'}`}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="font-display text-lg text-ink">Sur mesure</span>
+                <span className="block text-xs text-slate-500">plus de 300 invités</span>
+              </span>
+              <span className="shrink-0 font-semibold text-ink">Sur devis</span>
+            </a>
+          </li>
         </ul>
 
-        <div className="mt-6 flex items-baseline justify-between gap-3 rounded-2xl bg-ivory px-4 py-3">
-          <span className="shrink-0 whitespace-nowrap font-display text-2xl text-ink">{formatXof(PREMIUM_PRICE_XOF)}</span>
-          <span className="text-right text-xs text-slate-500">paiement unique · jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après le mariage</span>
-        </div>
+        <p className="mt-4 flex items-start gap-2 text-xs text-slate-500">
+          <Check size={14} className="mt-0.5 shrink-0 text-emerald-600" />
+          Paiement unique · toutes les fonctionnalités · accès jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après le mariage. Vous pourrez monter de palier plus tard en payant seulement la différence.
+        </p>
 
-        <Link href="/dashboard/premium" onClick={onClose} className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-ink text-sm font-semibold text-white hover:bg-rose-700">
-          Passer au Premium
+        {advised && (
+          <a
+            href={tierWhatsappLink(couple, marriageId, advised.id, current?.id, persons)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-ink text-sm font-semibold text-white hover:bg-rose-700"
+          >
+            <MessageCircle size={16} /> Choisir le palier {advised.label}
+          </a>
+        )}
+        <Link href="/dashboard/premium" onClick={onClose} className="mt-2 flex min-h-[44px] items-center justify-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-ink">
+          Voir le détail des paliers <ArrowRight size={14} />
         </Link>
-        <p className="mt-3 text-center text-xs text-slate-500">
+        <p className="mt-1 text-center text-xs text-slate-500">
           {ONLINE_PAYMENT_ENABLED ? 'Wave, Orange Money, MTN, Moov ou carte bancaire' : `Activation par appel ou WhatsApp au ${PREMIUM_CONTACT.display}`}
         </p>
-        <button onClick={onClose} className="mt-2 w-full py-2 text-sm font-medium text-slate-500 hover:text-ink">Plus tard</button>
       </motion.div>
     </motion.div>
   );

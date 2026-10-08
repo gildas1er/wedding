@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { LegalPage, Section } from '../../components/LegalPage';
 import { LEGAL } from '../../lib/legal';
 import { ACTIVE_MONTHS_AFTER_WEDDING, DELETE_MONTHS_AFTER_WEDDING, EXTENSION_MONTHS, EXTENSION_PRICE_XOF } from '../../lib/lifecycle';
-import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, PREMIUM_PRICE_XOF, formatXof } from '../../lib/plan';
+import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS, formatXof } from '../../lib/plan';
 
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation et de vente",
@@ -56,8 +56,16 @@ export default function ConditionsPage() {
 
       <Section id="vente" title="7. Offre gratuite et offre Premium">
         <ul>
-          <li><strong>Gratuit :</strong> toutes les fonctionnalités, jusqu&apos;à {FREE_GUEST_LIMIT} fiches invités.</li>
-          <li><strong>Premium :</strong> {formatXof(PREMIUM_PRICE_XOF)}, paiement unique, invités illimités. L&apos;accès Premium est valable jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après la date de votre mariage indiquée dans votre espace.</li>
+          <li><strong>Gratuit :</strong> toutes les fonctionnalités, jusqu&apos;à {FREE_GUEST_LIMIT} invités (accompagnants compris ; {FREE_GUEST_LIMIT} fiches pour les comptes créés avant le 8 octobre 2026).</li>
+          <li>
+            <strong>Premium, selon le nombre d&apos;invités (accompagnants compris), paiement unique :</strong>
+            <ul className="mt-1">
+              {TIERS.map((t, i) => <li key={t.id}>{t.label} : de {i === 0 ? 1 : TIERS[i - 1].max + 1} à {t.max} invités, {formatXof(t.price)}</li>)}
+              <li>Sur mesure : plus de 300 invités, sur devis</li>
+            </ul>
+          </li>
+          <li><strong>Changement de palier :</strong> vous pouvez passer à un palier supérieur à tout moment en payant uniquement la différence de prix.</li>
+          <li><strong>Durée :</strong> l&apos;accès Premium est valable jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après la date de votre mariage indiquée dans votre espace. Les comptes Premium souscrits avant les paliers conservent des invités illimités.</li>
           {ONLINE_PAYMENT_ENABLED ? (
             <>
               <li><strong>Paiement :</strong> Wave, Orange Money, MTN MoMo, Moov Money ou carte bancaire, via la page sécurisée de GeniusPay. Nous n&apos;avons jamais accès à vos données de carte ni à votre code de paiement mobile.</li>
@@ -69,7 +77,7 @@ export default function ConditionsPage() {
               <li><strong>Activation :</strong> dès réception du paiement, avec la référence de votre espace (affichée sur la page Premium).</li>
             </>
           )}
-          <li><strong>Remboursement :</strong> vous pouvez demander le remboursement dans les 7 jours suivant le paiement, tant que vous n&apos;avez pas dépassé {FREE_GUEST_LIMIT} fiches invités. Au-delà, le service ayant été pleinement utilisé, il n&apos;est pas remboursable, sauf dysfonctionnement de notre fait.</li>
+          <li><strong>Remboursement :</strong> vous pouvez demander le remboursement dans les 7 jours suivant le paiement, tant que votre liste ne dépasse pas {FREE_GUEST_LIMIT} invités. Au-delà, le service ayant été pleinement utilisé, il n&apos;est pas remboursable, sauf dysfonctionnement de notre fait.</li>
           <li>À la fin de l&apos;accès Premium, vos données restent consultables ; seul l&apos;ajout d&apos;invités au-delà de la limite gratuite est de nouveau bloqué.</li>
         </ul>
       </Section>
