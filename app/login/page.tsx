@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
 import { safeNextPath } from '../../lib/safe-redirect';
+import { PROVIDER_LABELS, fetchEnabledProviders, type SocialProvider } from '../../lib/auth-providers';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +21,10 @@ export default function LoginPage() {
   // Gestion des messages
   // Après une suppression de compte : /login?compte=supprime
   const [message, setMessage] = useState<{ type: 'success' | 'error' | '', content: string }>({ type: '', content: '' });
+  // Services de connexion réellement activés dans Supabase (null = inconnu)
+  const [providers, setProviders] = useState<Partial<Record<SocialProvider, boolean>> | null>(null);
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
+  useEffect(() => { fetchEnabledProviders().then(setProviders); }, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('compte') === 'supprime') {
@@ -67,7 +72,13 @@ export default function LoginPage() {
   };
 
   // --- CONNEXION SOCIALE (OAuth) ---
-  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+  const handleSocialLogin = async (provider: SocialProvider) => {
+    if (providers && providers[provider] === false) {
+      setMessage({ type: 'error', content: `La connexion avec ${PROVIDER_LABELS[provider]} n’est pas encore disponible. Utilisez ${provider === 'facebook' && providers.google ? 'Google ou ' : ''}votre e-mail et votre mot de passe.` });
+      return;
+    }
+    setSocialLoading(provider);
+    setMessage({ type: '', content: '' });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -76,8 +87,9 @@ export default function LoginPage() {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
-      setMessage({ type: 'error', content: "Erreur lors de la connexion sociale." });
+    } catch {
+      setSocialLoading(null);
+      setMessage({ type: 'error', content: `La connexion avec ${PROVIDER_LABELS[provider]} n’a pas pu démarrer. Vérifiez votre connexion puis réessayez.` });
     }
   };
 
@@ -119,14 +131,19 @@ export default function LoginPage() {
 
           {/* BOUTONS SOCIAUX */}
           <div className="grid grid-cols-1 gap-3 mb-8">
-            <button onClick={() => handleSocialLogin('google')} className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 py-4 rounded-2xl font-bold text-sm text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-              <Chrome className="w-5 h-5 text-[#4285F4]" />
+            <button onClick={() => handleSocialLogin('google')} disabled={socialLoading !== null} aria-disabled={providers?.google === false} className={`w-full flex items-center justify-center gap-3 bg-white border border-slate-200 py-4 rounded-2xl font-bold text-sm text-slate-700 hover:bg-slate-50 transition-all shadow-sm ${providers?.google === false ? 'opacity-50' : ''}`}>
+              {socialLoading === 'google' ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-[#4285F4]" /> : <Chrome className="w-5 h-5 text-[#4285F4]" />}
               Continuer avec Google
             </button>
-            <button onClick={() => handleSocialLogin('facebook')} className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 py-4 rounded-2xl font-bold text-sm text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-              <Facebook className="w-5 h-5 text-[#1877F2] fill-[#1877F2]" />
+            <button onClick={() => handleSocialLogin('facebook')} disabled={socialLoading !== null} aria-disabled={providers?.facebook === false} className={`w-full flex items-center justify-center gap-3 bg-white border border-slate-200 py-4 rounded-2xl font-bold text-sm text-slate-700 hover:bg-slate-50 transition-all shadow-sm ${providers?.facebook === false ? 'opacity-50' : ''}`}>
+              {socialLoading === 'facebook' ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-[#1877F2]" /> : <Facebook className="w-5 h-5 text-[#1877F2] fill-[#1877F2]" />}
               Continuer avec Facebook
             </button>
+            <p className="px-2 text-center text-[11px] leading-relaxed text-slate-400">
+              En continuant avec Google ou Facebook, vous acceptez nos{' '}
+              <Link href="/conditions" target="_blank" className="underline underline-offset-2 hover:text-slate-600">conditions d&apos;utilisation</Link> et notre{' '}
+              <Link href="/confidentialite" target="_blank" className="underline underline-offset-2 hover:text-slate-600">politique de confidentialité</Link>.
+            </p>
           </div>
 
           <div className="relative mb-8 text-center text-slate-400">
