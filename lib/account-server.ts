@@ -16,7 +16,8 @@ async function removeFiles(db: SupabaseClient, bucket: string, folder: string, m
 }
 
 // Ordre de suppression : les invités avant les tables (invite.table_id)
-const CHILD_TABLES = ['photos_metadata', 'guestbook', 'invite', 'tables', 'budget_items', 'planning_events', 'tasks', 'payments'];
+// Les paiements sont conservés (comptabilité) : ils ne sont pas supprimés avec le couple (migration 18)
+const CHILD_TABLES = ['photos_metadata', 'guestbook', 'invite', 'tables', 'budget_items', 'planning_events', 'tasks'];
 
 export async function deleteSpace(db: SupabaseClient, { marriageId, userId }: { marriageId: string | null; userId: string | null }) {
   if (marriageId) await deleteMarriageData(db, marriageId);
