@@ -184,6 +184,10 @@ export default function LoginPage() {
             Vous n&apos;avez pas de compte ?{' '}
             <Link href="/register" className="text-rose-500 font-black hover:underline underline-offset-4">Inscrivez-vous gratuitement</Link>
           </p>
+          <p className="text-center mt-3 text-xs text-slate-400">
+            Besoin d&apos;aide ?{' '}
+            <a href="/guide" target="_blank" rel="noopener" className="font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-700">Consulter le guide d&apos;utilisation</a>
+          </p>
         </motion.div>
       </div>
     </div>

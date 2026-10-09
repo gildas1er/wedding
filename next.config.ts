@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Guide d'utilisation : page statique (public/guide/index.html) servie sur /guide
+  async rewrites() {
+    return [{ source: "/guide", destination: "/guide/index.html" }];
+  },
   async redirects() {
     return [
       // Liens RSVP déjà envoyés par WhatsApp : la page publique a quitté l'espace des mariés

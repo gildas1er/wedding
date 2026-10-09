@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Wallet, LogOut, Settings, LayoutGrid,
-  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, type LucideIcon,
+  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, LifeBuoy, CircleQuestionMark, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
@@ -15,6 +15,7 @@ import DeleteAccountModal from './DeleteAccountModal';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { isPremium, tierById } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
+import { guideHref } from '../../lib/guide';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -160,6 +161,17 @@ function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
             </div>
           </div>
         ))}
+        {/* Guide d'utilisation : ouvre la rubrique de la page en cours, aussi en mode souvenir */}
+        <a
+          href={guideHref(pathname)}
+          target="_blank"
+          rel="noopener"
+          onClick={onNavigate}
+          className="group mx-0 mt-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] font-medium text-slate-600 transition-all hover:bg-white/60 hover:text-ink"
+        >
+          <LifeBuoy size={18} strokeWidth={1.6} className="text-slate-400 group-hover:text-slate-600" />
+          <span>Aide &amp; guide</span>
+        </a>
 
         {/* Offre Premium / mode souvenir */}
         {souvenir ? (
@@ -285,9 +297,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <Menu size={22} strokeWidth={1.8} />
         </button>
         <Wordmark />
-        {days !== null && days >= 0
-          ? <span className="rounded-full bg-white px-2.5 py-1 font-display text-sm text-rose-600 ring-1 ring-slate-200">J-{days}</span>
-          : <span className="w-9" aria-hidden />}
+        <div className="flex items-center gap-1.5">
+          <a
+            href={guideHref(pathname)}
+            target="_blank"
+            rel="noopener"
+            aria-label="Aide : ouvrir le guide de cette page"
+            className="grid h-8 w-8 place-items-center rounded-full text-slate-500 hover:bg-white hover:text-ink"
+          >
+            <CircleQuestionMark size={19} strokeWidth={1.7} />
+          </a>
+          {days !== null && days >= 0 && <span className="rounded-full bg-white px-2.5 py-1 font-display text-sm text-rose-600 ring-1 ring-slate-200">J-{days}</span>}
+        </div>
       </header>
 
       {/* MENU TIROIR — MOBILE & TABLETTE */}

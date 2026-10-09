@@ -330,6 +330,7 @@ export default function LandingPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">Produit</p>
                 <a href="#fonctionnalites" className="block text-white/70 hover:text-white">Fonctionnalités</a>
                 <a href="#comment" className="block text-white/70 hover:text-white">Comment ça marche</a>
+                <a href="/guide" className="block text-white/70 hover:text-white">Guide d&apos;utilisation</a>
               </div>
               <div className="space-y-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">Compte</p>

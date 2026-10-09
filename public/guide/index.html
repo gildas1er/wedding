@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Le guide d'utilisation de WeddingStudio : créer votre espace, inviter vos proches, faire-part, plan de table, budget, Jour J.">
+<meta property="og:title" content="Guide WeddingStudio">
+<meta property="og:description" content="Organisez votre mariage pas à pas avec WeddingStudio.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Guide WeddingStudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,600;1,6..96,500&family=Manrope:wght@400;500;600;700&family=Great+Vibes&display=swap">
+<style>
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+img{max-width:100%}
+/* Layout : sommaire collant à gauche (bureau) / repliable en haut (mobile), colonne de lecture ~68ch, sections type « carnet de mariage ». */
+:root{
+  --bg:#fbf8f9; --surface:#ffffff; --ink:#2a1d24; --muted:#6f5d66; --line:#ecdfe4;
+  --rose:#a3305a; --rose-soft:#f8e7ee; --gold:#a57a2a; --gold-soft:#f7efdf;
+  --ok:#2f7a4f; --ok-soft:#e5f3ea; --warn:#9a5b00; --warn-soft:#fdf1dc;
+  --display:"Bodoni Moda", "Didot", Georgia, serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --script:"Great Vibes", "Snell Roundhand", cursive;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#17111a; --surface:#211922; --ink:#f3e9ee; --muted:#b9a6b0; --line:#3a2c36;
+  --rose:#ec84a8; --rose-soft:#3a1f2c; --gold:#d9b46a; --gold-soft:#33291a;
+  --ok:#7fd1a0; --ok-soft:#1b3326; --warn:#f0bd6a; --warn-soft:#3a2c14; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17111a; --surface:#211922; --ink:#f3e9ee; --muted:#b9a6b0; --line:#3a2c36;
+  --rose:#ec84a8; --rose-soft:#3a1f2c; --gold:#d9b46a; --gold-soft:#33291a;
+  --ok:#7fd1a0; --ok-soft:#1b3326; --warn:#f0bd6a; --warn-soft:#3a2c14; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:0 80px}
+a{color:var(--rose);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--rose);outline-offset:3px;border-radius:4px}
+
+/* En-tête */
+.hero{padding-block:56px 40px;border-bottom:1px solid var(--line);display:grid;gap:18px}
+.hero .script{font-family:var(--script);color:var(--rose);font-size:2.6rem;line-height:1}
+.hero h1{font-family:var(--display);font-weight:500;font-size:clamp(2.2rem,5vw,3.6rem);line-height:1.05;margin:0;text-wrap:balance;max-width:18ch}
+.hero p{margin:0;color:var(--muted);max-width:60ch;font-size:1.08rem}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.85rem;color:var(--muted)}
+.hero .meta b{color:var(--ink);font-weight:600}
+
+/* Grille principale */
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:56px;padding-top:40px}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);align-self:start;max-height:calc(100vh - 40px);overflow:auto;font-size:.9rem}
+.toc .label{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 10px}
+.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:t}
+.toc li a{display:flex;gap:10px;padding:6px 10px;border-radius:8px;color:var(--ink);text-decoration:none}
+.toc li a::before{counter-increment:t;content:counter(t,decimal-leading-zero);color:var(--muted);font-variant-numeric:tabular-nums;font-size:.8rem;padding-top:1px}
+.toc li a:hover{background:var(--rose-soft)}
+.toc li a.on{background:var(--rose-soft);color:var(--rose);font-weight:600}
+.search{margin-bottom:18px}
+.search input{width:100%;font:inherit;font-size:.9rem;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.toc details summary{display:none}
+
+main{min-width:0;max-width:72ch}
+section{padding-block:8px 44px;scroll-margin-top:24px}
+section + section{border-top:1px solid var(--line);padding-top:40px}
+.eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:0 0 6px}
+h2{font-family:var(--display);font-weight:500;font-size:clamp(1.7rem,3vw,2.2rem);line-height:1.15;margin:0 0 14px;text-wrap:balance}
+h3{font-size:1.05rem;font-weight:700;margin:28px 0 8px}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 14px;padding-left:1.3em}
+li{margin-bottom:6px}
+li::marker{color:var(--rose)}
+.path{display:inline-block;font-size:.82rem;font-weight:600;background:var(--rose-soft);color:var(--rose);padding:2px 10px;border-radius:999px;margin-bottom:12px}
+kbd,.ui{font-family:var(--body);font-size:.88em;font-weight:600;background:var(--surface);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px;white-space:nowrap}
+
+/* Étapes (vraie séquence) */
+.steps{list-style:none;padding:0;counter-reset:s;display:grid;gap:14px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;margin:0}
+.steps li::before{content:counter(s);width:34px;height:34px;border-radius:50%;border:1.5px solid var(--rose);color:var(--rose);display:grid;place-items:center;font-family:var(--display);font-weight:600}
+.steps li strong{display:block}
+
+/* Encadrés */
+.note{border-radius:12px;padding:14px 16px;margin:18px 0;font-size:.95rem;display:grid;gap:4px}
+.note b{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+.note.tip{background:var(--gold-soft)} .note.tip b{color:var(--gold)}
+.note.warn{background:var(--warn-soft)} .note.warn b{color:var(--warn)}
+.note.ok{background:var(--ok-soft)} .note.ok b{color:var(--ok)}
+.note p{margin:0}
+
+/* Tableaux */
+.tbl{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.93rem;min-width:460px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.tier{font-family:var(--display);font-size:1.05rem}
+
+/* Frise après mariage */
+.timeline{list-style:none;padding:0;margin:20px 0;display:grid;gap:0}
+.timeline li{display:grid;grid-template-columns:120px minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px dashed var(--line);margin:0}
+.timeline li:first-child{border-top:0}
+.timeline .when{font-weight:700;color:var(--rose);font-variant-numeric:tabular-nums}
+.timeline p{margin:0}
+
+/* Contact */
+.contact{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);margin:18px 0}
+.contact .num{font-family:var(--display);font-size:1.6rem;font-weight:600;font-variant-numeric:tabular-nums;user-select:all}
+.contact button{font:inherit;font-size:.85rem;font-weight:600;border:1px solid var(--rose);color:var(--rose);background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer}
+.contact button:hover{background:var(--rose-soft)}
+.contact small{color:var(--muted);flex-basis:100%}
+
+/* FAQ */
+details.q{border-bottom:1px solid var(--line);padding:4px 0}
+details.q summary{cursor:pointer;font-weight:600;padding:12px 28px 12px 0;list-style:none;position:relative}
+details.q summary::-webkit-details-marker{display:none}
+details.q summary::after{content:"+";position:absolute;right:4px;top:8px;font-size:1.4rem;color:var(--rose);font-weight:400}
+details.q[open] summary::after{content:"–"}
+details.q > div{padding:0 0 14px;color:var(--muted)}
+details.q > div p:last-child{margin:0}
+
+.empty{display:none;color:var(--muted);padding:24px 0}
+footer{margin-top:40px;padding-top:24px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+
+@media (max-width:880px){
+  .layout{grid-template-columns:minmax(0,1fr);gap:20px;padding-top:24px}
+  nav.toc{position:static;max-height:none;overflow:visible}
+  .toc details{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:6px 10px}
+  .toc details summary{display:block;cursor:pointer;font-weight:600;padding:6px 2px}
+  .toc .label{display:none}
+  .hero{padding-block:36px 28px}
+  .timeline li{grid-template-columns:minmax(0,1fr);gap:2px}
+}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+/* Captures d'écran : écrans de téléphone posés côte à côte, légende sous chaque écran */
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin:22px 0 26px}
+.shots.two{grid-template-columns:repeat(auto-fill,minmax(190px,230px))}
+.shots.one{grid-template-columns:minmax(0,260px)}
+figure{margin:0;display:grid;gap:8px;align-content:start;min-width:0}
+figure button{all:unset;cursor:zoom-in;display:block;border-radius:22px;padding:6px;background:var(--ink);box-shadow:0 10px 28px -14px rgba(42,29,36,.55)}
+figure button:focus-visible{outline:2px solid var(--rose);outline-offset:3px}
+figure img{display:block;width:100%;height:auto;border-radius:17px;aspect-ratio:390/844;object-fit:cover;object-position:top;background:var(--line)}
+figure.wide button{border-radius:12px;padding:5px}
+figure.wide img{aspect-ratio:1366/860;border-radius:8px}
+figcaption{font-size:.82rem;color:var(--muted);line-height:1.45}
+figcaption b{color:var(--ink);font-weight:600}
+.shots-wide{margin:22px 0 26px;max-width:100%}
+.lb{position:fixed;inset:0;z-index:50;background:rgba(15,10,14,.86);display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);cursor:zoom-out}
+.lb[hidden]{display:none}
+.lb img{max-height:100%;max-width:100%;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.lb p{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);left:16px;right:16px;text-align:center;color:#f3e9ee;font-size:.88rem;margin:0}
+.demo{font-size:.82rem;color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:10px 14px;margin-top:6px}
+.appbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;background:var(--bg);border-bottom:1px solid var(--line)}
+.appbar a{text-decoration:none;font-weight:600;font-size:.9rem}
+.appbar .back{color:var(--ink);border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:999px}
+.appbar .brand{font-family:var(--display);color:var(--ink);font-size:1.05rem}
+.appbar .brand i{color:var(--rose)}
+section{scroll-margin-top:72px}
+nav.toc{top:72px}
+.wa{display:inline-block;font-size:.85rem;font-weight:600;color:#fff;background:#1f8f4e;padding:7px 14px;border-radius:999px;text-decoration:none}
+</style>
+
+</head>
+<body>
+<div class="appbar"><a href="/dashboard" class="back">← Mon espace</a><a href="/" class="brand">Wedding<i>Studio</i></a></div>
+<div class="wrap">
+  <header class="hero">
+    <div class="script">WeddingStudio</div>
+    <h1>Le guide pour organiser votre mariage</h1>
+    <p>Tout ce qu'il faut savoir pour créer votre espace, inviter vos proches, suivre les réponses, placer vos invités et vivre un Jour J sans stress. Chaque rubrique est illustrée par les écrans de l'application. Touchez une capture pour l'agrandir.</p>
+    <div class="meta"><span>Pour <b>les mariés</b></span><span>Mise à jour : <b>8 octobre 2026</b></span><span>Aide : <b>01 01 54 06 87</b> (WhatsApp)</span></div>
+    <p class="demo">Les captures montrent un mariage de démonstration (Awa &amp; Yao, 19 décembre 2026). Les noms et chiffres sont des exemples.</p>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Sommaire">
+      <div class="search"><input id="q" type="search" placeholder="Rechercher dans le guide…" autocomplete="off" aria-label="Rechercher dans le guide"></div>
+      <details id="tocd" open>
+        <summary>Sommaire</summary>
+        <p class="label">Sommaire</p>
+        <ol id="toclist"></ol>
+      </details>
+    </nav>
+
+    <main id="content">
+
+<section id="demarrer" data-title="Créer son espace">
+  <p class="eyebrow">Premiers pas</p>
+  <h2>Créer votre espace mariage</h2>
+  <ol class="steps">
+    <li><div><strong>Ouvrez WeddingStudio</strong>Sur la page d'accueil, touchez <span class="ui">Créer mon espace gratuitement</span>.</div></li>
+    <li><div><strong>Remplissez l'inscription</strong>Prénom du marié, prénom de la mariée, e-mail, téléphone, date du mariage, « Je suis » (le marié ou la mariée) et mot de passe. Vous pouvez aussi choisir <span class="ui">Continuer avec Google</span>.</div></li>
+    <li><div><strong>Confirmez votre e-mail</strong>Ouvrez le message reçu et touchez le lien de confirmation. Pensez à regarder dans les spams.</div></li>
+    <li><div><strong>Vous arrivez sur le tableau de bord</strong>Complétez le lieu de réception dans <span class="ui">Paramètres</span>, puis suivez la checklist.</div></li>
+  </ol>
+  <div class="shots">
+    <figure><button type="button"><img src="/guide/img/home.jpg" alt="Page d'accueil de WeddingStudio avec le bouton Créer mon espace gratuitement" loading="lazy" width="560" height="1212"></button><figcaption><b>Accueil</b> · le bouton pour créer votre espace.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/register.jpg" alt="Formulaire d'inscription : prénoms, e-mail, téléphone, date du mariage" loading="lazy" width="560" height="1212"></button><figcaption><b>Inscription</b> · prénoms, contact et date.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/login.jpg" alt="Page de connexion avec Google, Facebook, e-mail et mot de passe" loading="lazy" width="560" height="1212"></button><figcaption><b>Connexion</b> · le lien « Oublié ? » est à côté du mot de passe.</figcaption></figure>
+  </div>
+  <div class="note tip"><b>Conseil</b><p>Un seul espace par couple. Les deux mariés peuvent utiliser le même compte, sur téléphone comme sur ordinateur : tout est synchronisé.</p></div>
+  <h3>Mot de passe oublié</h3>
+  <p>Sur la page de connexion, touchez <span class="ui">Oublié ?</span> à côté du champ mot de passe. Saisissez votre e-mail et touchez <span class="ui">Recevoir le lien</span>. Ouvrez ensuite le lien reçu pour choisir un nouveau mot de passe. Le lien ne sert qu'une fois et expire : demandez-en un nouveau si besoin.</p>
+  <div class="shots one">
+    <figure><button type="button"><img src="/guide/img/forgot.jpg" alt="Page Mot de passe oublié avec le champ e-mail et le bouton Recevoir le lien" loading="lazy" width="560" height="1212"></button><figcaption><b>Mot de passe oublié</b> · un lien arrive par e-mail.</figcaption></figure>
+  </div>
+</section>
+
+<section id="tableau" data-title="Tableau de bord">
+  <p class="eyebrow">Vue d'ensemble</p>
+  <h2>Le tableau de bord et le menu</h2>
+  <span class="path">Menu › Tableau de bord</span>
+  <p>C'est votre page d'accueil. Vous y voyez :</p>
+  <ul>
+    <li>le compte à rebours jusqu'au mariage (jours, heures, minutes) ;</li>
+    <li>l'avancement de votre profil ;</li>
+    <li>les réponses des invités : confirmés, en attente, absents ;</li>
+    <li>les raccourcis vers les rubriques.</li>
+  </ul>
+  <p>Sur téléphone, le menu s'ouvre avec le bouton ☰ en haut à gauche. En bas du menu, la carte de votre formule (par exemple <strong>Palier Famille</strong>) mène à la page des formules. Le badge <strong>J-72</strong> en haut à droite rappelle le nombre de jours restants.</p>
+  <div class="shots">
+    <figure><button type="button"><img src="/guide/img/dashboard.jpg" alt="Tableau de bord avec compte à rebours et réponses des invités" loading="lazy" width="560" height="1212"></button><figcaption><b>Tableau de bord</b> · compte à rebours et réponses.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/menu.jpg" alt="Menu ouvert : Invités, Faire-part et RSVP, Partager, Album, Plan de table, Checklist, Budget, Jour J, Paramètres" loading="lazy" width="560" height="1212"></button><figcaption><b>Le menu</b> · toutes les rubriques, et votre formule en bas.</figcaption></figure>
+  </div>
+  <figure class="wide shots-wide"><button type="button"><img src="/guide/img/dashboard-desktop.jpg" alt="Tableau de bord sur ordinateur, menu affiché à gauche" loading="lazy" width="1400" height="881"></button><figcaption><b>Sur ordinateur</b> · le menu reste affiché à gauche.</figcaption></figure>
+</section>
+
+<section id="invites" data-title="Invités">
+  <p class="eyebrow">Votre liste</p>
+  <h2>Gérer vos invités</h2>
+  <span class="path">Menu › Invités</span>
+  <p>En haut de la page : le nombre de fiches et de personnes, les confirmés et les invités en attente. Les filtres et la recherche aident à retrouver quelqu'un.</p>
+  <h3>Ajouter des invités</h3>
+  <ul>
+    <li><strong>Un par un</strong> : touchez le bouton rond <span class="ui">+</span> en bas à droite. Indiquez le nom, le numéro WhatsApp, la catégorie, s'il vient accompagné, le côté (marié, mariée ou commun) et une note. Activez <strong>Invité d'honneur / VIP</strong> pour un proche prioritaire.</li>
+    <li><strong>Depuis vos contacts</strong> : touchez <span class="ui">Contacts</span>. Sur Android avec Chrome, le répertoire s'ouvre directement. Sur iPhone, suivez les étapes affichées : exportez vos contacts depuis l'app Contacts, enregistrez-les dans Fichiers, puis choisissez le fichier .vcf.</li>
+    <li><strong>Par fichier Excel</strong> : touchez l'icône document à gauche de <span class="ui">Contacts</span> pour importer un fichier CSV.</li>
+  </ul>
+  <div class="shots">
+    <figure><button type="button"><img src="/guide/img/invite.jpg" alt="Liste des invités avec compteurs, recherche et bouton Inviter sur WhatsApp" loading="lazy" width="560" height="1212"></button><figcaption><b>La liste</b> · compteurs, recherche, bouton WhatsApp.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/invite-add.jpg" alt="Formulaire Ajouter invité : VIP, nom, numéro WhatsApp, catégorie, accompagné, côté" loading="lazy" width="560" height="1212"></button><figcaption><b>Ajouter un invité</b> · bouton + en bas à droite.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/invite-contacts.jpg" alt="Fenêtre Depuis mes contacts avec les instructions pour iPhone" loading="lazy" width="560" height="1212"></button><figcaption><b>Depuis mes contacts</b> · avec le mode d'emploi iPhone.</figcaption></figure>
+  </div>
+  <div class="note tip"><b>Bon à savoir</b><p>Votre formule compte les <strong>personnes</strong>, pas les fiches. Une fiche « M. et Mme Kouassi + 2 enfants » compte pour 4 personnes.</p></div>
+  <h3>Les cérémonies</h3>
+  <p>Chaque invité peut être convié à une ou plusieurs cérémonies : <strong>dot</strong>, <strong>mairie</strong>, <strong>religieux</strong>, <strong>réception</strong>. Son faire-part n'affiche que les cérémonies qui le concernent.</p>
+  <h3>Envoyer les invitations</h3>
+  <p>Chaque invité a son lien personnel. Touchez <span class="ui">Inviter sur WhatsApp</span> sous son nom : WhatsApp s'ouvre avec le message prêt à envoyer. Le compteur « Invitations WhatsApp » montre combien sont déjà parties.</p>
+  <h3>Suivre les réponses</h3>
+  <p>Quand un invité répond, son statut change tout seul : <strong>Confirmé</strong>, <strong>Décliné</strong> ou <strong>En attente</strong>. Touchez <span class="ui">Filtres</span> pour n'afficher que ceux qui n'ont pas répondu, puis relancez-les.</p>
+  <h3>Modifier ou supprimer</h3>
+  <p>Utilisez le crayon pour modifier et la corbeille pour supprimer. Une fenêtre vous demande de confirmer : une suppression ne peut pas être annulée.</p>
+</section>
+
+<section id="studio" data-title="Faire-part & RSVP">
+  <p class="eyebrow">Votre invitation</p>
+  <h2>Créer le faire-part en ligne</h2>
+  <span class="path">Menu › Faire-part &amp; RSVP</span>
+  <p>Le faire-part est la page que vos invités ouvrent avec leur lien. Ils y voient le programme et confirment leur présence (RSVP). Faites vos réglages, puis touchez <span class="ui">Publier</span> en bas de l'écran. « Tout est à jour » indique que tout est enregistré.</p>
+  <h3>1. Choisir un modèle</h3>
+  <ul>
+    <li><strong>Classique</strong> : la photo de couverture, puis l'invitation qui défile.</li>
+    <li><strong>L'Enveloppe</strong> : l'invité ouvre une enveloppe scellée à vos initiales, la carte en sort et la musique démarre.</li>
+    <li><strong>La Story</strong> : l'invitation en plein écran, écran par écran, comme une story.</li>
+  </ul>
+  <h3>2. Couleurs, police et photo</h3>
+  <ul>
+    <li><strong>Couleurs de l'invitation</strong> : choisissez une palette (Bordeaux &amp; Or, Émeraude &amp; Or, Bleu nuit &amp; Argent…) ou vos propres couleurs avec <span class="ui">Couleurs personnalisées</span>.</li>
+    <li><strong>Police des prénoms</strong> : Classique, Great Vibes, Alex Brush, Monsieur La Doulaise, Parisienne ou Pinyon Script.</li>
+    <li><strong>Photo de couverture</strong> : glissez une photo ou touchez la zone (JPG, PNG ou WebP, 15 Mo au plus).</li>
+  </ul>
+  <div class="shots">
+    <figure><button type="button"><img src="/guide/img/studio.jpg" alt="Choix du modèle : Classique, L'Enveloppe, La Story" loading="lazy" width="560" height="1212"></button><figcaption><b>Modèle</b> · Classique, Enveloppe ou Story.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/studio-colors.jpg" alt="Palettes de couleurs de l'invitation" loading="lazy" width="560" height="1212"></button><figcaption><b>Couleurs</b> · palettes prêtes ou personnalisées.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/studio-font.jpg" alt="Choix de la police des prénoms" loading="lazy" width="560" height="1212"></button><figcaption><b>Police des prénoms</b> · six styles au choix.</figcaption></figure>
+  </div>
+  <h3>3. Le programme</h3>
+  <p>Activez les cérémonies que vous organisez : <strong>Cérémonie de dot</strong>, <strong>Cérémonie civile</strong>, <strong>Cérémonie religieuse</strong>, <strong>Réception &amp; dîner</strong>. Pour chacune : la date, l'heure et le lieu. Collez un lien Google Maps si vous l'avez ; sinon, un lien est créé à partir du lieu. Une cérémonie désactivée n'apparaît pas aux invités.</p>
+  <h3>4. Infos pratiques, musique et message</h3>
+  <p>Ajoutez le code vestimentaire, un contact pour le jour J, l'hébergement ou l'accès. Choisissez une musique d'ambiance et adaptez le message WhatsApp envoyé avec chaque invitation.</p>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/studio-program.jpg" alt="Programme : cérémonie de dot et cérémonie civile avec date, heure et lieu" loading="lazy" width="560" height="1212"></button><figcaption><b>Programme</b> · un interrupteur par cérémonie.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/studio-infos.jpg" alt="Infos pratiques : code vestimentaire et contact" loading="lazy" width="560" height="1212"></button><figcaption><b>Infos pratiques</b> · dress code, contact…</figcaption></figure>
+  </div>
+  <div class="note tip"><b>Conseil</b><p>Avant d'envoyer les invitations, ouvrez votre propre lien sur téléphone pour vérifier le rendu.</p></div>
+</section>
+
+<section id="partager" data-title="Partager">
+  <p class="eyebrow">QR codes et liens</p>
+  <h2>Partager avec vos invités</h2>
+  <span class="path">Menu › Partager</span>
+  <p>Les invitations personnelles (avec réponse) s'envoient depuis la page <span class="ui">Invités</span>. Cette page rassemble les liens et QR codes communs à tous :</p>
+  <ul>
+    <li><strong>Faire-part en ligne</strong> : le programme et les infos pratiques.</li>
+    <li><strong>Trouver ma table</strong> : à afficher à l'entrée de la salle. L'invité tape son nom et voit sa table.</li>
+    <li><strong>Partager vos photos</strong> : les invités envoient leurs photos dans votre album.</li>
+    <li><strong>Livre d'or</strong> : les invités vous laissent un mot doux.</li>
+  </ul>
+  <p>Pour chaque lien : <span class="ui">Copier</span>, <span class="ui">WhatsApp</span>, <span class="ui">QR code</span> (téléchargement) et <span class="ui">Imprimer</span>.</p>
+  <div class="shots one">
+    <figure><button type="button"><img src="/guide/img/partage.jpg" alt="Page Partager avec QR codes Faire-part en ligne et Trouver ma table" loading="lazy" width="560" height="1212"></button><figcaption><b>Liens &amp; QR codes</b> · à imprimer pour les tables et l'accueil.</figcaption></figure>
+  </div>
+</section>
+
+<section id="album" data-title="Album photos">
+  <p class="eyebrow">Souvenirs</p>
+  <h2>L'album photos</h2>
+  <span class="path">Menu › Album photos</span>
+  <p>Les photos envoyées par vos invités avec le lien « Partager vos photos » arrivent ici, avec le nom de l'invité. Elles sont propres à votre mariage. Touchez une photo pour la voir en grand, ou <span class="ui">Tout télécharger (.zip)</span> pour tout garder d'un coup.</p>
+  <div class="shots one">
+    <figure><button type="button"><img src="/guide/img/album.jpg" alt="Album photos avec les photos des invités et le bouton Tout télécharger" loading="lazy" width="560" height="1212"></button><figcaption><b>Album</b> · les photos de vos invités, avec leur nom.</figcaption></figure>
+  </div>
+  <div class="note tip"><b>Conseil</b><p>Utilisez toujours le QR code ou le lien de votre page <span class="ui">Partager</span>. Un lien d'un autre couple enverrait les photos dans son album.</p></div>
+</section>
+
+<section id="table" data-title="Plan de table">
+  <p class="eyebrow">Placement</p>
+  <h2>Le plan de table</h2>
+  <span class="path">Menu › Plan de table</span>
+  <p>En haut : le nombre de places occupées sur le total. La page a trois onglets.</p>
+  <ul>
+    <li><strong>À placer</strong> : les invités qui n'ont pas encore de table. Filtrez par côté ou par catégorie. <span class="ui">Placement automatique</span> remplit les tables pour vous.</li>
+    <li><strong>Tables</strong> : créez vos tables avec le bouton <span class="ui">+</span> (nom, nombre de places, table d'honneur) et voyez qui est assis où.</li>
+    <li><strong>Plan</strong> : disposez les tables comme dans la vraie salle (en U, en cercle, en rangées), zoomez et déplacez-les du doigt.</li>
+  </ul>
+  <p>Un bandeau vous prévient quand un invité qui a décliné occupe encore une place : touchez <span class="ui">Libérer</span>.</p>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/table.jpg" alt="Onglet À placer avec le bouton Placement automatique" loading="lazy" width="560" height="1212"></button><figcaption><b>À placer</b> · placement automatique et filtres.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/table-plan.jpg" alt="Onglet Plan : disposition des tables dans la salle" loading="lazy" width="560" height="1212"></button><figcaption><b>Plan</b> · la salle vue de haut.</figcaption></figure>
+  </div>
+  <h3>Imprimer</h3>
+  <p>Touchez le bouton <span class="ui">⋯</span> puis l'impression : choisissez <strong>le plan de la salle</strong> ou <strong>les listes par table</strong>. Sur téléphone, choisissez « Enregistrer en PDF » pour l'envoyer à l'imprimeur.</p>
+</section>
+
+<section id="checklist" data-title="Checklist">
+  <p class="eyebrow">Préparatifs</p>
+  <h2>La checklist</h2>
+  <span class="path">Menu › Checklist</span>
+  <p>La première fois, touchez <span class="ui">Utiliser la checklist type</span>. Décochez ce qui ne vous concerne pas, puis <span class="ui">Ajouter 37 tâches</span>. Les échéances sont calculées à partir de la date de votre mariage, de « 12 mois et plus avant » jusqu'au Jour J.</p>
+  <ul>
+    <li>Le haut de page montre les tâches terminées, <strong>en retard</strong> et à faire <strong>dans les 30 jours</strong>.</li>
+    <li>Les onglets <strong>À faire</strong>, <strong>En retard</strong> et <strong>Terminées</strong> trient la liste.</li>
+    <li>Touchez le rond pour cocher une tâche. Certaines tâches ont un raccourci (par exemple <span class="ui">Budget →</span>).</li>
+    <li>Le bouton <span class="ui">+</span> ajoute vos propres tâches.</li>
+  </ul>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/tasks-template.jpg" alt="Fenêtre La checklist type avec les tâches classées par période" loading="lazy" width="560" height="1212"></button><figcaption><b>Checklist type</b> · 37 tâches à garder ou décocher.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/tasks.jpg" alt="Checklist avec compteurs en retard et dans les 30 jours" loading="lazy" width="560" height="1212"></button><figcaption><b>Votre checklist</b> · retards et prochaines échéances.</figcaption></figure>
+  </div>
+</section>
+
+<section id="budget" data-title="Budget">
+  <p class="eyebrow">Dépenses</p>
+  <h2>Le budget</h2>
+  <span class="path">Menu › Budget</span>
+  <p>Votre budget démarre avec une liste type de dépenses (salle, traiteur, tenues, déco…) que vous adaptez. Trois totaux sont calculés : <strong>budget prévu</strong>, <strong>total facturé</strong> et <strong>reste à régler</strong>. Vous pouvez afficher les montants en FCFA, EUR ou USD.</p>
+  <p>Touchez <span class="ui">Ajouter une dépense</span> : désignation, catégorie, statut, montant estimé, montant facturé, montant déjà réglé et échéance. Le même formulaire sert pour modifier une dépense.</p>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/budget.jpg" alt="Budget avec budget prévu, total facturé et reste à régler" loading="lazy" width="560" height="1212"></button><figcaption><b>Budget</b> · prévu, facturé, reste à régler.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/budget-add.jpg" alt="Formulaire Nouvelle dépense" loading="lazy" width="560" height="1212"></button><figcaption><b>Nouvelle dépense</b> · estimé, facturé, réglé.</figcaption></figure>
+  </div>
+</section>
+
+<section id="jourj" data-title="Jour J">
+  <p class="eyebrow">Le grand jour</p>
+  <h2>Le déroulé du Jour J</h2>
+  <span class="path">Menu › Jour J</span>
+  <ul>
+    <li><strong>Partir d'un modèle</strong> : une journée type, calée sur les heures de votre faire-part, vous est proposée. Touchez <span class="ui">Ajouter 10 moments au déroulé</span>, puis ajustez.</li>
+    <li><strong>Ajouter un moment</strong> : heure de début et de fin, titre, responsable et note. L'étoile marque un moment clé.</li>
+    <li><strong>Imprimer le déroulé</strong> : la feuille de route pour votre équipe (témoins, maître de cérémonie, traiteur).</li>
+  </ul>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/planning-template.jpg" alt="Fenêtre Une journée type avec les moments proposés" loading="lazy" width="560" height="1212"></button><figcaption><b>Journée type</b> · calée sur vos cérémonies.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/planning.jpg" alt="Déroulé du Jour J heure par heure" loading="lazy" width="560" height="1212"></button><figcaption><b>Votre déroulé</b> · heure par heure.</figcaption></figure>
+  </div>
+</section>
+
+<section id="parametres" data-title="Paramètres">
+  <p class="eyebrow">Votre compte</p>
+  <h2>Paramètres et données</h2>
+  <span class="path">Menu › Paramètres</span>
+  <ul>
+    <li><strong>Général</strong> : prénoms des mariés, date et lieu de réception. Touchez <span class="ui">Sauvegarder</span>.</li>
+    <li><strong>Apparence</strong> : couleurs et photo de l'invitation.</li>
+    <li><strong>Impressions</strong> : listes des invités, plan de table, déroulé du Jour J.</li>
+    <li><strong>Télécharger mes données</strong> : une copie de toutes vos informations.</li>
+    <li><strong>Supprimer mon compte</strong> : voir « Après le mariage ».</li>
+  </ul>
+  <div class="shots one">
+    <figure><button type="button"><img src="/guide/img/settings.jpg" alt="Paramètres : prénoms, date, lieu de réception et bouton Sauvegarder" loading="lazy" width="560" height="1212"></button><figcaption><b>Paramètres</b> · onglets Général et Apparence.</figcaption></figure>
+  </div>
+  <div class="note warn"><b>Attention</b><p>Choisissez bien la date du mariage. Une fois une formule payante activée, seule notre équipe peut la changer.</p></div>
+</section>
+
+<section id="formules" data-title="Formules et paiement">
+  <p class="eyebrow">Tarifs</p>
+  <h2>Les formules</h2>
+  <span class="path">Menu › carte de votre formule (en bas)</span>
+  <p>L'inscription est gratuite pour <strong>30 invités</strong>. Au-delà, choisissez une formule selon le nombre de <strong>personnes</strong> invitées (accompagnants compris). Chaque formule donne accès à toutes les fonctions.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Formule</th><th>Invités</th><th>Prix</th></tr></thead>
+    <tbody>
+      <tr><td class="tier">Gratuit</td><td class="num">jusqu'à 30</td><td class="num">0 F</td></tr>
+      <tr><td class="tier">Intime</td><td class="num">1 à 100</td><td class="num">50 000 F</td></tr>
+      <tr><td class="tier">Famille</td><td class="num">101 à 150</td><td class="num">75 000 F</td></tr>
+      <tr><td class="tier">Grande Fête</td><td class="num">151 à 200</td><td class="num">100 000 F</td></tr>
+      <tr><td class="tier">Prestige</td><td class="num">201 à 250</td><td class="num">125 000 F</td></tr>
+      <tr><td class="tier">Royal</td><td class="num">251 à 300</td><td class="num">150 000 F</td></tr>
+      <tr><td class="tier">Sur mesure</td><td class="num">plus de 300</td><td class="num">sur devis</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Comment payer</h3>
+  <ol class="steps">
+    <li><div><strong>Choisissez votre formule</strong>sur la page des formules, puis touchez <span class="ui">Choisir ce palier</span>. La formule conseillée pour votre liste est signalée.</div></li>
+    <li><div><strong>Envoyez le message WhatsApp</strong>qui s'ouvre. Il contient déjà la formule et votre référence (8 caractères).</div></li>
+    <li><div><strong>Payez</strong>par Mobile Money selon les indications reçues.</div></li>
+    <li><div><strong>Votre formule est activée</strong>dès réception du paiement. Rechargez la page : la carte « Premium actif » affiche votre nouvelle limite.</div></li>
+  </ol>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/premium-free.jpg" alt="Choix du palier : Intime conseillé, Famille, Grande Fête, avec bouton Choisir ce palier" loading="lazy" width="560" height="1212"></button><figcaption><b>Choisir un palier</b> · la formule conseillée est signalée.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/premium.jpg" alt="Carte Premium actif, Palier Famille, 60 sur 150 invités" loading="lazy" width="560" height="1212"></button><figcaption><b>Formule active</b> · invités utilisés et date d'accès.</figcaption></figure>
+  </div>
+  <div class="contact">
+    <span class="num" id="tel">01 01 54 06 87</span>
+    <button type="button" id="copy">Copier le numéro</button>
+    <a class="wa" href="https://api.whatsapp.com/send?phone=2250101540687&amp;text=Bonjour%2C%20j%27ai%20une%20question%20sur%20WeddingStudio" target="_blank" rel="noopener">Écrire sur WhatsApp</a>
+    <small id="copymsg">WhatsApp et appels. Indiquez toujours votre référence.</small>
+  </div>
+  <h3>Changer de formule</h3>
+  <p>Vous avez plus d'invités que prévu ? Passez à la formule supérieure en payant seulement <strong>la différence</strong>. Exemple : de Intime (50 000 F) à Famille (75 000 F), vous payez 25 000 F. Quand votre formule est remplie à 80 %, l'application vous conseille la suivante.</p>
+  <div class="note ok"><b>Comptes déjà Premium</b><p>Les couples passés Premium avant l'arrivée des formules gardent leurs invités illimités, sans rien payer de plus.</p></div>
+</section>
+
+<section id="apres" data-title="Après le mariage">
+  <p class="eyebrow">Après la fête</p>
+  <h2>Après le mariage : le mode souvenir</h2>
+  <ol class="timeline">
+    <li><span class="when">Jour J</span><p>Tout fonctionne. Les invités répondent, trouvent leur table, envoient leurs photos.</p></li>
+    <li><span class="when">+ 1 mois</span><p>Votre espace passe en <strong>mode souvenir</strong>, en lecture seule. Une fenêtre vous l'annonce. Vous gardez l'album photos, le livre d'or et les téléchargements (liste des invités, budget, déroulé). Les liens des invités sont fermés.</p></li>
+    <li><span class="when">Prolongation</span><p>Besoin de plus de temps ? Touchez <span class="ui">Prolonger de 6 mois · 5 000 FCFA</span>.</p></li>
+    <li><span class="when">+ 12 mois</span><p>L'espace et toutes ses données (invités, photos, livre d'or) sont <strong>supprimés automatiquement</strong>, comme l'annonce la politique de confidentialité. La page « Mes souvenirs » affiche la date exacte.</p></li>
+  </ol>
+  <div class="shots two">
+    <figure><button type="button"><img src="/guide/img/souvenir-modal.jpg" alt="Fenêtre Votre mariage a eu lieu, félicitations, avec téléchargement, prolongation et suppression" loading="lazy" width="560" height="1212"></button><figcaption><b>Passage en mode souvenir</b> · télécharger, prolonger ou supprimer.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/souvenir.jpg" alt="Page Mes souvenirs avec les dates clés et les téléchargements" loading="lazy" width="560" height="1212"></button><figcaption><b>Mes souvenirs</b> · dates clés et téléchargements.</figcaption></figure>
+  </div>
+  <div class="note warn"><b>Avant la suppression</b><p>Téléchargez vos photos depuis l'album et vos fichiers depuis « Mes souvenirs ». Une fois supprimées, les données ne peuvent pas être récupérées.</p></div>
+  <h3>Supprimer votre compte vous-même</h3>
+  <p>À tout moment, dans <span class="ui">Paramètres › Supprimer mon compte</span>. La fenêtre liste tout ce qui sera effacé. Pour confirmer, tapez <strong>SUPPRIMER</strong> puis touchez <span class="ui">Supprimer définitivement</span>. Tout est effacé immédiatement.</p>
+  <div class="shots one">
+    <figure><button type="button"><img src="/guide/img/delete-modal.jpg" alt="Fenêtre Supprimer définitivement votre compte, avec le champ SUPPRIMER" loading="lazy" width="560" height="1212"></button><figcaption><b>Suppression</b> · tapez SUPPRIMER pour confirmer.</figcaption></figure>
+  </div>
+</section>
+
+<section id="invite-cote" data-title="Côté invités">
+  <p class="eyebrow">Ce que voient vos proches</p>
+  <h2>L'expérience de vos invités</h2>
+  <p>Vos invités n'ont <strong>pas besoin de créer de compte</strong> ni d'installer d'application. Ils ouvrent simplement le lien reçu sur WhatsApp.</p>
+  <ol class="steps">
+    <li><div><strong>Ils ouvrent le faire-part</strong>à leur nom, avec le modèle que vous avez choisi.</div></li>
+    <li><div><strong>Ils voient le programme</strong>des cérémonies auxquelles ils sont conviés, avec le bouton <span class="ui">Plan</span> pour l'itinéraire, puis les infos pratiques.</div></li>
+    <li><div><strong>Ils répondent</strong> <span class="ui">Je serai là</span> ou <span class="ui">Je ne pourrai pas</span>, avec le nombre de personnes. Ils peuvent changer d'avis plus tard.</div></li>
+    <li><div><strong>Le jour du mariage</strong>, ils scannent les QR codes pour trouver leur table, envoyer leurs photos et signer le livre d'or.</div></li>
+  </ol>
+  <div class="shots">
+    <figure><button type="button"><img src="/guide/img/rsvp-envelope.jpg" alt="Modèle Enveloppe : enveloppe scellée au nom de l'invitée" loading="lazy" width="560" height="1212"></button><figcaption><b>Modèle Enveloppe</b> · l'invité touche le cachet.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/rsvp-story.jpg" alt="Modèle Story : écran plein avec les prénoms des mariés" loading="lazy" width="560" height="1212"></button><figcaption><b>Modèle Story</b> · on touche pour avancer.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/rsvp.jpg" alt="Modèle Classique : date, prénoms et programme" loading="lazy" width="560" height="1212"></button><figcaption><b>Modèle Classique</b> · date, prénoms, programme.</figcaption></figure>
+    <figure><button type="button"><img src="/guide/img/rsvp-reply.jpg" alt="Réponse de l'invitée : Je serai là ou Je ne pourrai pas" loading="lazy" width="560" height="1212"></button><figcaption><b>La réponse</b> · en un geste.</figcaption></figure>
+  </div>
+</section>
+
+<section id="faq" data-title="Questions fréquentes">
+  <p class="eyebrow">FAQ</p>
+  <h2>Questions fréquentes</h2>
+  <details class="q"><summary>Je ne peux plus ajouter d'invités. Pourquoi ?</summary><div><p>Vous avez atteint la limite de votre formule. Ouvrez la page des formules (carte en bas du menu) pour passer à la formule supérieure : vous ne payez que la différence.</p></div></details>
+  <details class="q"><summary>Je n'ai pas reçu l'e-mail de confirmation ou de mot de passe.</summary><div><p>Regardez dans les spams et l'onglet Promotions. Attendez quelques minutes, puis redemandez un lien. Vérifiez l'orthographe de votre adresse.</p></div></details>
+  <details class="q"><summary>Le répertoire ne s'ouvre pas sur mon iPhone.</summary><div><p>L'accès direct au répertoire n'existe que sur Android avec Chrome. Sur iPhone, touchez <span class="ui">Contacts</span> et suivez les étapes « Sur iPhone » : exportez vos contacts, enregistrez-les dans Fichiers, puis choisissez le fichier .vcf.</p></div></details>
+  <details class="q"><summary>Un invité dit que son lien ne marche pas.</summary><div><p>Renvoyez-lui son lien avec <span class="ui">Inviter sur WhatsApp</span>. Si votre espace est en mode souvenir, les liens des invités sont fermés.</p></div></details>
+  <details class="q"><summary>Les photos des invités n'apparaissent pas dans l'album.</summary><div><p>Vérifiez qu'ils ont utilisé le QR code ou le lien de votre page <span class="ui">Partager</span>. Rechargez ensuite l'album.</p></div></details>
+  <details class="q"><summary>Puis-je modifier le faire-part après l'avoir envoyé ?</summary><div><p>Oui. Touchez <span class="ui">Publier</span> : les changements apparaissent tout de suite pour tous les invités, sans renvoyer de lien.</p></div></details>
+  <details class="q"><summary>Comment imprimer sur téléphone ?</summary><div><p>Touchez <span class="ui">Imprimer</span>, puis choisissez « Enregistrer en PDF » dans la fenêtre du téléphone. Envoyez ensuite le PDF à l'imprimeur.</p></div></details>
+  <details class="q"><summary>Mes données sont-elles partagées ?</summary><div><p>Non. Vos informations et celles de vos invités servent uniquement à votre mariage. Les détails sont dans la politique de confidentialité, accessible depuis la page de connexion.</p></div></details>
+  <p class="empty" id="empty">Aucune rubrique ne correspond à votre recherche.</p>
+</section>
+
+      <footer>
+        WeddingStudio · Besoin d'aide ? Écrivez-nous sur WhatsApp au 01 01 54 06 87 en indiquant votre référence.
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="lb" id="lb" hidden><img id="lbimg" alt=""><p id="lbcap"></p></div>
+
+<script>
+(function(){
+  var sections=[].slice.call(document.querySelectorAll('main section'));
+  var list=document.getElementById('toclist');
+  sections.forEach(function(s){
+    var li=document.createElement('li'),a=document.createElement('a');
+    a.href='#'+s.id;a.textContent=s.dataset.title;a.dataset.id=s.id;
+    a.addEventListener('click',function(){ if(window.innerWidth<=880) document.getElementById('tocd').open=false; });
+    li.appendChild(a);list.appendChild(li);
+  });
+  if(window.innerWidth<=880) document.getElementById('tocd').open=false;
+  var links=[].slice.call(list.querySelectorAll('a'));
+  function mark(){
+    var cur=sections[0].id;
+    sections.forEach(function(s){ if(!s.hidden && s.getBoundingClientRect().top<140) cur=s.id; });
+    links.forEach(function(a){a.classList.toggle('on',a.dataset.id===cur)});
+  }
+  window.addEventListener('scroll',mark,{passive:true});mark();
+
+  var q=document.getElementById('q');
+  q.addEventListener('input',function(){
+    var t=q.value.trim().toLowerCase(),n=0;
+    sections.forEach(function(s,i){
+      var hit=!t||s.textContent.toLowerCase().indexOf(t)>-1;
+      s.hidden=!hit; links[i].parentNode.hidden=!hit; if(hit)n++;
+      if(t&&hit) s.querySelectorAll('details.q').forEach(function(d){d.open=d.textContent.toLowerCase().indexOf(t)>-1});
+    });
+    var faq=document.getElementById('faq'),e=document.getElementById('empty');
+    if(n===0){faq.hidden=false;[].forEach.call(faq.children,function(c){c.hidden=c!==e});e.style.display='block';}
+    else{[].forEach.call(faq.children,function(c){c.hidden=false});e.style.display='none';}
+    mark();
+  });
+
+  var btn=document.getElementById('copy'),msg=document.getElementById('copymsg'),orig=msg.textContent;
+  btn.addEventListener('click',function(){
+    function sel(){var r=document.createRange();r.selectNodeContents(document.getElementById('tel'));var s=getSelection();s.removeAllRanges();s.addRange(r);msg.textContent='Numéro sélectionné : copiez-le avec votre appareil.';}
+    try{navigator.clipboard.writeText('0101540687').then(function(){btn.textContent='Copié';msg.textContent=orig;setTimeout(function(){btn.textContent='Copier le numéro'},1800)},sel);}catch(e){sel();}
+  });
+  var lb=document.getElementById('lb'),lbimg=document.getElementById('lbimg'),lbcap=document.getElementById('lbcap'),last=null;
+  document.querySelectorAll('figure button').forEach(function(b){
+    b.addEventListener('click',function(){var im=b.querySelector('img');last=b;lbimg.src=im.src;lbimg.alt=im.alt;lbcap.textContent=b.parentNode.querySelector('figcaption').textContent;lb.hidden=false;});
+  });
+  function closeLb(){lb.hidden=true;if(last)last.focus();}
+  lb.addEventListener('click',closeLb);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!lb.hidden)closeLb();});
+})();
+</script>
+</body>
+</html>
