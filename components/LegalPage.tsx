@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import AlliancesMark from './brand/AlliancesMark';
 import { LEGAL } from '../lib/legal';
 
 // Mise en page commune des documents juridiques
@@ -9,6 +10,7 @@ export function LegalPage({ eyebrow, title, intro, children }: { eyebrow: string
       <header className="border-b border-slate-200/70 bg-ivory/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-5">
           <Link href="/" className="inline-flex items-baseline gap-0.5">
+            <AlliancesMark size={30} className="mr-1.5 self-center" />
             <span className="font-display text-xl text-ink">Wedding</span><span className="font-display text-xl italic text-rose-500">Studio</span>
           </Link>
           <nav className="flex gap-4 text-sm text-slate-500">

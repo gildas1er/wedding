@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import AlliancesMark from '../brand/AlliancesMark';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -67,6 +68,7 @@ function daysUntil(date: string | null) {
 function Wordmark({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <Link href="/dashboard" onClick={onNavigate} className="group inline-flex items-baseline gap-0.5">
+      <AlliancesMark size={32} className="mr-1.5 self-center" />
       <span className="font-display text-[1.35rem] leading-none text-ink tracking-tight">Wedding</span>
       <span className="font-display italic text-[1.35rem] leading-none text-rose-500">Studio</span>
     </Link>

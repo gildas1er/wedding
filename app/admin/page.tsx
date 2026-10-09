@@ -4,6 +4,7 @@
 // Accès réservé aux adresses de ADMIN_EMAILS (vérifié par le serveur à chaque requête).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import AlliancesMark from '../../components/brand/AlliancesMark';
 import { AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, Loader2, ShieldAlert, LogOut,
@@ -149,6 +150,7 @@ function AdminContent() {
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link href="/admin" className="flex min-w-0 items-baseline gap-0.5">
+            <AlliancesMark size={30} className="mr-1.5 shrink-0 self-center" />
             <span className="font-display text-xl text-ink">Wedding</span><span className="font-display text-xl italic text-rose-500">Studio</span>
             <span className="ml-2 hidden rounded-full bg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 sm:inline">Admin</span>
           </Link>

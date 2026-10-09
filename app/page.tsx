@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import AlliancesMark from '../components/brand/AlliancesMark';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Check, Mail, Wallet, Armchair, Users, CalendarClock,
@@ -42,6 +43,7 @@ const reveal = {
 function Wordmark({ light = false }: { light?: boolean }) {
   return (
     <Link href="/" className="inline-flex items-baseline gap-0.5">
+      <AlliancesMark size={34} tone={light ? 'light' : 'color'} className="mr-2 self-center" />
       <span className={`font-display text-[1.4rem] leading-none tracking-tight ${light ? 'text-white' : 'text-ink'}`}>Wedding</span>
       <span className={`font-display italic text-[1.4rem] leading-none ${light ? 'text-amber-300' : 'text-rose-500'}`}>Studio</span>
     </Link>

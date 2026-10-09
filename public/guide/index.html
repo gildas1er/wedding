@@ -154,7 +154,7 @@ figcaption b{color:var(--ink);font-weight:600}
 .appbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;background:var(--bg);border-bottom:1px solid var(--line)}
 .appbar a{text-decoration:none;font-weight:600;font-size:.9rem}
 .appbar .back{color:var(--ink);border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:999px}
-.appbar .brand{font-family:var(--display);color:var(--ink);font-size:1.05rem}
+.appbar .brand{font-family:var(--display);color:var(--ink);font-size:1.05rem;display:inline-flex;align-items:center;gap:8px}
 .appbar .brand i{color:var(--rose)}
 section{scroll-margin-top:72px}
 nav.toc{top:72px}
@@ -163,7 +163,7 @@ nav.toc{top:72px}
 
 </head>
 <body>
-<div class="appbar"><a href="/dashboard" class="back">← Mon espace</a><a href="/" class="brand">Wedding<i>Studio</i></a></div>
+<div class="appbar"><a href="/dashboard" class="back">← Mon espace</a><a href="/" class="brand"><svg width="30" height="22" viewBox="0 0 150 110" aria-hidden="true"><circle cx="58" cy="62" r="34" fill="none" stroke="#9e3a55" stroke-width="7"/><circle cx="92" cy="62" r="34" fill="none" stroke="#b38c4a" stroke-width="7"/><path d="M 71.8 30.9 A 34 34 0 0 1 89.1 48.2" fill="none" stroke="#9e3a55" stroke-width="7"/><path d="M92 6 L99.5 16.5 L92 25 L84.5 16.5 Z" fill="#dcc28a"/></svg>Wedding<i>Studio</i></a></div>
 <div class="wrap">
   <header class="hero">
     <div class="script">WeddingStudio</div>

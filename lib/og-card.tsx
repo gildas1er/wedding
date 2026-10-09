@@ -12,6 +12,17 @@ function mix(a: string, b: string, weightOfA: number) {
   return `#${pa.map((v, i) => Math.round(v * weightOfA + pb[i] * (1 - weightOfA)).toString(16).padStart(2, '0')).join('')}`;
 }
 
+function RingsMark({ width }: { width: number }) {
+  return (
+    <svg width={width} height={(width * 110) / 150} viewBox="0 0 150 110">
+      <circle cx="58" cy="62" r="34" fill="none" stroke="#9e3a55" strokeWidth="7" />
+      <circle cx="92" cy="62" r="34" fill="none" stroke="#b38c4a" strokeWidth="7" />
+      <path d="M 71.8 30.9 A 34 34 0 0 1 89.1 48.2" fill="none" stroke="#9e3a55" strokeWidth="7" />
+      <path d="M92 6 L99.5 16.5 L92 25 L84.5 16.5 Z" fill="#dcc28a" stroke="#b38c4a" strokeWidth="2" />
+    </svg>
+  );
+}
+
 type CardProps = {
   eyebrow: string;
   names: [string, string] | null; // null = carte générique du site
@@ -70,9 +81,12 @@ export async function renderOgCard({ eyebrow, names, title, subtitle, primary, a
               <span>{names[1]}</span>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'baseline', marginTop: 26, fontFamily: serifFamily, fontSize: 110, color: ink }}>
-              <span>Wedding</span>
-              <span style={{ fontFamily: italicFamily, fontStyle: 'italic', color: p }}>Studio</span>
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: 26, fontFamily: serifFamily, fontSize: 110, color: ink }}>
+              <div style={{ display: 'flex', marginRight: 26 }}><RingsMark width={150} /></div>
+              <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span>Wedding</span>
+                <span style={{ fontFamily: italicFamily, fontStyle: 'italic', color: p }}>Studio</span>
+              </div>
             </div>
           )}
 
@@ -83,9 +97,12 @@ export async function renderOgCard({ eyebrow, names, title, subtitle, primary, a
           </div>
 
           {names && (
-            <div style={{ position: 'absolute', bottom: 34, display: 'flex', alignItems: 'baseline', fontFamily: serifFamily, fontSize: 22, color: mix(ink, bg, 0.45) }}>
-              <span>Wedding</span>
-              <span style={{ fontFamily: italicFamily, fontStyle: 'italic' }}>Studio</span>
+            <div style={{ position: 'absolute', bottom: 34, display: 'flex', alignItems: 'center', fontFamily: serifFamily, fontSize: 22, color: mix(ink, bg, 0.45) }}>
+              <div style={{ display: 'flex', marginRight: 8 }}><RingsMark width={34} /></div>
+              <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span>Wedding</span>
+                <span style={{ fontFamily: italicFamily, fontStyle: 'italic' }}>Studio</span>
+              </div>
             </div>
           )}
         </div>

@@ -192,6 +192,12 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - désactiver ou réactiver le compte, supprimer le couple.
 - **Paiements** et **journal** de toutes les actions.
 
+### 2.11 Logo « Les Alliances »
+
+- **Symbole** : deux alliances entrelacées, bordeaux et or, avec un petit diamant (`components/brand/AlliancesMark.tsx`). Couleurs fixes de la marque, indépendantes de la palette du couple.
+- **Où** : en-têtes de l'accueil, de l'espace des mariés, des pages de compte, des pages légales, de l'administration et du guide.
+- **Icônes** : onglet du navigateur (`app/icon.svg`), écran d'accueil iPhone (`app/apple-icon.tsx`), image de partage WhatsApp (`lib/og-card.tsx`).
+
 ### 2.10 Guide d'utilisation (`/guide`)
 
 - **Page statique** `public/guide/index.html` et 35 captures (`public/guide/img/`), servie sur `/guide` (réécriture dans `next.config.ts`).

@@ -3,8 +3,9 @@
 // Mise en page des écrans de compte (mot de passe oublié, nouveau mot de passe), assortie à la page de connexion.
 import React from 'react';
 import Link from 'next/link';
+import AlliancesMark from '../brand/AlliancesMark';
 import { motion } from 'framer-motion';
-import { Heart, KeyRound } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 
 export default function AuthShell({ title, subtitle, sideTitle, sideText, children }: {
   title: React.ReactNode;
@@ -35,7 +36,7 @@ export default function AuthShell({ title, subtitle, sideTitle, sideText, childr
       <div className="flex flex-1 items-center justify-center p-6 md:p-12 lg:p-20">
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-[440px]">
           <Link href="/" className="mb-10 inline-flex items-baseline gap-0.5 lg:hidden">
-            <Heart className="mr-1.5 h-4 w-4 self-center fill-rose-500 text-rose-500" />
+            <AlliancesMark size={30} className="mr-1.5 self-center" />
             <span className="font-display text-xl text-ink">Wedding</span>
             <span className="font-display text-xl italic text-rose-500">Studio</span>
           </Link>
