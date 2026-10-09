@@ -4,10 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Heart, ArrowRight, Mail, Lock, Eye, EyeOff, 
-  Check, User, Calendar, Phone, ChevronDown, AlertCircle
+  Check, User, Calendar, Phone, ChevronDown, AlertCircle, Gift
 } from 'lucide-react';
 import Link from 'next/link';
 import { LEGAL } from '../../lib/legal';
+import { REFERRAL_DISCOUNT_XOF, REFERRAL_STORAGE_KEY, normalizeCode } from '../../lib/promo';
+import { formatXof } from '../../lib/plan';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
 
@@ -31,6 +33,21 @@ export default function RegisterPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   
+  // Lien de parrainage (/register?parrain=CODE) : gardé aussi pour une inscription avec Google
+  const [referral, setReferral] = useState<{ code: string; inviter: string } | null>(null);
+  useEffect(() => {
+    let code = normalizeCode(new URLSearchParams(window.location.search).get('parrain') ?? '');
+    try {
+      if (code) localStorage.setItem(REFERRAL_STORAGE_KEY, code);
+      else code = normalizeCode(localStorage.getItem(REFERRAL_STORAGE_KEY) ?? '');
+    } catch { /* navigation privée */ }
+    if (!code) return;
+    supabase.rpc('referral_inviter', { p_code: code }).then(({ data }) => {
+      if (typeof data === 'string' && data.trim() && data.trim() !== '&') setReferral({ code, inviter: data });
+      else { try { localStorage.removeItem(REFERRAL_STORAGE_KEY); } catch { /* rien */ } }
+    });
+  }, []);
+
   const [emailError, setEmailError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [dateError, setDateError] = useState("");
@@ -121,6 +138,7 @@ export default function RegisterPage() {
             terms_version: LEGAL.version,
             terms_accepted_at: new Date().toISOString(),
             marketing_opt_in: marketingOptIn,
+            ...(referral ? { referral_code: referral.code } : {}),
           },
         },
       });
@@ -217,6 +235,13 @@ export default function RegisterPage() {
             </h1>
             <p className="text-slate-500 font-medium text-sm">Créez votre compte gratuit en quelques secondes.</p>
           </div>
+
+          {referral && (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-400 text-white"><Gift className="h-4 w-4" /></span>
+              <p><strong>{referral.inviter}</strong> vous invitent sur WeddingStudio : <strong>{formatXof(REFERRAL_DISCOUNT_XOF)} de réduction</strong> sur votre palier, avec le code <span className="font-mono font-semibold">{referral.code}</span>.</p>
+            </div>
+          )}
 
           {message.content && (
             <motion.div 

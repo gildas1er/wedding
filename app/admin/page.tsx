@@ -8,21 +8,24 @@ import AlliancesMark from '../../components/brand/AlliancesMark';
 import { AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, Loader2, ShieldAlert, LogOut,
-  Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight,
+  Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIERS, formatXof } from '../../lib/plan';
 import { ConfirmProvider, useConfirm } from '../../components/ui/ConfirmDialog';
 import CoupleDrawer, { daysTo, fmtDate, tierLabel, type AdminCouple } from '../../components/admin/CoupleDrawer';
+import PromosPanel, { type AdminPromo, type AdminReferral } from '../../components/admin/PromosPanel';
 
 type Payment = { id: string; created_at: string; completed_at: string | null; marriage_id: string; couple: string | null; amount: number; status: string; provider: string; note: string | null };
 type Action = { id: string; created_at: string; admin_email: string; couple: string | null; action: string; details: Record<string, unknown> | null };
-type Data = { generatedAt: string; couples: AdminCouple[]; payments: Payment[]; actions: Action[]; journalReady: boolean };
-type Tab = 'overview' | 'couples' | 'payments' | 'journal';
+type Data = { generatedAt: string; couples: AdminCouple[]; payments: Payment[]; actions: Action[]; journalReady: boolean; promos?: AdminPromo[]; referrals?: AdminReferral[]; promosReady?: boolean };
+type Tab = 'overview' | 'couples' | 'promos' | 'payments' | 'journal';
 
 const ACTION_LABELS: Record<string, string> = {
   palier: 'Palier activé', gratuit: 'Retour au gratuit', prolongation: 'Prolongation', paiement: 'Paiement enregistré',
   desactivation: 'Compte désactivé', reactivation: 'Compte réactivé', suppression: 'Couple supprimé',
+  recompense: 'Récompense de parrainage versée', code_promo: 'Code promo enregistré', code_active: 'Code promo activé',
+  code_desactive: 'Code promo désactivé', code_supprime: 'Code promo supprimé',
 };
 
 export default function AdminPage() {
@@ -62,8 +65,17 @@ function AdminContent() {
     const res = await fetch(`/api/admin/couples/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...payload }) }).catch(() => null);
     const json = await res?.json().catch(() => null);
     if (!res?.ok) { notify(json?.error ?? 'L’action a échoué.', 'error'); return false; }
-    notify({ tier: 'Palier activé', free: 'Couple repassé en version gratuite', extend: 'Espace prolongé', payment: 'Paiement enregistré', disable: 'Compte désactivé', enable: 'Compte réactivé', delete: 'Couple supprimé' }[action] ?? 'C’est fait');
+    notify({ tier: 'Palier activé', free: 'Couple repassé en version gratuite', extend: 'Espace prolongé', payment: 'Paiement enregistré', disable: 'Compte désactivé', enable: 'Compte réactivé', delete: 'Couple supprimé', referral_paid: 'Récompense notée' }[action] ?? 'C’est fait');
     if (action === 'delete') setOpenId(null);
+    await load();
+    return true;
+  }, [load, notify]);
+
+  const savePromo = useCallback(async (body: Record<string, unknown>) => {
+    const res = await fetch('/api/admin/promos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    const json = await res?.json().catch(() => null);
+    if (!res?.ok) { notify(json?.error ?? 'L’action a échoué.', 'error'); return false; }
+    notify(json?.kept ? 'Code déjà utilisé : il est désactivé' : body.op === 'save' ? 'Code enregistré' : body.op === 'delete' ? 'Code supprimé' : body.active ? 'Code activé' : 'Code désactivé');
     await load();
     return true;
   }, [load, notify]);
@@ -139,6 +151,7 @@ function AdminContent() {
   const tabs: { id: Tab; label: string; icon: typeof Users; n?: number }[] = [
     { id: 'overview', label: 'Vue d’ensemble', icon: LayoutDashboard },
     { id: 'couples', label: 'Couples', icon: Users, n: couples.length },
+    { id: 'promos', label: 'Promos & parrainage', icon: Ticket, n: data?.promos?.length },
     { id: 'payments', label: 'Paiements', icon: Banknote, n: data?.payments.length },
     { id: 'journal', label: 'Journal', icon: ScrollText },
   ];
@@ -306,6 +319,10 @@ function AdminContent() {
           </div>
         )}
 
+        {tab === 'promos' && (
+          <PromosPanel promos={data?.promos ?? []} referrals={data?.referrals ?? []} ready={Boolean(data?.promosReady)} generatedAt={data?.generatedAt ?? ''} onSave={savePromo} onOpen={setOpenId} />
+        )}
+
         {tab === 'payments' && (
           <Card title="Paiements encaissés" icon={Banknote} hint={`${formatXof(stats.revenue)} au total · ${formatXof(stats.revenueMonth)} ce mois-ci`}>
             {data?.payments.length ? (
@@ -333,7 +350,7 @@ function AdminContent() {
                 {data.actions.map((a) => (
                   <li key={a.id} className="py-3">
                     <p className="flex flex-wrap items-center gap-x-2 text-sm"><span className="font-semibold text-ink">{ACTION_LABELS[a.action] ?? a.action}</span><span className="text-slate-500">· {a.couple ?? '—'}</span></p>
-                    <p className="text-xs text-slate-500">{fmtDate(a.created_at, true)} · {a.admin_email}{a.details?.amount ? ` · ${formatXof(Number(a.details.amount))}` : ''}{a.details?.tier ? ` · ${String(a.details.tier)}` : ''}{a.details?.note ? ` · ${String(a.details.note)}` : ''}</p>
+                    <p className="text-xs text-slate-500">{fmtDate(a.created_at, true)} · {a.admin_email}{a.details?.amount ? ` · ${formatXof(Number(a.details.amount))}` : ''}{a.details?.tier ? ` · ${String(a.details.tier)}` : ''}{a.details?.code ? ` · code ${String(a.details.code)}` : ''}{a.details?.parrain ? ` · ${String(a.details.parrain)}` : ''}{a.details?.note ? ` · ${String(a.details.note)}` : ''}</p>
                   </li>
                 ))}
               </ul>

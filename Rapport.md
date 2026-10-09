@@ -37,6 +37,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 16 | `20261007_16_police_prenoms.sql` | Police d'écriture des prénoms |
 | 17 | `20261008_17_paliers_invites.sql` | Paliers selon le nombre d'invités + **correctif de sécurité** |
 | 18 | `20261009_18_journal_admin.sql` | Journal de l'administration, paiements conservés |
+| 19 | `20261009_19_codes_promo_parrainage.sql` | Codes promo, codes de parrainage, réduction à l'activation |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -191,6 +192,15 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - revenir au gratuit, prolonger, enregistrer un paiement ;
   - désactiver ou réactiver le compte, supprimer le couple.
 - **Paiements** et **journal** de toutes les actions.
+
+### 2.12 Codes promo et parrainage
+
+- **Codes promo** (onglet « Promos & parrainage » de `/admin`) : réduction en montant ou en %, date limite, nombre d'utilisations, partenaire et commission par vente. Un code déjà saisi n'est jamais supprimé, seulement désactivé.
+- **Parrainage** : chaque couple a son code (ex. `AWAYAO27`) et un lien `/register?parrain=CODE`. Le filleul a **5 000 F de réduction** ; le parrain reçoit **5 000 F** quand le filleul paie (versement à la main, noté dans la fiche du filleul). Montants dans `lib/promo.ts` et la fonction SQL `my_code()`.
+- **Couple** : champ « Code promo ou de parrainage » et carte « Parrainez un couple » sur la page Premium ; prix barrés et message WhatsApp avec le code et le montant à payer.
+- **Inscription** : bandeau « X vous invitent », code gardé dans le navigateur pour une inscription avec Google, puis rattaché à la première visite de l'espace.
+- **Administration** : la fiche du couple propose le montant réduit (case « Appliquer le code »), le code est marqué utilisé et noté sur le paiement.
+- **Sécurité** : les champs du code ne peuvent être changés que par le serveur ou par les fonctions de la base ; un code ne sert qu'une fois par couple ; le parrainage est refusé à un couple qui a déjà payé.
 
 ### 2.11 Logo « Les Alliances »
 

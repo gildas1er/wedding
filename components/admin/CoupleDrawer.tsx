@@ -5,11 +5,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   X, Mail, Phone, MessageCircle, ExternalLink, Crown, CalendarDays, Clock, Users, Ban, RotateCcw,
-  Trash2, Loader2, CalendarPlus, Banknote, ArrowDownCircle, Check,
+  Trash2, Loader2, CalendarPlus, Banknote, ArrowDownCircle, Check, Ticket, Gift,
 } from 'lucide-react';
 import { TIERS, formatXof, tierById, upgradePrice } from '../../lib/plan';
 import { EXTENSION_MONTHS, EXTENSION_PRICE_XOF } from '../../lib/lifecycle';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { REFERRAL_REWARD_XOF, describeDiscount, discountFor, type AppliedCode } from '../../lib/promo';
 
 export type AdminCouple = {
   id: string; ref: string; userId: string | null; couple: string; email: string | null; phone: string | null; provider: string | null;
@@ -17,6 +18,8 @@ export type AdminCouple = {
   phase: 'active' | 'souvenir'; deleteAt: string | null; plan: string; premium: boolean; tier: string | null;
   premiumUntil: string | null; keptUntil: string | null; limit: number | null; byPersons: boolean; used: number;
   fiches: number; persons: number; confirmed: number; declined: number; pending: number; paid: number; template: string;
+  referralCode?: string | null; referredBy?: string | null; referredByName?: string | null; rewardPaidAt?: string | null;
+  code?: AppliedCode | null;
 };
 
 export const tierLabel = (c: Pick<AdminCouple, 'premium' | 'tier'>) =>
@@ -43,9 +46,19 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
   const { confirm } = useConfirm();
   const currentTier = c.premium ? c.tier : null;
   const nextTier = TIERS.find((t) => t.max >= c.persons && (!tierById(currentTier) || t.max > tierById(currentTier)!.max)) ?? TIERS[TIERS.length - 1];
+  // Code saisi par le couple, encore utilisable : déduit du montant proposé (décochable)
+  const usableCode = c.code && c.code.valid && !c.code.used ? c.code : null;
+  const [useCode, setUseCode] = useState(Boolean(usableCode));
+  const priceFor = (id: string, withCode: boolean) => {
+    const t = tierById(id);
+    if (!t) return '';
+    const base = upgradePrice(currentTier, t.id);
+    return String(base - (withCode ? discountFor(base, usableCode) : 0));
+  };
   const [tier, setTier] = useState<string>(nextTier.id);
   const [limit, setLimit] = useState('400');
-  const [amount, setAmount] = useState(String(upgradePrice(currentTier, nextTier.id)));
+  const [amount, setAmount] = useState(priceFor(nextTier.id, Boolean(usableCode)));
+  const [rewardAmount, setRewardAmount] = useState(String(REFERRAL_REWARD_XOF));
   const [note, setNote] = useState('');
   const [extAmount, setExtAmount] = useState(String(EXTENSION_PRICE_XOF));
   const [payAmount, setPayAmount] = useState('');
@@ -60,8 +73,7 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
 
   const pickTier = (id: string) => {
     setTier(id);
-    const t = tierById(id);
-    setAmount(t ? String(upgradePrice(currentTier, t.id)) : '');
+    setAmount(priceFor(id, useCode));
   };
 
   const days = daysTo(c.weddingDate);
@@ -114,6 +126,8 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
             <Fact icon={CalendarPlus} label="Inscription" value={`${fmtDate(c.createdAt)}${c.provider && c.provider !== 'email' ? ` · ${c.provider}` : ''}`} />
             <Fact icon={Banknote} label="Total encaissé" value={formatXof(c.paid)} />
             {c.premium && c.premiumUntil && <Fact icon={Crown} label="Accès Premium jusqu’au" value={fmtDate(c.premiumUntil)} />}
+            {c.code && <Fact icon={Ticket} label={c.code.kind === 'parrainage' ? 'Code de parrainage saisi' : 'Code promo saisi'} value={`${c.code.code} · ${describeDiscount(c.code)}${c.code.used ? ' · utilisé' : !c.code.valid ? ' · expiré' : ''}`} />}
+            {c.referralCode && <Fact icon={Gift} label="Son code de parrainage" value={c.referralCode} />}
             {c.deleteAt && <Fact icon={Trash2} label="Suppression automatique" value={fmtDate(c.deleteAt)} />}
           </section>
 
@@ -154,10 +168,16 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
               </label>
             </div>
             {currentTier && tierById(tier) && <p className="mt-2 text-xs text-slate-500">Différence avec le palier actuel ({tierLabel(c)}) : {formatXof(upgradePrice(currentTier, tier as never))}</p>}
+            {usableCode && (
+              <label className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 ring-1 ring-emerald-100">
+                <input type="checkbox" checked={useCode} onChange={(e) => { setUseCode(e.target.checked); setAmount(priceFor(tier, e.target.checked)); }} className="mt-0.5 h-4 w-4 accent-emerald-600" />
+                <span>Appliquer le code <span className="font-mono font-semibold">{usableCode.code}</span> ({describeDiscount(usableCode)}{usableCode.label ? ` · ${usableCode.label}` : ''}). Il sera marqué comme utilisé.</span>
+              </label>
+            )}
             <button
               type="button"
               disabled={busy !== null}
-              onClick={() => run('tier', 'tier', { tier, limit: Number(limit), amount: Number(amount) || 0, note })}
+              onClick={() => run('tier', 'tier', { tier, limit: Number(limit), amount: Number(amount) || 0, note, useCode: Boolean(usableCode && useCode) })}
               className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
             >
               {busy === 'tier' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4 text-amber-300" />} Activer ce palier
@@ -189,6 +209,27 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
               </button>
             </Panel>
           </div>
+
+          {/* Parrainage : récompense due au parrain quand ce couple a payé */}
+          {c.referredBy && (
+            <Panel title="Parrainage" icon={Gift}>
+              <p className="text-sm text-slate-700">Parrainé par <strong>{c.referredByName}</strong>.</p>
+              {c.rewardPaidAt ? (
+                <p className="mt-1 text-xs text-emerald-700">Récompense versée le {fmtDate(c.rewardPaidAt)}.</p>
+              ) : c.premium && c.tier ? (
+                <>
+                  <p className="mt-1 text-xs text-slate-500">Ce couple a payé : versez la récompense au parrain (Wave, Mobile Money), puis notez-la ici.</p>
+                  <div className="mt-2 flex gap-2">
+                    <input type="number" min={0} value={rewardAmount} onChange={(e) => setRewardAmount(e.target.value)} aria-label="Montant versé au parrain" className={input} />
+                    <button type="button" disabled={busy !== null} onClick={() => run('reward', 'referral_paid', { amount: Number(rewardAmount) || 0, note })}
+                      className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
+                      {busy === 'reward' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Récompense versée
+                    </button>
+                  </div>
+                </>
+              ) : <p className="mt-1 text-xs text-slate-500">La récompense de {formatXof(REFERRAL_REWARD_XOF)} sera due quand ce couple aura payé.</p>}
+            </Panel>
+          )}
 
           {/* Compte */}
           <Panel title="Compte" icon={c.banned ? RotateCcw : Ban}>

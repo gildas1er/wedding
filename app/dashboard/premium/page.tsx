@@ -10,6 +10,9 @@ import {
   PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS,
   countPersons, formatXof, guestQuota, recommendedTier, tierWhatsappLink, upgradePrice,
 } from '../../../lib/plan';
+import { activeCode, discountFor, type AppliedCode } from '../../../lib/promo';
+import PromoCodeCard from '../../../components/dashboard/PromoCodeCard';
+import ReferralCard, { type Referrals } from '../../../components/dashboard/ReferralCard';
 
 type Marriage = Record<string, unknown> & {
   id: string; partner_1_name?: string | null; partner_2_name?: string | null;
@@ -28,6 +31,17 @@ export default function PremiumPage() {
   const [marriage, setMarriage] = useState<Marriage | null>(null);
   const [guests, setGuests] = useState<{ guests_count: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
+  // Codes promo et parrainage : absents tant que la migration 19 n'est pas lancée
+  const [applied, setApplied] = useState<AppliedCode | null>(null);
+  const [referrals, setReferrals] = useState<Referrals | null>(null);
+  const [codesReady, setCodesReady] = useState(false);
+
+  const loadCodes = useCallback(async () => {
+    const [code, refs] = await Promise.all([supabase.rpc('my_code'), supabase.rpc('my_referrals')]);
+    setCodesReady(!code.error);
+    setApplied(code.error ? null : (code.data as AppliedCode | null));
+    setReferrals(refs.error ? null : (refs.data as Referrals));
+  }, []);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -37,9 +51,10 @@ export default function PremiumPage() {
     if (m) {
       const { data } = await supabase.from('invite').select('guests_count').eq('marriage_id', m.id);
       setGuests(data ?? []);
+      await loadCodes();
     }
     setLoading(false);
-  }, []);
+  }, [loadCodes]);
 
   useEffect(() => { Promise.resolve().then(load); }, [load]);
 
@@ -55,6 +70,8 @@ export default function PremiumPage() {
   const advised = current && !nearlyFull ? null : recommendedTier(Math.max(persons, current ? current.max + 1 : 1));
   const until = marriage?.premium_until ? new Date(marriage.premium_until).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
   const pct = quota.limit ? Math.min(100, (quota.used / quota.limit) * 100) : 0;
+  const code = activeCode(applied);
+  const promoFor = (price: number) => (code ? { code: code.code, discount: discountFor(price, code) } : null);
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -103,6 +120,8 @@ export default function PremiumPage() {
                 const isAdvised = advised?.id === t.id;
                 const disabled = isCurrent || lower || tooSmall;
                 const diff = current ? upgradePrice(current.id, t.id) : t.price;
+                const promo = promoFor(diff);
+                const reduced = promo && promo.discount > 0 ? diff - promo.discount : null;
                 const from = i === 0 ? 1 : TIERS[i - 1].max + 1;
                 return (
                   <article key={t.id} className={`flex flex-col rounded-[1.5rem] border p-5 ${isAdvised ? 'border-amber-400 bg-white shadow-lg ring-2 ring-amber-200' : 'border-slate-200/80 bg-white'} ${disabled && !isCurrent ? 'opacity-55' : ''}`}>
@@ -112,14 +131,26 @@ export default function PremiumPage() {
                       {isCurrent && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Votre palier</span>}
                     </div>
                     <p className="mt-1 text-sm text-slate-500">De {from} à {t.max} invités</p>
-                    <p className="mt-4 font-display text-3xl text-ink">{current && !isCurrent && !lower ? `+ ${formatXof(diff)}` : formatXof(t.price)}</p>
-                    <p className="text-xs text-slate-500">{current && !isCurrent && !lower ? `la différence avec le palier ${current.label}` : `soit ${formatXof(Math.round(t.price / t.max))} par invité`}</p>
+                    {reduced !== null && !disabled ? (
+                      <>
+                        <p className="mt-4 flex flex-wrap items-baseline gap-x-2">
+                          <span className="font-display text-3xl text-ink">{current ? '+ ' : ''}{formatXof(reduced)}</span>
+                          <s className="text-sm text-slate-400">{formatXof(diff)}</s>
+                        </p>
+                        <p className="text-xs font-semibold text-emerald-700">avec le code {promo!.code}{current ? ` · différence avec le palier ${current.label}` : ''}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-4 font-display text-3xl text-ink">{current && !isCurrent && !lower ? `+ ${formatXof(diff)}` : formatXof(t.price)}</p>
+                        <p className="text-xs text-slate-500">{current && !isCurrent && !lower ? `la différence avec le palier ${current.label}` : `soit ${formatXof(Math.round(t.price / t.max))} par invité`}</p>
+                      </>
+                    )}
                     {disabled ? (
                       <span className="mt-5 inline-flex min-h-[48px] items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500">
                         {isCurrent ? <><Check className="mr-1.5 h-4 w-4" /> Palier actuel</> : lower ? 'Palier inférieur' : `Votre liste dépasse ${t.max}`}
                       </span>
                     ) : (
-                      <a href={tierWhatsappLink(couple, marriage?.id, t.id, current?.id, persons)} target="_blank" rel="noopener noreferrer"
+                      <a href={tierWhatsappLink(couple, marriage?.id, t.id, current?.id, persons, promo)} target="_blank" rel="noopener noreferrer"
                         className={`mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl text-sm font-semibold ${isAdvised ? 'bg-ink text-white hover:bg-rose-700' : 'border border-slate-200 text-ink hover:border-ink'}`}>
                         <MessageCircle className="h-4 w-4" /> {current ? 'Passer à ce palier' : 'Choisir ce palier'}
                       </a>
@@ -132,13 +163,20 @@ export default function PremiumPage() {
                 <p className="mt-1 text-sm text-slate-500">Plus de 300 invités</p>
                 <p className="mt-4 font-display text-3xl text-ink">Sur devis</p>
                 <p className="text-xs text-slate-500">Un tarif adapté à votre mariage</p>
-                <a href={tierWhatsappLink(couple, marriage?.id, 'sur_mesure', current?.id, persons)} target="_blank" rel="noopener noreferrer"
+                <a href={tierWhatsappLink(couple, marriage?.id, 'sur_mesure', current?.id, persons, code ? { code: code.code, discount: 0 } : null)} target="_blank" rel="noopener noreferrer"
                   className="mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-slate-300 text-sm font-semibold text-ink hover:border-ink">
                   <MessageCircle className="h-4 w-4" /> Demander un devis
                 </a>
               </article>
             </div>
           </section>
+        )}
+
+        {codesReady && (
+          <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {!unlimited && <PromoCodeCard applied={applied} onChange={loadCodes} />}
+            {referrals && <ReferralCard referrals={referrals} />}
+          </div>
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

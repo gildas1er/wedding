@@ -123,6 +123,9 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
         <Link href="/dashboard/premium" onClick={onClose} className="mt-2 flex min-h-[44px] items-center justify-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-ink">
           Voir le détail des paliers <ArrowRight size={14} />
         </Link>
+        <Link href="/dashboard/premium#code" onClick={onClose} className="flex min-h-[40px] items-center justify-center text-xs font-semibold text-amber-700 hover:text-amber-900">
+          J&apos;ai un code promo ou de parrainage
+        </Link>
         <p className="mt-1 text-center text-xs text-slate-500">
           {ONLINE_PAYMENT_ENABLED ? 'Wave, Orange Money, MTN, Moov ou carte bancaire' : `Activation par appel ou WhatsApp au ${PREMIUM_CONTACT.display}`}
         </p>

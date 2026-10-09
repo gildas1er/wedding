@@ -17,6 +17,7 @@ import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { isPremium, tierById } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 import { guideHref } from '../../lib/guide';
+import { REFERRAL_STORAGE_KEY } from '../../lib/promo';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -241,6 +242,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       if (!data) return;
       const lifecycle = spaceLifecycle(data);
       setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, lifecycle });
+      // Parrainage : code du lien d'inscription gardé dans le navigateur (inscription Google comprise)
+      try {
+        const pending = localStorage.getItem(REFERRAL_STORAGE_KEY);
+        if (pending && 'referral_code' in data) {
+          if (!data.referred_by && !data.applied_code) await supabase.rpc('apply_code', { p_code: pending });
+          localStorage.removeItem(REFERRAL_STORAGE_KEY);
+        }
+      } catch { /* navigation privée */ }
       // Mode souvenir : le pop-up s'affiche une fois par visite
       if (lifecycle.phase === 'souvenir') {
         let seen = false;

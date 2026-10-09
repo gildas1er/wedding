@@ -33,17 +33,20 @@ export function premiumWhatsappLink(couple: string, marriageId?: string | null) 
   return waLink(`Bonjour, je souhaite activer WeddingStudio Premium pour le mariage${couple ? ` de ${couple}` : ''}${refOf(marriageId)}.`);
 }
 
-// Message prérempli pour un palier (ou un passage au palier supérieur, en payant la différence)
-export function tierWhatsappLink(couple: string, marriageId: string | null | undefined, target: TierId | 'sur_mesure', current?: TierId | null, persons?: number) {
+// Message prérempli pour un palier (ou un passage au palier supérieur, en payant la différence).
+// promo : code saisi par le couple, avec la réduction calculée (lib/promo.ts)
+export function tierWhatsappLink(couple: string, marriageId: string | null | undefined, target: TierId | 'sur_mesure', current?: TierId | null, persons?: number, promo?: { code: string; discount: number } | null) {
   const who = `pour le mariage${couple ? ` de ${couple}` : ''}${refOf(marriageId)}`;
   if (target === 'sur_mesure') {
-    return waLink(`Bonjour, je souhaite un devis WeddingStudio pour plus de 300 invités${persons ? ` (environ ${persons})` : ''} ${who}.`);
+    return waLink(`Bonjour, je souhaite un devis WeddingStudio pour plus de 300 invités${persons ? ` (environ ${persons})` : ''} ${who}.${promo ? ` J'ai le code ${promo.code}.` : ''}`);
   }
   const t = tierById(target)!;
+  const base = current && tierById(current) ? upgradePrice(current, target) : t.price;
+  const withCode = promo && promo.discount > 0 ? ` J'ai le code ${promo.code} (-${formatXof(promo.discount)}), soit ${formatXof(Math.max(0, base - promo.discount))} à payer.` : '';
   if (current && tierById(current)) {
-    return waLink(`Bonjour, je souhaite passer du palier ${tierById(current)!.label} au palier ${t.label} (jusqu'à ${t.max} invités, différence de ${formatXof(upgradePrice(current, target))}) ${who}.`);
+    return waLink(`Bonjour, je souhaite passer du palier ${tierById(current)!.label} au palier ${t.label} (jusqu'à ${t.max} invités, différence de ${formatXof(base)}) ${who}.${withCode}`);
   }
-  return waLink(`Bonjour, je souhaite le palier ${t.label} de WeddingStudio (jusqu'à ${t.max} invités, ${formatXof(t.price)}) ${who}.`);
+  return waLink(`Bonjour, je souhaite le palier ${t.label} de WeddingStudio (jusqu'à ${t.max} invités, ${formatXof(t.price)}) ${who}.${withCode}`);
 }
 
 export const PREMIUM_FEATURES = [

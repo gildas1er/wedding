@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readAll, requireAdmin } from '../../../../lib/admin-server';
 import { guestQuota, countPersons } from '../../../../lib/plan';
 import { spaceLifecycle } from '../../../../lib/lifecycle';
+import { REFERRAL_DISCOUNT_XOF, REFERRAL_REWARD_XOF, type PromoCode } from '../../../../lib/promo';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,8 @@ type Marriage = {
   partner_1_name?: string | null; partner_2_name?: string | null; wedding_date?: string | null; location_city?: string | null;
   plan?: string | null; premium_until?: string | null; tier?: string | null; guest_limit?: number | null;
   legacy_free_fiches?: boolean | null; kept_until?: string | null; invitation_template?: string | null;
+  referral_code?: string | null; referred_by?: string | null; applied_code?: string | null;
+  applied_code_used_at?: string | null; referral_reward_paid_at?: string | null;
 };
 type Payment = { marriage_id: string; amount: number | null; status: string | null; [key: string]: unknown };
 type AuthUser = { email?: string; phone?: string; created_at?: string; last_sign_in_at?: string; banned_until?: string; user_metadata?: { phone?: string }; app_metadata?: { provider?: string } };
@@ -36,6 +39,27 @@ export async function GET() {
       data.users.forEach((u) => users.set(u.id, u as AuthUser));
       if (data.users.length < 1000) break;
     }
+
+    // Codes promo (migration 19) : utilisations payées, en attente, commissions
+    const { data: promoRows, error: promoError } = await db.from('promo_codes').select('*').order('created_at', { ascending: false });
+    const promoList = (promoRows ?? []) as PromoCode[];
+    const promoByCode = new Map(promoList.map((p) => [p.code, p]));
+    const promos = promoList.map((p) => {
+      const users = marriages.filter((m) => m.applied_code === p.code);
+      const used = users.filter((m) => m.applied_code_used_at).length;
+      return { ...p, used, pending: users.length - used, commissionDue: used * (p.commission_xof || 0) };
+    });
+    const names = new Map(marriages.map((m) => [m.id, [m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ') || 'Sans nom']));
+    const referrals = marriages.filter((m) => m.referred_by).map((m) => ({
+      id: m.id,
+      couple: names.get(m.id),
+      parrainId: m.referred_by!,
+      parrain: names.get(m.referred_by!) ?? 'Couple supprimé',
+      createdAt: m.created_at ?? null,
+      paid: Boolean(m.tier) && m.plan === 'premium',
+      rewardPaidAt: m.referral_reward_paid_at ?? null,
+      reward: REFERRAL_REWARD_XOF,
+    }));
 
     const byMarriage = new Map<string, Guest[]>();
     for (const g of guests) byMarriage.set(g.marriage_id, [...(byMarriage.get(g.marriage_id) ?? []), g]);
@@ -79,6 +103,22 @@ export async function GET() {
         pending: list.filter((g) => !g.status || g.status === 'en_attente').length,
         paid: paidBy.get(m.id) ?? 0,
         template: m.invitation_template ?? 'classique',
+        referralCode: m.referral_code ?? null,
+        referredBy: m.referred_by ?? null,
+        referredByName: m.referred_by ? names.get(m.referred_by) ?? 'Couple supprimé' : null,
+        rewardPaidAt: m.referral_reward_paid_at ?? null,
+        code: m.applied_code ? (() => {
+          const p = promoByCode.get(m.applied_code);
+          return {
+            code: m.applied_code,
+            kind: p ? 'promo' : 'parrainage',
+            label: p ? p.label : `Parrainage${m.referred_by ? ` · ${names.get(m.referred_by) ?? ''}` : ''}`,
+            discount_type: p ? p.discount_type : 'amount',
+            discount_value: p ? p.discount_value : REFERRAL_DISCOUNT_XOF,
+            used: Boolean(m.applied_code_used_at),
+            valid: p ? p.active && (!p.valid_until || new Date(p.valid_until) >= now) : Boolean(m.referred_by),
+          };
+        })() : null,
       };
     });
 
@@ -90,6 +130,9 @@ export async function GET() {
       payments: payments.slice(0, 100),
       actions: actions ?? [],
       journalReady: actions !== null,
+      promos,
+      referrals,
+      promosReady: !promoError,
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     console.error('Administration :', e);
