@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '../../../../utils/supabase/server';
 import { serviceSupabase } from '../../../../lib/premium-server';
 import { deleteSpace } from '../../../../lib/account-server';
+import { crossSiteRefusal, isSameOrigin } from '../../../../lib/same-origin';
 
 // Suppression définitive du compte du couple connecté (espace, invités, fichiers, compte de connexion)
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   const body = await request.json().catch(() => ({}));
   if (body?.confirm !== 'SUPPRIMER') {
     return NextResponse.json({ error: 'Tapez SUPPRIMER pour confirmer.' }, { status: 400 });

@@ -26,6 +26,7 @@ const ACTION_LABELS: Record<string, string> = {
   desactivation: 'Compte désactivé', reactivation: 'Compte réactivé', suppression: 'Couple supprimé',
   recompense: 'Récompense de parrainage versée', code_promo: 'Code promo enregistré', code_active: 'Code promo activé',
   code_desactive: 'Code promo désactivé', code_supprime: 'Code promo supprimé',
+  purge: 'Suppression automatique (12 mois)',
 };
 
 export default function AdminPage() {
@@ -350,7 +351,7 @@ function AdminContent() {
                 {data.actions.map((a) => (
                   <li key={a.id} className="py-3">
                     <p className="flex flex-wrap items-center gap-x-2 text-sm"><span className="font-semibold text-ink">{ACTION_LABELS[a.action] ?? a.action}</span><span className="text-slate-500">· {a.couple ?? '—'}</span></p>
-                    <p className="text-xs text-slate-500">{fmtDate(a.created_at, true)} · {a.admin_email}{a.details?.amount ? ` · ${formatXof(Number(a.details.amount))}` : ''}{a.details?.tier ? ` · ${String(a.details.tier)}` : ''}{a.details?.code ? ` · code ${String(a.details.code)}` : ''}{a.details?.parrain ? ` · ${String(a.details.parrain)}` : ''}{a.details?.note ? ` · ${String(a.details.note)}` : ''}</p>
+                    <p className="text-xs text-slate-500">{fmtDate(a.created_at, true)} · {a.admin_email}{a.details?.amount ? ` · ${formatXof(Number(a.details.amount))}` : ''}{a.details?.tier ? ` · ${String(a.details.tier)}` : ''}{a.details?.code ? ` · code ${String(a.details.code)}` : ''}{a.details?.parrain ? ` · ${String(a.details.parrain)}` : ''}{a.action === 'purge' ? ` · ${Number(a.details?.deleted_count ?? 0)} espace(s) supprimé(s)${Number(a.details?.failed_count ?? 0) ? ` · ${Number(a.details?.failed_count)} échec(s)` : ''}${a.details?.remaining ? ' · suite la nuit prochaine' : ''}` : ''}{a.details?.note ? ` · ${String(a.details.note)}` : ''}</p>
                   </li>
                 ))}
               </ul>

@@ -3,9 +3,11 @@ import { createClient } from '../../../../utils/supabase/server';
 import { createCheckout, paymentsConfigured, serviceSupabase } from '../../../../lib/premium-server';
 import { isPremium, ONLINE_PAYMENT_ENABLED, PREMIUM_PRICE_XOF } from '../../../../lib/plan';
 import { getSiteUrl } from '../../../../lib/og';
+import { crossSiteRefusal, isSameOrigin } from '../../../../lib/same-origin';
 
 // Crée un paiement GeniusPay pour le mariage du couple connecté et renvoie l'adresse de la page de paiement
-export async function POST() {
+export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   // Paiement en ligne désactivé : l'activation se fait par contact (voir lib/plan.ts)
   if (!ONLINE_PAYMENT_ENABLED || !paymentsConfigured()) {
     return NextResponse.json({ error: "Le paiement en ligne n'est pas encore activé. Contactez-nous pour passer au Premium." }, { status: 503 });

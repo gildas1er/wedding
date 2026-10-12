@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../../../utils/supabase/server';
 import { confirmAndActivate, paymentsConfigured, serviceSupabase } from '../../../../lib/premium-server';
+import { crossSiteRefusal, isSameOrigin } from '../../../../lib/same-origin';
 
 // Au retour de la page de paiement : vérifie le paiement (utile si la notification tarde)
 export async function POST(request: NextRequest) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   if (!paymentsConfigured()) return NextResponse.json({ status: 'unavailable' }, { status: 503 });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

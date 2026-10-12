@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/admin-server';
 import { isValidPromoCode, normalizeCode } from '../../../../lib/promo';
+import { crossSiteRefusal, isSameOrigin } from '../../../../lib/same-origin';
 
 type Body = {
   op: 'save' | 'toggle' | 'delete';
@@ -18,6 +19,7 @@ type Body = {
 
 // Codes promo de l'administration (créer, modifier, activer / désactiver, supprimer)
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   const auth = await requireAdmin();
   if ('error' in auth) return auth.error;
   const { db, email } = auth;

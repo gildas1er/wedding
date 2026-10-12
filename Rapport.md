@@ -42,6 +42,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 21 | `20261012_21_securite_photos_livre_or.sql` | Sécurité : fiches photo, livre d'or et liste des fichiers ne sont plus lisibles par tous (audit, constat 2) |
 | 22 | `20261012_22_securite_acces_admin.sql` | Sécurité : l'administration exige le marqueur `admin` (app_metadata), donné par `select public.set_admin('…')` (audit, constat 3) |
 | 23 | `20261012_23_securite_limite_essais.sql` | Sécurité : limite d'essais sur les codes promo (10 refus / heure / compte) et « Trouver ma table » (60 / 10 min / IP / mariage) (audit, constat 8) |
+| 24 | `20261012_24_securite_points_info.sql` | Sécurité : limite d'invités d'un mariage plus lisible de l'extérieur ; prénoms du parrain limités à 30 vérifications / heure / IP (audit, points 10.1 et 10.2) |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -227,6 +228,8 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ## 3. Fonctionnalités modifiées
 
+- **Vérification d'origine (12 octobre 2026, audit point 10.3)** : `lib/same-origin.ts` ; la suppression de compte, les actions de l'administration et le paiement en ligne refusent (403) toute demande venue d'un autre site.
+- **Suppression automatique à 12 mois (12 octobre 2026, audit constat 9)** : la tâche de nuit ne demande plus que les espaces réellement arrivés au terme (prolongations en cours exclues), les plus anciens d'abord, par lots de 50 jusqu'à épuisement (45 s au plus, la suite la nuit suivante). Bilan noté dans le journal de l'administration (« Suppression automatique (12 mois) ») dès qu'un espace est supprimé ou qu'une suppression échoue.
 - **Galerie à mot de passe supprimée (12 octobre 2026)** : `/galerie`, `/api/galerie/*` et `lib/gallery-auth.ts` retirés ; `/galerie` redirige vers l'Album photos de chaque couple. Les variables `GALLERY_PASSWORD` et `GALLERY_SECRET` ne servent plus. La politique de confidentialité ne mentionne plus la galerie.
 - **En-têtes de sécurité (12 octobre 2026, audit constat 7)** : `next.config.ts` ajoute X-Frame-Options (SAMEORIGIN, l'aperçu du Studio reste permis), nosniff, Referrer-Policy, Permissions-Policy, HSTS et une politique de contenu (CSP) **en rapport seulement** (`CSP_ENFORCE = false`). Les écarts arrivent dans les journaux Vercel via `/api/csp-report` (lignes « [CSP] »). Passer `CSP_ENFORCE` à `true` après une à deux semaines sans alerte. Toute nouvelle source externe (images, polices, musiques, scripts) doit y être ajoutée.
 - **Exports CSV (12 octobre 2026, audit constat 6)** : `lib/csv-safe.ts` neutralise les cellules qui commencent par `= + - @` (formules glissées par un invité dans sa note ou le livre d'or), sans toucher aux numéros de téléphone ni aux montants. Utilisé par les exports de « Mes souvenirs ».

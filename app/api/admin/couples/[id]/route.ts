@@ -3,6 +3,7 @@ import { requireAdmin } from '../../../../../lib/admin-server';
 import { deleteSpace } from '../../../../../lib/account-server';
 import { TIERS, tierById } from '../../../../../lib/plan';
 import { EXTENSION_MONTHS } from '../../../../../lib/lifecycle';
+import { crossSiteRefusal, isSameOrigin } from '../../../../../lib/same-origin';
 
 type Body = {
   action: 'tier' | 'free' | 'extend' | 'payment' | 'disable' | 'enable' | 'delete' | 'referral_paid';
@@ -18,6 +19,7 @@ const addMonths = (d: Date, n: number) => { const x = new Date(d); x.setMonth(x.
 
 // Actions de l'administration sur un couple (toujours notées dans le journal)
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   const auth = await requireAdmin();
   if ('error' in auth) return auth.error;
   const { db, email } = auth;
