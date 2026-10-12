@@ -2,7 +2,7 @@
 // Documentation : https://geniuspay.ci/docs/api
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_PRICE_XOF } from './plan';
+import { PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_PRICE_XOF, TIERS, tierById } from './plan';
 
 // Adresse de l'API (modifiable pour les tests ; par défaut, l'API officielle)
 const API_BASE = process.env.GENIUSPAY_API_BASE || 'https://geniuspay.ci/api/v1/merchant';
@@ -101,8 +101,8 @@ export async function confirmAndActivate(reference: string): Promise<'activated'
     return 'pending';
   }
 
-  // Paiement de test (sandbox) : accepté seulement si explicitement autorisé (période d'essai)
-  if (payment.environment === 'sandbox' && process.env.GENIUSPAY_ALLOW_SANDBOX !== 'true') {
+  // Paiement de test (sandbox) : jamais sur le site en production ; ailleurs, seulement si explicitement autorisé
+  if (payment.environment === 'sandbox' && (isProductionSite() || process.env.GENIUSPAY_ALLOW_SANDBOX !== 'true')) {
     await db.from('payments').update({ status: 'sandbox_rejected', raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
     return 'failed';
   }
@@ -116,14 +116,43 @@ export async function confirmAndActivate(reference: string): Promise<'activated'
 
   if (row.status === 'completed') return 'already';
 
-  const { data: marriage } = await db.from('marriages').select('wedding_date').eq('id', row.marriage_id).single();
+  const { data: marriage } = await db.from('marriages').select('wedding_date, plan, tier, guest_limit, premium_until').eq('id', row.marriage_id).single();
   const base = marriage?.wedding_date ? new Date(marriage.wedding_date) : new Date();
   const until = new Date(Math.max(base.getTime(), Date.now()));
   until.setMonth(until.getMonth() + PREMIUM_ACCESS_MONTHS_AFTER_WEDDING);
+  // L'accès n'est jamais raccourci
+  const currentUntil = marriage?.premium_until ? new Date(marriage.premium_until) : null;
+  const premiumUntil = currentUntil && currentUntil > until ? currentUntil : until;
 
   await db.from('payments').update({ status: 'completed', completed_at: new Date().toISOString(), environment: payment.environment ?? null, raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
-  // Paiement en ligne : premier palier (Intime). Les autres paliers s'activent pour l'instant par contact.
-  const { error } = await db.from('marriages').update({ plan: 'premium', tier: 'intime', guest_limit: 100, premium_until: until.toISOString() }).eq('id', row.marriage_id);
+  // Palier payé : le plus grand palier dont le prix est couvert par le montant demandé (et vérifié ci-dessus).
+  // Jamais de rétrogradation : un couple déjà sur un palier supérieur (ou illimité, sur mesure) le garde.
+  const paid = tierForAmount(row.amount);
+  const stillActive = marriage?.plan === 'premium' && (!currentUntil || currentUntil > new Date());
+  const keepCurrent = stillActive && !paidIsHigher(marriage, paid);
+  const { error } = await db.from('marriages').update(keepCurrent
+    // Formule gardée ; un accès sans date de fin le reste
+    ? { premium_until: currentUntil ? premiumUntil.toISOString() : null }
+    : { plan: 'premium', tier: paid.id, guest_limit: paid.max, premium_until: premiumUntil.toISOString() },
+  ).eq('id', row.marriage_id);
   if (error) throw new Error(`Activation du Premium impossible : ${error.message}`);
   return 'activated';
+}
+
+// Site en production (Vercel) : les paiements de test n'y sont jamais acceptés
+function isProductionSite() {
+  return process.env.VERCEL_ENV === 'production';
+}
+
+// Plus grand palier couvert par un montant (au moins le premier palier)
+function tierForAmount(amount: number) {
+  return [...TIERS].reverse().find((t) => amount >= t.price) ?? TIERS[0];
+}
+
+// Le palier payé dépasse-t-il la formule actuelle ? (une formule illimitée n'est jamais dépassée)
+function paidIsHigher(current: { tier?: string | null; guest_limit?: number | null }, paid: (typeof TIERS)[number]) {
+  if (current.guest_limit === null || current.guest_limit === undefined) return false; // illimité : rien ne le dépasse
+  const now = tierById(current.tier);
+  const currentMax = now?.max ?? current.guest_limit;
+  return paid.max > currentMax;
 }

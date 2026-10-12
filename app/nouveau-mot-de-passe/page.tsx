@@ -63,7 +63,6 @@ export default function NewPasswordPage() {
       sideTitle={<>Un nouveau départ<br />pour votre espace.</>}
       sideText="Choisissez un mot de passe que vous retiendrez facilement, mais que personne ne pourra deviner."
     >
-      <title>Nouveau mot de passe | WeddingStudio</title>
 
       {status === 'checking' && <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>}
 

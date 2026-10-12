@@ -7,6 +7,7 @@ import { ACTIVE_MONTHS_AFTER_WEDDING, DELETE_MONTHS_AFTER_WEDDING } from '../../
 export const metadata: Metadata = {
   title: 'Politique de confidentialité',
   description: 'Quelles données WeddingStudio collecte, pourquoi, et comment exercer vos droits.',
+  alternates: { canonical: '/confidentialite' },
 };
 
 export default function ConfidentialitePage() {

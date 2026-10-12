@@ -67,7 +67,6 @@ export default function ForgotPasswordPage() {
       sideTitle={<>Pas d&apos;inquiétude,<br />cela arrive à tout le monde.</>}
       sideText="En quelques instants, vous retrouvez l'accès à votre espace et à tout ce que vous avez préparé."
     >
-      <title>Mot de passe oublié | WeddingStudio</title>
 
       {error && (
         <motion.p role="alert" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-600">

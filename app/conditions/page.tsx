@@ -8,6 +8,7 @@ import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_W
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation et de vente",
   description: "Les règles d'utilisation de WeddingStudio et les conditions de l'offre Premium.",
+  alternates: { canonical: '/conditions' },
 };
 
 export default function ConditionsPage() {

@@ -207,7 +207,6 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-ivory flex flex-col lg:flex-row">
-      <title>Prenez le contrôle de votre grand jour | WeddingStudio</title>
 
       {/* Côté gauche - Visuel */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center p-12">

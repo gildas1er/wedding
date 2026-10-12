@@ -96,7 +96,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-ivory flex flex-col lg:flex-row">
       
-      <title>Heureux de vous revoir parmi nous | WeddingStudio</title>
 
       {/* SECTION GAUCHE */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center p-12">
