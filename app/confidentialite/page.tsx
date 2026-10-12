@@ -31,7 +31,7 @@ export default function ConfidentialitePage() {
           <li><strong>Vos invités :</strong> nom, numéro WhatsApp, catégorie, nombre d&apos;accompagnants, réponse aux cérémonies, notes (par exemple une allergie), table attribuée.</li>
           <li><strong>Contenus :</strong> photos de couverture, photos et messages déposés par vos invités, musique envoyée.</li>
           <li><strong>Paiement :</strong> référence, montant et statut de la transaction.{ONLINE_PAYMENT_ENABLED ? ' Les données de carte ou de paiement mobile sont traitées uniquement par GeniusPay.' : ' Nous ne demandons jamais votre code secret de paiement mobile.'}</li>
-          <li><strong>Technique :</strong> cookies nécessaires à la connexion et à l&apos;accès à la galerie (aucun cookie publicitaire), préférences d&apos;affichage enregistrées dans votre navigateur.</li>
+          <li><strong>Technique :</strong> cookies nécessaires à la connexion (aucun cookie publicitaire), préférences d&apos;affichage enregistrées dans votre navigateur.</li>
         </ul>
       </Section>
 
@@ -64,7 +64,7 @@ export default function ConfidentialitePage() {
       </Section>
 
       <Section title="7. Sécurité">
-        <p>Connexions chiffrées (HTTPS), accès aux données limité par des règles strictes (chaque couple n&apos;accède qu&apos;à son propre mariage), mots de passe jamais stockés en clair, galerie protégée par un mot de passe vérifié côté serveur.</p>
+        <p>Connexions chiffrées (HTTPS), accès aux données limité par des règles strictes (chaque couple n&apos;accède qu&apos;à son propre mariage), mots de passe jamais stockés en clair, album photos visible seulement par les mariés.</p>
       </Section>
 
       <Section title="8. Vos droits">

@@ -41,6 +41,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 20 | `20261012_20_securite_trouver_ma_table.sql` | Sécurité : « Trouver ma table » ne renvoie plus l'identifiant des invités (audit, constat 1) |
 | 21 | `20261012_21_securite_photos_livre_or.sql` | Sécurité : fiches photo, livre d'or et liste des fichiers ne sont plus lisibles par tous (audit, constat 2) |
 | 22 | `20261012_22_securite_acces_admin.sql` | Sécurité : l'administration exige le marqueur `admin` (app_metadata), donné par `select public.set_admin('…')` (audit, constat 3) |
+| 23 | `20261012_23_securite_limite_essais.sql` | Sécurité : limite d'essais sur les codes promo (10 refus / heure / compte) et « Trouver ma table » (60 / 10 min / IP / mariage) (audit, constat 8) |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -54,7 +55,6 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | `SUPABASE_SERVICE_ROLE_KEY` | Administration, suppression de comptes, album sécurisé, suppression automatique | Oui |
 | `ADMIN_EMAILS` | Adresses autorisées sur `/admin`, séparées par des virgules | Oui pour l'administration |
 | `CRON_SECRET` | Protège la suppression automatique nocturne | Oui pour le mode souvenir |
-| `GALLERY_PASSWORD` / `GALLERY_SECRET` | Ancienne galerie à mot de passe (`/galerie`) | Si la galerie est utilisée |
 | `GENIUSPAY_*` | Paiement en ligne (désactivé pour l'instant) | Non |
 
 > Ne jamais préfixer une clé secrète par `NEXT_PUBLIC_` : elle serait visible dans le navigateur.
@@ -227,6 +227,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ## 3. Fonctionnalités modifiées
 
+- **Galerie à mot de passe supprimée (12 octobre 2026)** : `/galerie`, `/api/galerie/*` et `lib/gallery-auth.ts` retirés ; `/galerie` redirige vers l'Album photos de chaque couple. Les variables `GALLERY_PASSWORD` et `GALLERY_SECRET` ne servent plus. La politique de confidentialité ne mentionne plus la galerie.
 - **En-têtes de sécurité (12 octobre 2026, audit constat 7)** : `next.config.ts` ajoute X-Frame-Options (SAMEORIGIN, l'aperçu du Studio reste permis), nosniff, Referrer-Policy, Permissions-Policy, HSTS et une politique de contenu (CSP) **en rapport seulement** (`CSP_ENFORCE = false`). Les écarts arrivent dans les journaux Vercel via `/api/csp-report` (lignes « [CSP] »). Passer `CSP_ENFORCE` à `true` après une à deux semaines sans alerte. Toute nouvelle source externe (images, polices, musiques, scripts) doit y être ajoutée.
 - **Exports CSV (12 octobre 2026, audit constat 6)** : `lib/csv-safe.ts` neutralise les cellules qui commencent par `= + - @` (formules glissées par un invité dans sa note ou le livre d'or), sans toucher aux numéros de téléphone ni aux montants. Utilisé par les exports de « Mes souvenirs ».
 - **Redirection après connexion (12 octobre 2026, audit constat 5)** : `lib/safe-redirect.ts` interprète le chemin comme le navigateur et vérifie qu'il reste sur le site ; refuse tabulations, retours à la ligne, `\`, `//`, `/.//`… (un lien `/login?next=%09/evil.com` envoyait sur un site extérieur après la connexion).
@@ -262,7 +263,6 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | Polices affichées en Times | Variables de police posées sur `body` au lieu de `html` | Déplacées sur `<html>` |
 | Envoi de photos refusé pour un couple connecté | La base n'autorise l'envoi qu'aux visiteurs anonymes | Client « invité » sans session (`lib/supabase-guest.ts`) |
 | Champs date et heure qui débordaient sur iPhone | Largeur minimale imposée par Safari iOS | Règle CSS propre à iOS et `min-w-0` |
-| « La galerie n'est pas encore configurée » | `GALLERY_PASSWORD` absent sur Vercel | Variable à ajouter |
 | Couple bloqué ou non selon les cas | Migration 7 non lancée | Migration lancée, page tolérante à son absence |
 | Album photos vide | Lecture des photos interdite au couple connecté | Migration 15 |
 | Lien de réinitialisation vers `localhost:3000` | Site URL Supabase restée sur l'adresse locale | Site URL et Redirect URLs corrigées |

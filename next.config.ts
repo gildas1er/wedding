@@ -65,6 +65,8 @@ const nextConfig: NextConfig = {
       // Anciens liens des documents juridiques
       { source: "/terms", destination: "/conditions", permanent: true },
       { source: "/privacy", destination: "/confidentialite", permanent: true },
+      // Ancienne galerie à mot de passe, remplacée par l'Album photos de chaque couple
+      { source: "/galerie", destination: "/dashboard/album", permanent: true },
     ];
   },
 };

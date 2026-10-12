@@ -25,6 +25,8 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
   const [searchResults, setSearchResults] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  // Limite d'essais atteinte (migration 23)
+  const [tooMany, setTooMany] = useState(false);
 
   useEffect(() => {
     // Sécurité : Si l'identifiant du mariage n'est pas encore chargé, on attend.
@@ -47,6 +49,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
     
     setLoading(true);
     setHasSearched(true);
+    setTooMany(false);
     try {
       // Recherche via une fonction sécurisée : les invités n'ont pas accès à la liste complète
       const { data, error } = await supabase.rpc('find_guest_table', {
@@ -64,6 +67,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
         }))
       );
     } catch (err) {
+      if (/TOO_MANY_REQUESTS/.test((err as { message?: string })?.message ?? '')) { setTooMany(true); setSearchResults([]); return; }
       console.error("Erreur recherche plan de table:", err);
     } finally {
       setLoading(false);
@@ -109,6 +113,11 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
                 <HelpCircle className="w-12 h-12 mx-auto stroke-[1.5]" />
                 <p className="text-xs font-bold uppercase tracking-wider">En attente</p>
                 <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">Tapez au moins 3 lettres de votre nom.</p>
+              </motion.div>
+            ) : tooMany ? (
+              <motion.div key="too-many" className="text-center bg-amber-50/60 border border-amber-100 p-6 rounded-3xl my-auto">
+                <p className="text-sm font-black text-amber-700">Trop de recherches</p>
+                <p className="text-xs text-slate-500 mt-1">Patientez quelques minutes, ou demandez votre table à l&apos;entrée.</p>
               </motion.div>
             ) : hasSearched && searchResults.length === 0 && !loading ? (
               <motion.div key="no-result" className="text-center bg-rose-50/50 border border-rose-100 p-6 rounded-3xl my-auto">
