@@ -352,10 +352,11 @@ export default function InvitationStudio() {
     try {
       setMusicStage('Envoi du morceau…');
       const safeExt = ext === 'm4a' ? 'm4a' : 'mp3';
+      // Type fixé d'après l'extension : les téléphones annoncent le .m4a de façons différentes (audio/x-m4a, audio/aac…)
       const filePath = `music/${marriage.id}-${Date.now()}.${safeExt}`;
       const { error: uploadError } = await supabase.storage
         .from('invitations')
-        .upload(filePath, file, { contentType: file.type || (safeExt === 'm4a' ? 'audio/mp4' : 'audio/mpeg'), cacheControl: '31536000' });
+        .upload(filePath, file, { contentType: safeExt === 'm4a' ? 'audio/mp4' : 'audio/mpeg', cacheControl: '31536000' });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('invitations').getPublicUrl(filePath);
       set('music_url', publicUrl);

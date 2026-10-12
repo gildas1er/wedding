@@ -43,6 +43,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 22 | `20261012_22_securite_acces_admin.sql` | Sécurité : l'administration exige le marqueur `admin` (app_metadata), donné par `select public.set_admin('…')` (audit, constat 3) |
 | 23 | `20261012_23_securite_limite_essais.sql` | Sécurité : limite d'essais sur les codes promo (10 refus / heure / compte) et « Trouver ma table » (60 / 10 min / IP / mariage) (audit, constat 8) |
 | 24 | `20261012_24_securite_points_info.sql` | Sécurité : limite d'invités d'un mariage plus lisible de l'extérieur ; prénoms du parrain limités à 30 vérifications / heure / IP (audit, points 10.1 et 10.2) |
+| 25 | `20261012_25_securite_envois_fichiers.sql` | Sécurité : taille et types des fichiers limités par espace (photos 5 Mo, faire-part 10 Mo) ; envoi seulement dans le dossier d'un mariage existant (audit, point 10.4) |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -228,6 +229,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ## 3. Fonctionnalités modifiées
 
+- **Envois de fichiers (12 octobre 2026, audit point 10.4)** : la photo du livre d'or est compressée avant l'envoi (JPEG, 1,5 Mo environ), comme celles de l'album ; la musique du faire-part est envoyée avec un type fixé d'après l'extension (mp3 → audio/mpeg, m4a → audio/mp4).
 - **Vérification d'origine (12 octobre 2026, audit point 10.3)** : `lib/same-origin.ts` ; la suppression de compte, les actions de l'administration et le paiement en ligne refusent (403) toute demande venue d'un autre site.
 - **Suppression automatique à 12 mois (12 octobre 2026, audit constat 9)** : la tâche de nuit ne demande plus que les espaces réellement arrivés au terme (prolongations en cours exclues), les plus anciens d'abord, par lots de 50 jusqu'à épuisement (45 s au plus, la suite la nuit suivante). Bilan noté dans le journal de l'administration (« Suppression automatique (12 mois) ») dès qu'un espace est supprimé ou qu'une suppression échoue.
 - **Galerie à mot de passe supprimée (12 octobre 2026)** : `/galerie`, `/api/galerie/*` et `lib/gallery-auth.ts` retirés ; `/galerie` redirige vers l'Album photos de chaque couple. Les variables `GALLERY_PASSWORD` et `GALLERY_SECRET` ne servent plus. La politique de confidentialité ne mentionne plus la galerie.

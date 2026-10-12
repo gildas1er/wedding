@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { guestSupabase as supabase } from '../../lib/supabase-guest';
 import { usePublicMarriage } from '../../lib/use-public-marriage';
 import { useSearchParams } from 'next/navigation';
+import imageCompression from 'browser-image-compression';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';
 
 // Fonction absente : la base n'a pas encore la migration 21
@@ -78,12 +79,13 @@ function GuestbookContent({ closed = false }: { closed?: boolean }) {
     try {
       // 1. Si une image est sélectionnée, on l'upload d'abord dans Supabase Storage
       if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${marriageId}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-        
-        const { error: uploadError, data: uploadData } = await supabase.storage
+        // Photo allégée avant l'envoi (comme l'album) : rapide en 3G, et sous la limite de 5 Mo du stockage
+        const photo = await imageCompression(selectedFile, { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg' });
+        const fileName = `${marriageId}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.jpg`;
+
+        const { error: uploadError } = await supabase.storage
           .from('guestbook-photos')
-          .upload(fileName, selectedFile);
+          .upload(fileName, photo, { contentType: 'image/jpeg', upsert: false });
 
         if (uploadError) throw uploadError;
 
