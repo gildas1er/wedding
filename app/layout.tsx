@@ -34,6 +34,12 @@ export const metadata: Metadata = {
     description: "Invités, faire-part, plan de table et budget : organisez le mariage de vos rêves en Côte d'Ivoire.",
   },
   twitter: { card: "summary_large_image" },
+  // Preuve de propriété pour Google Search Console et Bing Webmaster Tools (balise HTML) :
+  // copier le code « content » fourni par l'outil dans la variable Vercel correspondante, puis redéployer
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } : undefined,
+  },
 };
 
 export const viewport: Viewport = {
