@@ -5,12 +5,14 @@ import { Search, Utensils, Users, Sparkles, Heart, Loader2, HelpCircle } from 'l
 import { supabase } from '../../../lib/supabase';
 import { usePublicMarriage } from '../../../../lib/use-public-marriage';
 
+// Résultat de find_guest_table : jamais l'identifiant de l'invité (clé de son lien d'invitation)
 interface InviteRow {
-  id: string;
   name: string;
   guests_count: number;
   table_name: string;
 }
+
+const MIN_QUERY = 3;
 
 export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id: string }> }) {
   // 1. On résout proprement les paramètres avec React.use()
@@ -26,7 +28,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
 
   useEffect(() => {
     // Sécurité : Si l'identifiant du mariage n'est pas encore chargé, on attend.
-    if (!marriageId || searchQuery.trim().length < 2) {
+    if (!marriageId || searchQuery.trim().length < MIN_QUERY) {
       setSearchResults([]);
       setHasSearched(false);
       return;
@@ -56,7 +58,7 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
 
       setSearchResults(
         ((data as InviteRow[] | null) || []).map((row) => ({
-          ...row,
+          name: row.name,
           guests_count: row.guests_count || 1,
           table_name: row.table_name || 'Table non assignée',
         }))
@@ -102,22 +104,22 @@ export default function PlanDeTablePublicPage({ params }: { params: Promise<{ id
         {/* ZONE DES RÉSULTATS */}
         <div className="flex-1 flex flex-col justify-center">
           <AnimatePresence mode="wait">
-            {searchQuery.trim().length < 2 ? (
+            {searchQuery.trim().length < MIN_QUERY ? (
               <motion.div key="empty" className="text-center text-slate-300 py-8 space-y-2 my-auto">
                 <HelpCircle className="w-12 h-12 mx-auto stroke-[1.5]" />
                 <p className="text-xs font-bold uppercase tracking-wider">En attente</p>
-                <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">Tapez au moins 2 lettres de votre nom.</p>
+                <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">Tapez au moins 3 lettres de votre nom.</p>
               </motion.div>
             ) : hasSearched && searchResults.length === 0 && !loading ? (
               <motion.div key="no-result" className="text-center bg-rose-50/50 border border-rose-100 p-6 rounded-3xl my-auto">
                 <p className="text-sm font-black text-rose-500">Nom introuvable</p>
-                <p className="text-xs text-slate-500 mt-1">Vérifiez l'orthographe ou demandez conseil à l'entrée.</p>
+                <p className="text-xs text-slate-500 mt-1">Vérifiez l&apos;orthographe ou demandez conseil à l&apos;entrée.</p>
               </motion.div>
             ) : (
               <motion.div key="list" className="space-y-4 my-auto w-full">
-                {searchResults.map((invite) => (
+                {searchResults.map((invite, i) => (
                   <motion.div
-                    key={invite.id}
+                    key={`${invite.name}-${i}`}
                     className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-[1.5rem] p-5 shadow-xl relative overflow-hidden border border-slate-800"
                   >
                     <div className="flex justify-between items-start">

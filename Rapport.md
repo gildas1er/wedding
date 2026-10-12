@@ -38,6 +38,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 17 | `20261008_17_paliers_invites.sql` | Paliers selon le nombre d'invités + **correctif de sécurité** |
 | 18 | `20261009_18_journal_admin.sql` | Journal de l'administration, paiements conservés |
 | 19 | `20261009_19_codes_promo_parrainage.sql` | Codes promo, codes de parrainage, réduction à l'activation |
+| 20 | `20261012_20_securite_trouver_ma_table.sql` | Sécurité : « Trouver ma table » ne renvoie plus l'identifiant des invités (audit, constat 1) |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
