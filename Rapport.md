@@ -227,6 +227,11 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ## 3. Fonctionnalités modifiées
 
+- **En-têtes de sécurité (12 octobre 2026, audit constat 7)** : `next.config.ts` ajoute X-Frame-Options (SAMEORIGIN, l'aperçu du Studio reste permis), nosniff, Referrer-Policy, Permissions-Policy, HSTS et une politique de contenu (CSP) **en rapport seulement** (`CSP_ENFORCE = false`). Les écarts arrivent dans les journaux Vercel via `/api/csp-report` (lignes « [CSP] »). Passer `CSP_ENFORCE` à `true` après une à deux semaines sans alerte. Toute nouvelle source externe (images, polices, musiques, scripts) doit y être ajoutée.
+- **Exports CSV (12 octobre 2026, audit constat 6)** : `lib/csv-safe.ts` neutralise les cellules qui commencent par `= + - @` (formules glissées par un invité dans sa note ou le livre d'or), sans toucher aux numéros de téléphone ni aux montants. Utilisé par les exports de « Mes souvenirs ».
+- **Redirection après connexion (12 octobre 2026, audit constat 5)** : `lib/safe-redirect.ts` interprète le chemin comme le navigateur et vérifie qu'il reste sur le site ; refuse tabulations, retours à la ligne, `\`, `//`, `/.//`… (un lien `/login?next=%09/evil.com` envoyait sur un site extérieur après la connexion).
+- **Dépendances (12 octobre 2026, audit constat 4)** : Next.js 16.1.6 → **16.4.0** (et eslint-config-next) ; retrait de `jspdf`, `jspdf-autotable` et `@supabase/auth-helpers-nextjs` (inutilisés) ; `shadcn` et `@types/papaparse` passés en dépendances de développement ; `npm audit fix`. Résultat : 0 faille dans les dépendances de production. Restent 9 alertes dans les outils de développement (`braces`, sans correctif publié), sans effet sur le site.
+
 | Date | Avant | Après |
 |---|---|---|
 | 30/09 | Premium débloqué à 15 invités, sans explication | Limite gratuite claire de 30, appliquée par la base |

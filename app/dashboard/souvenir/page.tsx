@@ -16,6 +16,7 @@ import {
   EXTENSION_MONTHS, EXTENSION_PRICE_XOF, extensionWhatsappLink, formatLongDate, spaceLifecycle,
 } from '../../../lib/lifecycle';
 import DeleteAccountModal from '../../../components/dashboard/DeleteAccountModal';
+import { safeCsvRows } from '../../../lib/csv-safe';
 
 type Marriage = Record<string, unknown> & { id: string; partner_1_name?: string | null; partner_2_name?: string | null; wedding_date?: string | null; kept_until?: string | null };
 type Row = Record<string, unknown>;
@@ -24,7 +25,8 @@ const yesNo = (v: unknown) => (v === false ? 'Non' : v ? 'Oui' : '');
 
 // Fichier CSV lisible par Excel (séparateur « ; », accents conservés)
 function downloadCsv(filename: string, rows: Row[]) {
-  const csv = '﻿' + Papa.unparse(rows, { delimiter: ';' });
+  // Cellules neutralisées : les notes et le livre d'or sont écrits par les invités (lib/csv-safe.ts)
+  const csv = '﻿' + Papa.unparse(safeCsvRows(rows), { delimiter: ';' });
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
   a.href = url;
