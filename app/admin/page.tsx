@@ -1,7 +1,7 @@
 "use client";
 
 // Administration WeddingStudio : vue d'ensemble, couples, paiements et journal des actions.
-// Accès réservé aux adresses de ADMIN_EMAILS (vérifié par le serveur à chaque requête).
+// Accès réservé aux comptes marqués administrateurs (lib/admin-server.ts, vérifié par le serveur à chaque requête).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AlliancesMark from '../../components/brand/AlliancesMark';

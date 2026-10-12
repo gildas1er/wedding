@@ -7,6 +7,9 @@ import { usePublicMarriage } from '../../lib/use-public-marriage';
 import { useSearchParams } from 'next/navigation';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';
 
+// Fonction absente : la base n'a pas encore la migration 21
+const isMissingFunction = (e: { code?: string; message?: string }) => e.code === 'PGRST202' || e.code === '42883' || /function .* does not exist|Could not find the function/i.test(e.message ?? '');
+
 function GuestbookContent({ closed = false }: { closed?: boolean }) {
   const searchParams = useSearchParams();
   const marriageId = searchParams.get('id');
@@ -26,40 +29,22 @@ function GuestbookContent({ closed = false }: { closed?: boolean }) {
   useEffect(() => {
     if (!marriageId) return;
 
+    // Messages de CE mariage seulement (fonction sécurisée, migration 21).
+    // Base pas encore à jour : lecture directe de la table, comme avant.
     const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('guestbook')
-        .select('*')
-        .eq('marriage_id', marriageId)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setMessages(data);
+      let { data, error } = await supabase.rpc('get_guestbook', { p_marriage_id: marriageId });
+      if (error && isMissingFunction(error)) {
+        ({ data, error } = await supabase.from('guestbook').select('*').eq('marriage_id', marriageId).order('created_at', { ascending: false }));
       }
+      if (!error && data) setMessages(data);
       setLoading(false);
     };
 
     fetchMessages();
-
-    // S'abonner aux nouveaux messages en temps réel
-    const subscription = supabase
-      .channel('realtime-guestbook')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'guestbook', 
-        filter: `marriage_id=eq.${marriageId}` 
-      }, (payload) => {
-        setMessages((prev) => {
-          if (prev.some(msg => msg.id === payload.new.id)) return prev;
-          return [payload.new, ...prev];
-        });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
+    // Nouveaux messages des autres invités : actualisation régulière
+    // (le temps réel exposait les messages de tous les mariages)
+    const timer = setInterval(fetchMessages, 15000);
+    return () => clearInterval(timer);
   }, [marriageId]);
 
   // Gérer la sélection de l'image
@@ -110,18 +95,16 @@ function GuestbookContent({ closed = false }: { closed?: boolean }) {
         uploadedImageUrl = publicUrl;
       }
 
-      // 2. Insérer le message en base de données avec l'URL de l'image si elle existe
-      const { data, error } = await supabase
-        .from('guestbook')
-        .insert([
-          {
-            marriage_id: marriageId,
-            author_name: name.trim(),
-            message: text.trim(),
-            image_url: uploadedImageUrl
-          }
-        ])
-        .select();
+      // 2. Message enregistré par une fonction sécurisée (migration 21), sinon par la table directement
+      let { data, error } = await supabase.rpc('add_guestbook_message', {
+        p_marriage_id: marriageId, p_author: name.trim(), p_message: text.trim(), p_image_url: uploadedImageUrl,
+      });
+      if (error && isMissingFunction(error)) {
+        ({ data, error } = await supabase
+          .from('guestbook')
+          .insert([{ marriage_id: marriageId, author_name: name.trim(), message: text.trim(), image_url: uploadedImageUrl }])
+          .select());
+      }
 
       if (!error && data && data[0]) {
         setMessages((prev) => [data[0], ...prev]);
