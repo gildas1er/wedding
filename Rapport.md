@@ -44,6 +44,8 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 23 | `20261012_23_securite_limite_essais.sql` | Sécurité : limite d'essais sur les codes promo (10 refus / heure / compte) et « Trouver ma table » (60 / 10 min / IP / mariage) (audit, constat 8) |
 | 24 | `20261012_24_securite_points_info.sql` | Sécurité : limite d'invités d'un mariage plus lisible de l'extérieur ; prénoms du parrain limités à 30 vérifications / heure / IP (audit, points 10.1 et 10.2) |
 | 25 | `20261012_25_securite_envois_fichiers.sql` | Sécurité : taille et types des fichiers limités par espace (photos 5 Mo, faire-part 10 Mo) ; envoi seulement dans le dossier d'un mariage existant (audit, point 10.4) |
+| 26 | `20261013_26_ecran_bienvenue.sql` | Écran de bienvenue affiché une seule fois (colonne `onboarded_at`) ; les couples qui ont déjà des invités sont marqués comme accueillis |
+| 27 | `20261013_27_modele_avant_premiere.sql` | Nouveau modèle d'invitation « L'Avant-première » ajouté à la liste des modèles autorisés |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -129,6 +131,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - **Classique** ;
   - **L'Enveloppe** : cachet de cire aux initiales du couple, ouverture animée, la musique démarre à l'ouverture ;
   - **La Story** : écrans en plein écran, toucher pour avancer, appui long pour mettre en pause.
+  - **L'Avant-première** : façon plateforme de séries (`components/rsvp/PremiereIntro.tsx`). Générique aux initiales du couple, écran « Choisissez votre profil » avec la photo de couverture en grand et le profil au nom de l'invité, affiche, cérémonies présentées en épisodes, infos pratiques (« À ne pas manquer »), compte à rebours, réponse dans un tiroir (présence, cérémonies, petit mot) enregistrée par la même fonction que le formulaire classique. Textes au nom des mariés ; pas de choix du nombre de personnes (fixé par les mariés). Aucun nom, logo ni couleur de marque existante : les couleurs suivent la palette du couple. Demande la migration 27.
 - **Page de l'invité** : programme avec un bouton Plan pour chaque lieu, réponse par cérémonie, confettis à la confirmation. Les titres longs passent sur deux lignes.
 - **Partage** : QR codes et liens prêts à partager, avec un aperçu enrichi dans WhatsApp (image Open Graph).
 
@@ -229,6 +232,8 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ## 3. Fonctionnalités modifiées
 
+- **Nouveau modèle « L'Avant-première » (13 octobre 2026)** : proposé dans le Studio (avec sa vignette) et dans l'écran de bienvenue. La page d'invitation enregistre désormais la réponse par une seule fonction (`sendAnswer`), utilisée par le formulaire et par le nouveau modèle. Guide mis à jour (liste des modèles et capture).
+- **Écran de bienvenue (13 octobre 2026)** : remplace l'ancienne fenêtre « Vive les mariés », la visite guidée en 3 bulles et la barre « Profil complété ». Nouveau parcours (`components/dashboard/WelcomeFlow.tsx`) : accroche « Chacun de vos invités reçoit une invitation à son nom », choix du modèle (L'Enveloppe, La Story, Classique) avec la vraie page d'invitation en aperçu, au nom d'un invité tapé par le couple, puis premier envoi WhatsApp (l'invité est créé et marqué « envoyé »). Prénoms et date demandés en plus après une inscription Google ou Facebook. Affiché une seule fois (`marriages.onboarded_at`, migration 26 ; sans elle, mémorisé dans le navigateur) ; reprend à l'étape atteinte s'il est fermé. Carte « Votre parcours » sur le tableau de bord (`components/dashboard/JourneyCard.tsx`) : modèle, premier envoi, 10 invités, première réponse, photo de couverture ; elle disparaît à 5 / 5. La page d'invitation affiche maintenant « {invité}, cette invitation est pour vous » sous les prénoms (modèle Classique) et accepte un nom d'invité d'essai en aperçu. Fichier inutilisé `app/dashboard/WelcomeModal.tsx` supprimé.
 - **Référencement (12 octobre 2026)** : `robots.txt` (`app/robots.ts`) et plan du site (`app/sitemap.ts`) ; titre de l'accueil avec les mots recherchés (« Faire-part en ligne et organisation de mariage en Côte d'Ivoire ») ; un titre et une adresse officielle (canonical) par page publique (`lib/seo.ts`) ; `noindex` sur les pages personnelles (photos, livre d'or, Trouver ma table, invitations, connexion, espace des mariés, administration) ; données structurées schema.org sur l'accueil (marque, site, application) et questions fréquentes dans le guide ; page 404 en français (`app/not-found.tsx`). La page d'accueil vit maintenant dans `components/landing/LandingPage.tsx`, `app/page.tsx` déclare ses métadonnées. Avec un nom de domaine, définir `NEXT_PUBLIC_SITE_URL` sur Vercel et mettre à jour l'image d'aperçu en tête de `public/guide/index.html`.
 - **Paiement en ligne (12 octobre 2026, audit point 10.5)** : `confirmAndActivate` active le palier couvert par le montant payé, sans jamais rétrograder une formule active supérieure (Famille, illimitée, sur mesure) ni raccourcir l'accès ; un paiement de test (sandbox) est toujours refusé sur le site en production, même si `GENIUSPAY_ALLOW_SANDBOX` est activé. À savoir avant de réactiver le paiement en ligne : il ne vend que le premier palier (Intime) et n'applique pas encore les codes promo.
 - **Envois de fichiers (12 octobre 2026, audit point 10.4)** : la photo du livre d'or est compressée avant l'envoi (JPEG, 1,5 Mo environ), comme celles de l'album ; la musique du faire-part est envoyée avec un type fixé d'après l'extension (mp3 → audio/mpeg, m4a → audio/mp4).
@@ -302,12 +307,13 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ### Priorité haute
 - **Connexion Facebook** : créer l'application Meta et l'activer dans Supabase. Le code est prêt.
-- **Écran d'accueil à la première connexion** : prénoms des deux mariés et date du mariage, en particulier pour les inscriptions par Google ou Facebook.
+- **Carte « Cette semaine »** sur le tableau de bord, une fois le parcours terminé : 3 priorités et un conseil selon la date du mariage (idée de la maquette B de l'écran de bienvenue).
 - **E-mail de rappel avant la suppression automatique**, par exemple à J+11 mois : aujourd'hui, le couple n'est prévenu que dans l'application.
 - **Données de paiement** : décider de les conserver sans informations personnelles, ou adapter la politique de confidentialité.
 - **Nom de domaine** pour le site et l'envoi d'e-mails.
 
 ### Priorité moyenne
+- **Relance des invités sans réponse** (prévue pour la prochaine version) : relance « assistée » depuis le WhatsApp du couple, la plateforme n'envoyant pas de messages elle-même. Elle repère les invités à relancer (invitation envoyée depuis 7 jours, sans réponse, 2 relances au plus) ; le tableau de bord affiche une carte « X invités n'ont pas encore répondu » ; un message de relance modifiable est proposé dans le Studio ; le couple relance un par un avec un toucher par invité. Il faudra une migration pour la date d'envoi, le nombre de relances et la date de la dernière relance. À décider : les délais, une date limite de réponse, et si la fonction est gratuite ou réservée aux formules payantes. Plus tard, en option payante : envoi 100 % automatique par l'API WhatsApp Business (compte Meta vérifié, messages validés, coût par message).
 - **Paiement en ligne GeniusPay** adapté aux paliers, avec la différence en cas de montée de palier. Aujourd'hui, il activerait seulement le palier Intime.
 - **Modèles d'invitation** : Le Wax, Le Compte à rebours, Le Jardin, La Nuit dorée (les aperçus animés sont prêts).
 - **Image de partage WhatsApp** dans la police et le modèle choisis par le couple.

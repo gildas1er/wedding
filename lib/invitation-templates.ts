@@ -4,6 +4,7 @@ export const INVITATION_TEMPLATES = [
   { id: 'classique', label: 'Classique', description: 'La photo de couverture puis l’invitation, en douceur.' },
   { id: 'enveloppe', label: 'L’Enveloppe', description: 'Vos invités ouvrent une enveloppe scellée à vos initiales : la carte en sort, la musique démarre.' },
   { id: 'story', label: 'La Story', description: 'L’invitation en plein écran, écran par écran, comme une story : photo, date, programme, réponse.' },
+  { id: 'avant_premiere', label: 'L’Avant-première', description: 'Votre mariage présenté comme la série de l’année : générique à vos initiales, profil au nom de l’invité, affiche, cérémonies en épisodes.' },
 ] as const;
 
 export type InvitationTemplate = (typeof INVITATION_TEMPLATES)[number]['id'];

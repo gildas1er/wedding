@@ -305,7 +305,10 @@ export default function InvitationStudio() {
         values: { names_font: config.names_font === DEFAULT_NAME_FONT ? null : config.names_font },
       },
       {
-        keys: TEMPLATE_KEYS, label: "la migration 11 (modèle d'invitation)", onMissing: () => setTemplateAvailable(false),
+        // « L'Avant-première » demande en plus la migration 27 (liste des modèles autorisés)
+        keys: TEMPLATE_KEYS,
+        label: config.invitation_template === 'avant_premiere' ? "la migration 27 (modèle L'Avant-première)" : "la migration 11 (modèle d'invitation)",
+        onMissing: () => { if (config.invitation_template !== 'avant_premiere') setTemplateAvailable(false); },
         values: { invitation_template: config.invitation_template },
       },
       {
@@ -717,7 +720,19 @@ export default function InvitationStudio() {
 function TemplateThumb({ id, color, accent }: { id: InvitationTemplate; color: string; accent: string }) {
   return (
     <span aria-hidden className="grid h-[4.5rem] w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-50 ring-1 ring-slate-200">
-      {id === 'story' ? (
+      {id === 'avant_premiere' ? (
+        <svg viewBox="0 0 56 72" className="h-full w-full">
+          <rect x="8" y="4" width="40" height="64" rx="5" fill="#0b0b0c" />
+          <rect x="8" y="4" width="40" height="34" rx="5" fill={color} opacity=".85" />
+          <rect x="8" y="26" width="40" height="12" fill="#0b0b0c" opacity=".55" />
+          <rect x="16" y="30" width="24" height="3.5" rx="1" fill="white" />
+          <rect x="12" y="41" width="15" height="5" rx="1" fill="white" />
+          <rect x="29" y="41" width="15" height="5" rx="1" fill="#6d6d6e" />
+          <rect x="12" y="51" width="10" height="7" rx="1" fill={accent} />
+          <rect x="23.5" y="51" width="10" height="7" rx="1" fill={color} />
+          <rect x="35" y="51" width="10" height="7" rx="1" fill={accent} opacity=".6" />
+        </svg>
+      ) : id === 'story' ? (
         <svg viewBox="0 0 56 72" className="h-full w-full">
           <rect x="8" y="4" width="40" height="64" rx="5" fill="#1b1220" />
           <rect x="8" y="4" width="40" height="40" rx="5" fill={color} opacity=".9" />

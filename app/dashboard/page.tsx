@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { taskState, type Task } from '../../lib/checklist';
 import { useRouter } from 'next/navigation';
 import PricingModal from '@/components/dashboard/PricingModal';
+import WelcomeFlow from '@/components/dashboard/WelcomeFlow';
+import JourneyCard, { type JourneyState } from '@/components/dashboard/JourneyCard';
+import { daysUntil } from '../../lib/planning';
 import { 
   Heart, Users, Banknote, Calendar, LogOut, 
   MessageSquare, Settings, ChevronRight,
@@ -40,95 +43,15 @@ function MilestoneCelebration({ title, message, onConfirm }: any) {
   );
 }
 
-// --- COMPOSANT BULLE DE GUIDAGE ---
-function GuidedTooltip({ title, desc, step, totalSteps, onNext, onSkip, targetRef }: any) {
-  const [coords, setCoords] = useState<{ top: number; left: number; arrowSide: 'left' | 'bottom' } | null>(null);
-  useEffect(() => {
-    const TOOLTIP_W = 280;
-    const TOOLTIP_H = 200;
-    const place = () => {
-      const el = targetRef.current as HTMLElement | null;
-      const rect = el?.getBoundingClientRect();
-      // Petit écran ou cible masquée (menu replié) : bulle ancrée en bas de l'écran
-      if (!rect || rect.width === 0 || window.innerWidth < 1024) { setCoords(null); return; }
-      el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      const clampLeft = (x: number) => Math.min(Math.max(16, x), window.innerWidth - TOOLTIP_W - 16);
-      const clampTop = (y: number) => Math.min(Math.max(16, y), window.innerHeight - TOOLTIP_H - 16);
-      const isSidebar = rect.left < 100;
-      if (isSidebar) setCoords({ top: clampTop(rect.top + rect.height / 2 - 60), left: rect.right + 20, arrowSide: 'left' });
-      else setCoords({ top: clampTop(rect.top - 160), left: clampLeft(rect.left + rect.width / 2 - TOOLTIP_W / 2), arrowSide: 'bottom' });
-    };
-    place();
-    window.addEventListener('resize', place);
-    return () => window.removeEventListener('resize', place);
-  }, [targetRef, step]);
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-      style={coords ? { top: coords.top, left: coords.left } : undefined}
-      className={`fixed z-[110] bg-slate-900 text-white p-6 rounded-[1.5rem] shadow-2xl ${coords ? 'w-[280px]' : 'bottom-4 inset-x-4 sm:left-auto sm:right-6 sm:w-[320px]'}`}
-    >
-      {coords?.arrowSide === 'left' && <div className="absolute w-4 h-4 bg-slate-900 rotate-45 -left-2 top-10" />}
-      {coords?.arrowSide === 'bottom' && <div className="absolute w-4 h-4 bg-slate-900 rotate-45 -bottom-2 left-1/2 -translate-x-1/2" />}
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em]">Étape {step}/{totalSteps}</span>
-        <button onClick={onSkip} className="text-[10px] text-slate-400 hover:text-white font-bold">Passer</button>
-      </div>
-      <h4 className="font-bold text-sm mb-1">{title}</h4>
-      <p className="text-xs text-slate-300 leading-relaxed mb-4">{desc}</p>
-      <button onClick={onNext} className="w-full py-3 bg-white text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-500 hover:text-white transition-all shadow-lg shadow-white/5">
-        {step === totalSteps ? "C'est parti !" : "Suivant"} <ArrowRight size={12} />
-      </button>
-    </motion.div>
-  );
-}
-
-// --- COMPOSANT DE BIENVENUE ---
-function WelcomeModal({ partner1, partner2, onClose, onAction }: any) {
-  const containerVariants = { hidden: { opacity: 0, scale: 0.8 }, visible: { opacity: 1, scale: 1, transition: { delayChildren: 0.2, staggerChildren: 0.1 } } };
-  const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } };
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-6 sm:p-8 lg:p-14 max-w-3xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl relative">
-        <div className="absolute -top-24 -left-24 w-64 h-64 bg-rose-100/50 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-100/50 rounded-full blur-3xl" />
-        <div className="relative z-10 text-center">
-          <motion.div variants={itemVariants} className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-rose-400 to-rose-600 text-white rounded-3xl mb-8 shadow-lg shadow-rose-200"><Heart size={40} className="fill-white" /></motion.div>
-          <motion.h2 variants={itemVariants} className="text-3xl sm:text-4xl font-normal text-slate-900 mb-4">Vive les mariés !</motion.h2>
-          <motion.p variants={itemVariants} className="text-slate-500 text-base sm:text-lg font-medium mb-8 sm:mb-12 max-w-md mx-auto">Félicitations <span className="text-rose-500 font-bold">{partner1 || 'à vous'}</span> & <span className="text-rose-500 font-bold">{partner2 || 'votre moitié'}</span>. Votre voyage vers le "Oui" commence ici.</motion.p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            <OnboardingCard icon={Users} title="Mes Invités" desc="Dressez votre liste d'honneur" color="rose" onClick={() => onAction('/dashboard/invite')} />
-            <OnboardingCard icon={Banknote} title="Mon Budget" desc="Gardez l'esprit serein" color="emerald" onClick={() => onAction('/dashboard/budget')} />
-            <OnboardingCard icon={ClipboardList} title="Mes Tâches" desc="Rien ne sera oublié" color="indigo" onClick={() => onAction('/dashboard/tasks')} />
-          </div>
-          <motion.button variants={itemVariants} onClick={onClose} className="mt-12 text-slate-400 font-bold hover:text-slate-600 transition-colors flex items-center gap-2 mx-auto uppercase text-[10px] tracking-widest">Explorer le tableau de bord seul <ChevronRight size={14} /></motion.button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function OnboardingCard({ icon: Icon, title, desc, color, onClick }: any) {
-  const colors: any = { rose: "bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-600", emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600", indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-600" };
-  return (
-    <motion.button whileHover={{ y: -5 }} onClick={onClick} className="group p-6 rounded-[1.75rem] border border-slate-100 bg-white hover:shadow-2xl hover:border-transparent transition-all text-left">
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-colors ${colors[color]} group-hover:text-white`}><Icon size={28} /></div>
-      <h4 className="font-black text-slate-900 mb-1">{title}</h4>
-      <p className="text-slate-400 text-xs font-medium leading-relaxed">{desc}</p>
-    </motion.button>
-  );
-}
-
 // --- DASHBOARD PRINCIPAL ---
 export default function WeddingDashboard() {
   const router = useRouter();
-  const sidebarRef = useRef<HTMLElement | null>(null);
-  const budgetCardRef = useRef(null);
-  const taskCardRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [tourStep, setTourStep] = useState(0); 
+  const [needsIdentity, setNeedsIdentity] = useState(false);
+  const [journey, setJourney] = useState<JourneyState | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [showPricing, setShowPricing] = useState(false);
   const [celebration, setCelebration] = useState<any>(null);
   
@@ -139,13 +62,8 @@ export default function WeddingDashboard() {
   const [guestStats, setGuestStats] = useState({ total: 0, confirmed: 0, pending: 0, declined: 0, totalPersons: 0 });
   const [budgetStats, setBudgetStats] = useState({ totalActual: 0, totalPaid: 0, percentage: 0 });
   const [taskStats, setTaskStats] = useState({ total: 0, completed: 0, urgent: 0, percentage: 0 });
-  const [onboardingProgress, setOnboardingProgress] = useState(0);
   
   const EXCHANGE_RATES: { [key: string]: number } = { FCFA: 1, EUR: 0.0015, USD: 0.0016 };
-
-  useEffect(() => {
-    sidebarRef.current = document.getElementById('dashboard-sidebar-nav');
-  }, []);
 
   useEffect(() => {
     const initializeDashboard = async () => {
@@ -158,7 +76,7 @@ export default function WeddingDashboard() {
         if (!marriageData) { setLoading(false); return; }
         setMarriage(marriageData);
 
-        const { data: guests } = await supabase.from('invite').select('status, guests_count').eq('marriage_id', marriageData.id);
+        const { data: guests } = await supabase.from('invite').select('status, guests_count, invitation_sent').eq('marriage_id', marriageData.id);
         const stats = (guests || []).reduce((acc, curr) => {
           acc.total += 1; acc.totalPersons += (curr.guests_count || 1);
           if (curr.status === 'confirmé') acc.confirmed += 1;
@@ -168,7 +86,25 @@ export default function WeddingDashboard() {
         }, { total: 0, confirmed: 0, pending: 0, declined: 0, totalPersons: 0 });
         setGuestStats(stats);
 
-        if (stats.total === 0) setShowWelcome(true);
+        // Bienvenue : une seule fois (migration 26). Sans la colonne, ancienne règle : liste vide, mémorisée dans le navigateur
+        let welcomeDone = false;
+        try { welcomeDone = localStorage.getItem(`ws-welcome-${marriageData.id}-done`) === '1'; } catch { /* navigation privée */ }
+        const notYetWelcomed = 'onboarded_at' in marriageData ? !marriageData.onboarded_at : stats.total === 0;
+        const days = daysUntil(marriageData.wedding_date);
+        if (!welcomeDone && notYetWelcomed && (days === null || days >= 0)) {
+          // Inscription Google / Facebook : prénoms provisoires et pas de date choisie
+          const meta = user.user_metadata ?? {};
+          const placeholder = (v?: string | null) => !v?.trim() || /^partenaire [12]$/i.test(v.trim());
+          setNeedsIdentity(!meta.wedding_date || placeholder(marriageData.partner_1_name) || placeholder(marriageData.partner_2_name));
+          setShowWelcome(true);
+        }
+        setJourney({
+          templateChosen: Boolean(marriageData.onboarded_at) || (marriageData.invitation_template ?? 'classique') !== 'classique',
+          firstSent: (guests || []).some((g) => g.invitation_sent),
+          guests: stats.total,
+          firstAnswer: stats.confirmed + stats.declined > 0,
+          cover: Boolean(marriageData.bg_image_url),
+        });
 
         const { data: budgetItems } = await supabase.from('budget_items').select('amount_actual, amount_paid').eq('marriage_id', marriageData.id);
         let actual = 0; let paid = 0;
@@ -191,15 +127,10 @@ export default function WeddingDashboard() {
           setTaskStats({ total: totalTasks, completed, urgent, percentage: totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0 });
         }
 
-        let steps = 0;
-        if (stats.total > 0) steps += 33.3;
-        if (actual > 0) steps += 33.3;
-        if (totalTasks > 0) steps += 33.4;
-        setOnboardingProgress(Math.round(steps));
       } catch (error) { console.error("Erreur Dashboard:", error); } finally { setLoading(false); }
     };
     initializeDashboard();
-  }, [router]);
+  }, [router, reloadKey]);
 
   useEffect(() => {
     if (!marriage?.wedding_date) return;
@@ -226,7 +157,11 @@ export default function WeddingDashboard() {
     if (!error) setMarriage({ ...marriage, wedding_date: newDate });
   };
 
-  const handleCloseWelcome = () => { setShowWelcome(false); setTourStep(1); };
+  const handleCloseWelcome = (changed: boolean) => {
+    setShowWelcome(false);
+    setJourney((j) => (j ? { ...j, templateChosen: true } : j));
+    if (changed) setReloadKey((k) => k + 1);
+  };
 
   if (loading) return (<div className="h-screen flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" /></div> );
 
@@ -238,14 +173,9 @@ export default function WeddingDashboard() {
         {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {tourStep === 1 && (<GuidedTooltip step={1} totalSteps={3} title="Votre barre d'outils" desc="C'est ici que vous accédez à vos invités, vos tables et votre budget." targetRef={sidebarRef} onNext={() => setTourStep(2)} onSkip={() => setTourStep(0)} /> )}
-        {tourStep === 2 && (<GuidedTooltip step={2} totalSteps={3} title="Le Budget en temps réel" desc="Suivez vos paiements et basculez entre FCFA, EUR ou USD instantanément." targetRef={budgetCardRef} onNext={() => setTourStep(3)} onSkip={() => setTourStep(0)} /> )}
-        {tourStep === 3 && (<GuidedTooltip step={3} totalSteps={3} title="Assistant Intelligent" desc="Cette zone affiche vos tâches urgentes. Nous veillons sur votre calendrier !" targetRef={taskCardRef} onNext={() => setTourStep(0)} onSkip={() => setTourStep(0)} /> )}
-      </AnimatePresence>
 
       <AnimatePresence>
-        {showWelcome && <WelcomeModal partner1={marriage?.partner_1_name} partner2={marriage?.partner_2_name} onClose={handleCloseWelcome} onAction={(path: string) => router.push(path)} />}
+        {showWelcome && marriage && <WelcomeFlow marriage={marriage} needsIdentity={needsIdentity} onFinish={handleCloseWelcome} />}
       </AnimatePresence>
 
 
@@ -258,14 +188,6 @@ export default function WeddingDashboard() {
               Bonjour {marriage?.partner_1_name}<span className="text-rose-500">,</span>
             </h1>
             <p className="mt-1 text-slate-500">Voici où en est votre mariage aujourd&apos;hui.</p>
-            {onboardingProgress < 100 && (
-              <div className="mt-4 flex max-w-sm items-center gap-3">
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${onboardingProgress}%` }} transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }} className="h-full rounded-full bg-amber-500" />
-                </div>
-                <span className="text-xs font-medium text-slate-500 whitespace-nowrap">Profil complété à {onboardingProgress}%</span>
-              </div>
-            )}
           </div>
           <label className="flex h-fit w-fit cursor-pointer items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition-colors hover:border-amber-300">
             <Calendar size={16} className="text-amber-600" strokeWidth={1.8} />
@@ -273,6 +195,8 @@ export default function WeddingDashboard() {
             <input type="date" value={marriage?.wedding_date || ""} onChange={(e) => handleDateChange(e.target.value)} className="cursor-pointer bg-transparent text-sm font-medium text-slate-700 outline-none" />
           </label>
         </header>
+
+        {journey && !showWelcome && <JourneyCard state={journey} />}
 
         {/* HÉRO — COUPLE & COMPTE À REBOURS */}
         <section className="relative mb-8 overflow-hidden rounded-[1.75rem] bg-ink shadow-xl sm:mb-10">
@@ -331,7 +255,7 @@ export default function WeddingDashboard() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 sm:gap-8">
           {/* BUDGET */}
-          <div ref={budgetCardRef} className="flex flex-col justify-between rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm transition-shadow hover:shadow-md sm:p-8">
+          <div className="flex flex-col justify-between rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm transition-shadow hover:shadow-md sm:p-8">
             <div>
               <div className="mb-6 flex items-start justify-between gap-3">
                 <div>
@@ -356,7 +280,7 @@ export default function WeddingDashboard() {
           </div>
 
           {/* CHECKLIST */}
-          <div ref={taskCardRef} className="flex flex-col justify-between rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm transition-shadow hover:shadow-md sm:p-8">
+          <div className="flex flex-col justify-between rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-sm transition-shadow hover:shadow-md sm:p-8">
             <div className="flex items-start justify-between gap-3">
               <p className="eyebrow">Checklist</p>
               {taskStats.urgent > 0 && (

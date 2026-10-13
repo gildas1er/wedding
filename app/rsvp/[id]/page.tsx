@@ -16,6 +16,7 @@ import { resolveMusic } from '../../../lib/music';
 import { sanitizeInfos } from '../../../lib/practical-info';
 import PracticalInfoSection from '../../../components/rsvp/PracticalInfoSection';
 import EnvelopeIntro from '../../../components/rsvp/EnvelopeIntro';
+import PremiereIntro, { type PremiereAnswer } from '../../../components/rsvp/PremiereIntro';
 import StoryIntro from '../../../components/rsvp/StoryIntro';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
 import { nameFontStyle } from '../../../lib/name-fonts';
@@ -161,6 +162,8 @@ function RSVPContent() {
   // En aperçu, la configuration du studio (non publiée) remplace celle enregistrée
   const m: any = { ...mBase, ...previewOverrides };
   const flags = ceremonyFlags(m);
+  // En aperçu (studio, écran de bienvenue), le nom d'invité tapé par le couple remplace celui de la fiche
+  const shownGuestName = guestName || (isPreview && typeof m.preview_guest_name === 'string' ? m.preview_guest_name.trim().slice(0, 60) : '');
 
   useEffect(() => {
     if (!isPreview) return;
@@ -235,38 +238,57 @@ function RSVPContent() {
     setAllEventsSelected(isAllChecked);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.status) return;
-    if (isPreview) { setSubmitted(true); return; }
-    if (!guestId) return;
+  // Enregistrement de la réponse (formulaire de la page ou tiroir du modèle « L'Avant-première »).
+  // Renvoie null si tout va bien, sinon le message d'erreur.
+  const sendAnswer = async (values: typeof form): Promise<string | null> => {
+    if (!values.status) return 'Réponse manquante.';
+    if (isPreview) { setSubmitted(true); return null; }
+    if (!guestId) return 'invitation introuvable.';
 
     setSending(true);
 
     const answer = {
       p_marriage_id: id,
       p_guest_id: guestId,
-      p_status: form.status,
-      p_notes: form.notes,
-      p_attending_civil: flags.civil && form.attending_civil,
-      p_attending_church: flags.religious && form.attending_church,
-      p_attending_reception: flags.reception && form.attending_reception,
+      p_status: values.status,
+      p_notes: values.notes,
+      p_attending_civil: flags.civil && values.attending_civil,
+      p_attending_church: flags.religious && values.attending_church,
+      p_attending_reception: flags.reception && values.attending_reception,
     };
     // La présence à la dot n'est envoyée que si la cérémonie figure au programme (migration 12)
-    let { data: updated, error } = await supabase.rpc('submit_rsvp', flags.dot ? { ...answer, p_attending_dot: form.attending_dot } : answer);
+    let { data: updated, error } = await supabase.rpc('submit_rsvp', flags.dot ? { ...answer, p_attending_dot: values.attending_dot } : answer);
     if (error && flags.dot && (error.code === 'PGRST202' || /function/i.test(error.message))) {
       ({ data: updated, error } = await supabase.rpc('submit_rsvp', answer));
     }
-
-    if (error || !updated) {
-      alert("Erreur lors de l'enregistrement : " + (error?.message ?? "invitation introuvable."));
-    } else {
-      setSubmitted(true);
-      if (form.status === 'confirmé') {
-        triggerConfetti();
-      }
-    }
     setSending(false);
+
+    if (error || !updated) return error?.message ?? 'invitation introuvable.';
+    setSubmitted(true);
+    if (values.status === 'confirmé') triggerConfetti();
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.status) return;
+    const failure = await sendAnswer(form);
+    if (failure) alert("Erreur lors de l'enregistrement : " + failure);
+  };
+
+  // Réponse donnée depuis « L'Avant-première » : on garde le formulaire de la page à jour
+  const answerFromPremiere = async (a: PremiereAnswer) => {
+    const values = {
+      ...form,
+      status: a.status,
+      notes: a.notes,
+      attending_dot: a.attending.dot,
+      attending_civil: a.attending.civil,
+      attending_church: a.attending.church,
+      attending_reception: a.attending.reception,
+    };
+    setForm(values);
+    return (await sendAnswer(values)) === null;
   };
 
   if (loading) return (
@@ -324,11 +346,26 @@ function RSVPContent() {
             m={m}
             flags={flags}
             infos={sanitizeInfos(m.practical_info)}
-            guestName={guestName || undefined}
+            guestName={shownGuestName || undefined}
             canRespond={(Boolean(guestId) || isPreview) && !closed}
             closed={closed}
             onInteract={startMusicFromIntro}
             onDone={finishIntro}
+          />
+        )}
+        {showIntro && template === 'avant_premiere' && (
+          <PremiereIntro
+            key={introKey}
+            m={m}
+            flags={flags}
+            infos={sanitizeInfos(m.practical_info)}
+            guestName={shownGuestName || undefined}
+            canRespond={(Boolean(guestId) || isPreview) && !closed}
+            closed={closed}
+            answered={submitted}
+            onInteract={startMusicFromIntro}
+            onAnswer={answerFromPremiere}
+            onDone={() => finishIntro()}
           />
         )}
         {showIntro && template === 'enveloppe' && (
@@ -336,7 +373,7 @@ function RSVPContent() {
             key={introKey}
             initials={coupleInitials(m.partner_1_name, m.partner_2_name)}
             couple={[m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ')}
-            guestName={guestName || undefined}
+            guestName={shownGuestName || undefined}
             dateLabel={m.wedding_date ? formatDateFr(typeof m.wedding_date === 'string' ? m.wedding_date : m.wedding_date.toISOString().slice(0, 10)) : undefined}
             namesFont={m.names_font}
             onOpen={startMusicFromIntro}
@@ -401,6 +438,9 @@ function RSVPContent() {
                  {m.partner_2_name}
                </span>
              </h1>
+             {shownGuestName && (
+               <p className="mt-5 font-display text-lg italic text-slate-600">{shownGuestName}, cette invitation est pour vous.</p>
+             )}
           </motion.div>
 
           {/* PROGRAMME */}
@@ -483,7 +523,7 @@ function RSVPContent() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="text-center mb-6">
                   <p className="eyebrow mb-1">Réponse de</p>
-                  <h2 className="text-2xl font-normal text-slate-800">{guestName || (isPreview ? "Prénom de l'invité" : "Cher invité")}</h2>
+                  <h2 className="text-2xl font-normal text-slate-800">{shownGuestName || (isPreview ? "Prénom de l'invité" : "Cher invité")}</h2>
                 </div>
 
                 <div className="flex gap-3">
@@ -649,7 +689,7 @@ function RSVPContent() {
                 </motion.div>
                 <div>
                     <h3 className="text-2xl font-black text-slate-900">C'est noté !</h3>
-                    <p className="text-slate-500 font-medium text-sm mt-1">Merci pour votre réponse, {guestName}.</p>
+                    <p className="text-slate-500 font-medium text-sm mt-1">Merci pour votre réponse, {shownGuestName}.</p>
                 </div>
               </motion.div>
             )}
