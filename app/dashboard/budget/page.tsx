@@ -10,6 +10,7 @@ import {
   Wallet, Trash2, X, Edit3, Save, Coins,
   User, Phone, Printer
 } from 'lucide-react';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 // --- COMPOSANT DES PÉTALES ROUGES ---
 const EXCHANGE_RATES: { [key: string]: number } = { FCFA: 1, EUR: 0.0015, USD: 0.0016 };
@@ -41,13 +42,13 @@ export default function BudgetDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getSessionUser();
       if (!user) {
         router.push('/login');
         return;
       }
       
-      const { data: mData } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+      const { data: mData } = await loadMarriage(user.id);
       if (mData) {
         setMarriage(mData);
         

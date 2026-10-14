@@ -20,6 +20,7 @@ import {
 import ContactImportSheet, { type ContactRow } from '../../../components/invite/ContactImportSheet';
 import { contactPickerSupported, pickPhoneContacts } from '../../../lib/contacts';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 // --- 1. COMPOSANTS DE SOUTIEN ---
 
@@ -464,10 +465,10 @@ export default function GuestPage() {
   }, [searchTerm, categoryFilter, accompanistFilter, rsvpFilter, messageFilter]);
 
   const loadData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getSessionUser();
     if (!user) { router.push('/login'); return; }
     
-    const { data: marriageData } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    const { data: marriageData } = await loadMarriage(user.id);
     
     if (marriageData) {
       setMarriage(marriageData);

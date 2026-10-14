@@ -6,6 +6,7 @@ import { supabase } from '../../app/lib/supabase';
 import {
   autoPlace, capacityOf, DEFAULT_CAPACITY, occupancyMap, seats, sumSeats, type SeatGuest, type SeatTable,
 } from '../../lib/seating';
+import { getSessionUser, loadMarriage } from '../../lib/current-marriage';
 
 export type Toast = { id: number; text: string; tone: 'info' | 'error' | 'success'; undo?: () => void };
 type Move = { guestId: string; tableId: string | null; from: string | null };
@@ -34,9 +35,9 @@ export function useSeating() {
   };
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getSessionUser();
     if (!user) { setLoading(false); return; }
-    const { data: m } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    const { data: m } = await loadMarriage(user.id);
     if (!m) { setLoading(false); return; }
     setMarriage(m);
     const [t, g, d] = await Promise.all([

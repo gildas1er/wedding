@@ -12,6 +12,7 @@ import { reportsFor } from '../../../lib/print-reports';
 import DeleteAccountModal from '../../../components/dashboard/DeleteAccountModal';
 import { isSpaceArchivedError } from '../../../lib/lifecycle';
 import { usePathname } from 'next/navigation';
+import { forgetMarriage, getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -41,14 +42,10 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getSessionUser();
       if (!user) return;
 
-      const { data: marriageData } = await supabase
-        .from('marriages')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      const { data: marriageData } = await loadMarriage(user.id);
 
       if (marriageData) {
         setMarriageId(marriageData.id);
@@ -84,6 +81,7 @@ export default function SettingsPage() {
       .eq('id', marriageId);
 
     if (!error) {
+      forgetMarriage();
       showToast("Changements enregistrés !");
     } else if (error.message?.includes('WEDDING_DATE_LOCKED')) {
       showToast("La date d'un mariage passé ne peut plus être modifiée", "error");

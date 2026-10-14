@@ -11,6 +11,7 @@ import {
   LayoutDashboard, MessageSquare, Users, Send, UtensilsCrossed,
   ClipboardList, Wallet, Menu, X
 } from 'lucide-react';
+import { getSessionUser, loadMarriage } from '../../../../lib/current-marriage';
 
 export default function PrintPage() {
   return (
@@ -35,14 +36,10 @@ function PrintContent() {
 
   const loadData = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getSessionUser();
       if (!user) { router.push('/login'); return; }
 
-      const { data: marriageData } = await supabase
-        .from('marriages')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: marriageData } = await loadMarriage(user.id);
 
       if (marriageData) {
         setDotEnabled(Boolean(marriageData.show_dot));

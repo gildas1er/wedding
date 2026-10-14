@@ -15,6 +15,7 @@ import {
   liveStatus, sortEvents, timeRange, type PlanningEvent,
 } from '../../../lib/planning';
 import { buildTemplate, type TemplateMoment } from '../../../lib/planning-template';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 type Marriage = Record<string, unknown> & { id: string; wedding_date?: string | null; partner_1_name?: string | null; partner_2_name?: string | null };
 
@@ -42,9 +43,9 @@ export default function PlanningPage() {
   const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getSessionUser();
     if (!user) { router.push('/login'); return; }
-    const { data: m } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    const { data: m } = await loadMarriage(user.id);
     setMarriage(m);
     if (m) {
       const { data, error: err } = await supabase.from('planning_events').select('*').eq('marriage_id', m.id).order('start_time', { ascending: true });

@@ -34,7 +34,7 @@ export type PremiereAnswer = {
 type EpisodeKey = 'dot' | 'civil' | 'church' | 'reception';
 type Episode = { key: EpisodeKey; title: string; date: Text; short: string; time: string; loc: Text; maps: string | null };
 
-const FALLBACK_COVER = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80';
+const FALLBACK_COVER = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=70&w=1080';
 const PRIMARY = 'var(--wed-primary)';
 const ACCENT = 'var(--wed-accent)';
 // Écriture manuscrite du « & » et du titre (police chargée par l'application, seulement si elle s'affiche)

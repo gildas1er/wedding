@@ -17,6 +17,7 @@ import {
   deadline, dueLabel, formatDeadline, normalizeTitle, periodOf, taskLink, taskState,
   type Task, type TaskState, type TemplateTask,
 } from '../../../lib/checklist';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 type Marriage = { id: string; wedding_date?: string | null };
 type Filter = 'todo' | 'late' | 'done' | 'all';
@@ -42,9 +43,9 @@ export default function TasksPage() {
   const { confirm, notify } = useConfirm();
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getSessionUser();
     if (!user) { router.push('/login'); return; }
-    const { data: m } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    const { data: m } = await loadMarriage(user.id);
     setMarriage(m);
     if (m) {
       const { data, error: err } = await supabase.from('tasks').select('*').eq('marriage_id', m.id).order('created_at', { ascending: true });

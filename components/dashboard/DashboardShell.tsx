@@ -18,6 +18,7 @@ import { isPremium, tierById } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 import { guideHref } from '../../lib/guide';
 import { REFERRAL_STORAGE_KEY } from '../../lib/promo';
+import { getSessionUser, loadMarriage } from '../../lib/current-marriage';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -232,13 +233,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   // Noms et date du couple pour la carte du menu
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getSessionUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data } = await supabase
-        .from('marriages')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data } = await loadMarriage(user.id);
       if (!data) return;
       const lifecycle = spaceLifecycle(data);
       setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, lifecycle });

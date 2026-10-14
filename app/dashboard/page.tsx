@@ -17,6 +17,7 @@ import {
   TrendingUp, AlertCircle, MapPin, Sparkles,
   ArrowRight, Crown, ShieldCheck, Zap
 } from 'lucide-react';
+import { forgetMarriage, getSessionUser, loadMarriage } from '../../lib/current-marriage';
 
 // --- NOUVEAU : MODALE DE CÉLÉBRATION (GAMIFICATION) ---
 function MilestoneCelebration({ title, message, onConfirm }: any) {
@@ -68,15 +69,20 @@ export default function WeddingDashboard() {
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await getSessionUser();
         if (!user) { router.push('/login'); return; }
         setProfile(user.user_metadata);
 
-        let { data: marriageData } = await supabase.from('marriages').select('*').eq('user_id', user.id).single();
+        const { data: marriageData } = await loadMarriage(user.id);
         if (!marriageData) { setLoading(false); return; }
         setMarriage(marriageData);
 
-        const { data: guests } = await supabase.from('invite').select('status, guests_count, invitation_sent').eq('marriage_id', marriageData.id);
+        // Invités, budget et tâches lus en même temps
+        const [{ data: guests }, { data: budgetItems }, { data: tasks }] = await Promise.all([
+          supabase.from('invite').select('status, guests_count, invitation_sent').eq('marriage_id', marriageData.id),
+          supabase.from('budget_items').select('amount_actual, amount_paid').eq('marriage_id', marriageData.id),
+          supabase.from('tasks').select('is_completed, due_months_before').eq('marriage_id', marriageData.id),
+        ]);
         const stats = (guests || []).reduce((acc, curr) => {
           acc.total += 1; acc.totalPersons += (curr.guests_count || 1);
           if (curr.status === 'confirmé') acc.confirmed += 1;
@@ -106,7 +112,6 @@ export default function WeddingDashboard() {
           cover: Boolean(marriageData.bg_image_url),
         });
 
-        const { data: budgetItems } = await supabase.from('budget_items').select('amount_actual, amount_paid').eq('marriage_id', marriageData.id);
         let actual = 0; let paid = 0;
         if (budgetItems) {
           actual = budgetItems.reduce((acc, curr) => acc + (curr.amount_actual || 0), 0);
@@ -118,7 +123,6 @@ export default function WeddingDashboard() {
           }
         }
 
-        const { data: tasks } = await supabase.from('tasks').select('is_completed, due_months_before').eq('marriage_id', marriageData.id);
         let totalTasks = 0;
         if (tasks) {
           totalTasks = tasks.length;
@@ -160,7 +164,7 @@ export default function WeddingDashboard() {
   const handleCloseWelcome = (changed: boolean) => {
     setShowWelcome(false);
     setJourney((j) => (j ? { ...j, templateChosen: true } : j));
-    if (changed) setReloadKey((k) => k + 1);
+    if (changed) { forgetMarriage(); setReloadKey((k) => k + 1); }
   };
 
   if (loading) return (<div className="h-screen flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" /></div> );

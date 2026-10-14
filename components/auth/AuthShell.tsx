@@ -20,7 +20,7 @@ export default function AuthShell({ title, subtitle, sideTitle, sideText, childr
       <div className="relative hidden items-center justify-center overflow-hidden bg-slate-900 p-12 lg:flex lg:w-1/2">
         <div className="absolute inset-0 opacity-40">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
+          <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=70&w=1400" alt="" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
         </div>
         <div className="relative z-10 max-w-md text-center">

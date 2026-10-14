@@ -13,6 +13,7 @@ import {
 import { activeCode, discountFor, type AppliedCode } from '../../../lib/promo';
 import PromoCodeCard from '../../../components/dashboard/PromoCodeCard';
 import ReferralCard, { type Referrals } from '../../../components/dashboard/ReferralCard';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 type Marriage = Record<string, unknown> & {
   id: string; partner_1_name?: string | null; partner_2_name?: string | null;
@@ -44,14 +45,14 @@ export default function PremiumPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getSessionUser();
     if (!user) return;
-    const { data: m } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    const { data: m } = await loadMarriage(user.id);
     setMarriage(m);
     if (m) {
-      const { data } = await supabase.from('invite').select('guests_count').eq('marriage_id', m.id);
+      // Invités et codes (promo, parrainage) lus en même temps
+      const [{ data }] = await Promise.all([supabase.from('invite').select('guests_count').eq('marriage_id', m.id), loadCodes()]);
       setGuests(data ?? []);
-      await loadCodes();
     }
     setLoading(false);
   }, [loadCodes]);

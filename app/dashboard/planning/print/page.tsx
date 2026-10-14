@@ -8,6 +8,7 @@ import { supabase } from '../../../lib/supabase';
 import {
   contactHref, deroulText, formatWeddingDate, guestEvents, sortEvents, timeRange, type PlanningEvent,
 } from '../../../../lib/planning';
+import { getSessionUser, loadMarriage } from '../../../../lib/current-marriage';
 
 type Version = 'equipe' | 'invites';
 type Marriage = { id: string; wedding_date?: string | null; partner_1_name?: string | null; partner_2_name?: string | null };
@@ -29,9 +30,9 @@ function PrintContent() {
   const [events, setEvents] = useState<PlanningEvent[]>([]);
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getSessionUser();
     if (!user) { router.push('/login'); return; }
-    const { data: m } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+    const { data: m } = await loadMarriage(user.id);
     setMarriage(m);
     if (m) {
       const { data } = await supabase.from('planning_events').select('*').eq('marriage_id', m.id).order('start_time', { ascending: true });

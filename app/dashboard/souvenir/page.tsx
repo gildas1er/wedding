@@ -17,6 +17,7 @@ import {
 } from '../../../lib/lifecycle';
 import DeleteAccountModal from '../../../components/dashboard/DeleteAccountModal';
 import { safeCsvRows } from '../../../lib/csv-safe';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 type Marriage = Record<string, unknown> & { id: string; partner_1_name?: string | null; partner_2_name?: string | null; wedding_date?: string | null; kept_until?: string | null };
 type Row = Record<string, unknown>;
@@ -47,9 +48,9 @@ export default function SouvenirPage() {
 
   useEffect(() => {
     Promise.resolve().then(async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getSessionUser();
       if (!user) return;
-      const { data } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+      const { data } = await loadMarriage(user.id);
       setMarriage(data);
       setLoading(false);
     });

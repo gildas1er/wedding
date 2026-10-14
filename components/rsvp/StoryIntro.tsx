@@ -23,7 +23,7 @@ type StoryMarriage = {
 };
 type Flags = { dot: boolean; civil: boolean; religious: boolean; reception: boolean };
 
-const FALLBACK_COVER = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80';
+const FALLBACK_COVER = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=70&w=1080';
 
 export default function StoryIntro({ m, flags, infos, guestName, canRespond, closed = false, onInteract, onDone }: {
   m: StoryMarriage;

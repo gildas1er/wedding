@@ -211,7 +211,7 @@ export default function RegisterPage() {
       {/* Côté gauche - Visuel */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 opacity-40">
-          <img src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80" alt="Mariage" className="w-full h-full object-cover" />
+          <img src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=70&w=1400" alt="Mariage" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
         </div>
         <div className="relative z-10 max-w-md text-center">

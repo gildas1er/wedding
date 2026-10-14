@@ -21,6 +21,7 @@ import { DEFAULT_NAME_FONT, NAME_FONTS, nameFontStyle, resolveNameFont, type Nam
 import {
   DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS, buildInvitationMessage, hasLinkPlaceholder,
 } from '../../../lib/whatsapp-message';
+import { forgetMarriage, getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 type Config = {
   invitation_template: InvitationTemplate;
@@ -126,9 +127,9 @@ export default function InvitationStudio() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await getSessionUser();
         if (!user) return;
-        const { data } = await supabase.from('marriages').select('*').eq('user_id', user.id).single();
+        const { data } = await loadMarriage(user.id);
         if (!data) return;
 
         setMarriage(data);
@@ -336,6 +337,7 @@ export default function InvitationStudio() {
       return;
     }
     setSavedConfig(config);
+    forgetMarriage();
     setMarriage((m: any) => ({ ...m, ...config }));
     flash({ type: 'success', text: "L'invitation est publiée !" });
   };
@@ -382,11 +384,11 @@ export default function InvitationStudio() {
       return;
     }
     try {
-      // Photo allégée pour un chargement rapide sur mobile (≈ 800 Ko, 2000 px max)
+      // Photo allégée pour un chargement rapide sur mobile, même en 3G (≈ 500 Ko, 1600 px max)
       setUploadStage('Optimisation de la photo…');
       let optimized: Blob;
       try {
-        optimized = await imageCompression(file, { maxSizeMB: 0.8, maxWidthOrHeight: 2000, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.85 });
+        optimized = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1600, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.82 });
       } catch {
         throw new Error('Format non lu par ce navigateur (photo HEIC ?). Essayez avec une photo JPG ou PNG.');
       }

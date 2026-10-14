@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { rsvpThemeStyle } from '../../../lib/palettes';
+import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 
 type ShareLink = {
   id: string;
@@ -77,10 +78,10 @@ export default function SharePage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getSessionUser();
       setOrigin(window.location.origin);
       if (!user) { setLoading(false); return; }
-      const { data } = await supabase.from('marriages').select('*').eq('user_id', user.id).maybeSingle();
+      const { data } = await loadMarriage(user.id);
       setMarriage(data);
       setLoading(false);
     };

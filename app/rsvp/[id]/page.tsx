@@ -396,7 +396,7 @@ function RSVPContent() {
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
             transition={{ duration: 2, ease: "easeOut" }}
-            src={m.bg_image_url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80"} 
+            src={m.bg_image_url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=70&w=1080"} 
             className="w-full h-full object-cover" 
             style={{ objectPosition: (m.bg_image_url && m.bg_image_position) || 'center' }}
             alt="Wedding" 

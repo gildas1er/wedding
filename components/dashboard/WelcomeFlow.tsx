@@ -15,6 +15,7 @@ import { normalizePhone, whatsappLink } from '../../lib/phone';
 import { buildInvitationMessage } from '../../lib/whatsapp-message';
 import { isGuestLimitError } from '../../lib/plan';
 import { daysUntil } from '../../lib/planning';
+import { forgetMarriage } from '../../lib/current-marriage';
 
 export type WelcomeMarriage = {
   id: string;
@@ -101,6 +102,7 @@ export default function WelcomeFlow({ marriage, needsIdentity, onFinish }: {
     // Colonne de la migration 26 : sans elle, le navigateur retient que la bienvenue est passée
     await supabase.from('marriages').update({ onboarded_at: new Date().toISOString() }).eq('id', marriage.id);
     try { localStorage.setItem(`${storageKey(marriage.id)}-done`, '1'); localStorage.removeItem(storageKey(marriage.id)); } catch { /* navigation privée */ }
+    forgetMarriage();
     setBusy(false);
     onFinish(changed);
   };
