@@ -25,23 +25,29 @@ export async function GET() {
   const { db } = auth;
 
   try {
-    const [marriages, guests, payments] = await Promise.all([
-      readAll<Marriage>((a, b) => db.from('marriages').select('*').order('created_at', { ascending: false }).range(a, b)),
-      readAll<Guest>((a, b) => db.from('invite').select('marriage_id, guests_count, status').range(a, b)),
-      readAll<Payment>((a, b) => db.from('payments').select('*').order('created_at', { ascending: false }).range(a, b)).catch(() => []),
+    // Toutes les lectures partent en même temps (auparavant : les unes après les autres)
+    const listUsers = async () => {
+      const found = new Map<string, AuthUser>();
+      for (let page = 1; page < 50; page++) {
+        const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) break;
+        data.users.forEach((u) => found.set(u.id, u as AuthUser));
+        if (data.users.length < 1000) break;
+      }
+      return found;
+    };
+    const [marriages, guests, payments, users, promoResult, actionsResult] = await Promise.all([
+      readAll<Marriage>((a, b) => db.from('marriages').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(a, b)),
+      readAll<Guest>((a, b) => db.from('invite').select('marriage_id, guests_count, status', { count: 'exact' }).order('id').range(a, b)),
+      readAll<Payment>((a, b) => db.from('payments').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(a, b)).catch(() => []),
+      listUsers(),
+      // Codes promo (migration 19) : utilisations payées, en attente, commissions
+      db.from('promo_codes').select('*').order('created_at', { ascending: false }),
+      db.from('admin_actions').select('*').order('created_at', { ascending: false }).limit(60),
     ]);
+    const { data: promoRows, error: promoError } = promoResult;
+    const actions = actionsResult.data;
 
-    // Comptes de connexion : e-mail, téléphone, dernière connexion, désactivation
-    const users = new Map<string, AuthUser>();
-    for (let page = 1; page < 50; page++) {
-      const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
-      if (error) break;
-      data.users.forEach((u) => users.set(u.id, u as AuthUser));
-      if (data.users.length < 1000) break;
-    }
-
-    // Codes promo (migration 19) : utilisations payées, en attente, commissions
-    const { data: promoRows, error: promoError } = await db.from('promo_codes').select('*').order('created_at', { ascending: false });
     const promoList = (promoRows ?? []) as PromoCode[];
     const promoByCode = new Map(promoList.map((p) => [p.code, p]));
     const promos = promoList.map((p) => {
@@ -121,8 +127,6 @@ export async function GET() {
         })() : null,
       };
     });
-
-    const { data: actions } = await db.from('admin_actions').select('*').order('created_at', { ascending: false }).limit(60);
 
     return NextResponse.json({
       generatedAt: now.toISOString(),

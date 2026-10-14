@@ -35,14 +35,34 @@ export async function requireAdmin() {
   return { email, db: serviceSupabase() };
 }
 
-// Lecture complète d'une table (pagination par 1 000 lignes)
-export async function readAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
-  const rows: T[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await fetchPage(from, from + 999);
-    if (error) throw new Error(error.message);
-    rows.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
+// Lecture complète d'une table, par pages de 1 000 lignes. La première page donne le total
+// (count: 'exact' dans la requête) : les suivantes partent alors en parallèle, 6 à la fois,
+// au lieu de s'enchaîner. La requête doit avoir un ordre stable (order) pour que les pages ne se chevauchent pas.
+const PAGE = 1000;
+export async function readAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null; count?: number | null }>) {
+  const first = await fetchPage(0, PAGE - 1);
+  if (first.error) throw new Error(first.error.message);
+  const rows: T[] = [...(first.data ?? [])];
+  if (rows.length < PAGE) return rows;
+
+  if (typeof first.count !== 'number') {
+    // Total inconnu : pages l'une après l'autre
+    for (let from = PAGE; ; from += PAGE) {
+      const { data, error } = await fetchPage(from, from + PAGE - 1);
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []));
+      if (!data || data.length < PAGE) return rows;
+    }
+  }
+
+  const starts: number[] = [];
+  for (let from = PAGE; from < first.count; from += PAGE) starts.push(from);
+  for (let i = 0; i < starts.length; i += 6) {
+    const pages = await Promise.all(starts.slice(i, i + 6).map((from) => fetchPage(from, from + PAGE - 1)));
+    for (const { data, error } of pages) {
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []));
+    }
   }
   return rows;
 }

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import AlliancesMark from '../../components/brand/AlliancesMark';
 import { AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, Loader2, ShieldAlert, LogOut,
+  LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, ShieldAlert, LogOut,
   Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -131,8 +131,6 @@ function AdminContent() {
 
   const open = couples.find((c) => c.id === openId) ?? null;
 
-  if (loading && !data) return <div className="flex min-h-screen items-center justify-center bg-ivory"><Loader2 className="h-8 w-8 animate-spin text-rose-500" /></div>;
-
   if (status && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-ivory p-6">
@@ -151,7 +149,7 @@ function AdminContent() {
 
   const tabs: { id: Tab; label: string; icon: typeof Users; n?: number }[] = [
     { id: 'overview', label: 'Vue d’ensemble', icon: LayoutDashboard },
-    { id: 'couples', label: 'Couples', icon: Users, n: couples.length },
+    { id: 'couples', label: 'Couples', icon: Users, n: data ? couples.length : undefined },
     { id: 'promos', label: 'Promos & parrainage', icon: Ticket, n: data?.promos?.length },
     { id: 'payments', label: 'Paiements', icon: Banknote, n: data?.payments.length },
     { id: 'journal', label: 'Journal', icon: ScrollText },
@@ -186,6 +184,8 @@ function AdminContent() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* Premier chargement : la page s'affiche tout de suite, les chiffres arrivent ensuite */}
+        {!data ? <AdminSkeleton /> : (<>
         {tab === 'overview' && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -357,6 +357,7 @@ function AdminContent() {
             ) : data?.journalReady && <p className="py-8 text-center text-slate-500">Aucune action pour l’instant.</p>}
           </Card>
         )}
+        </>)}
       </main>
 
       <AnimatePresence>
@@ -415,6 +416,21 @@ function Gauge({ c }: { c: AdminCouple }) {
           <div className={`h-full rounded-full ${pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
         </div>
       )}
+    </div>
+  );
+}
+
+function AdminSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Chargement des données">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => <div key={i} className="h-[108px] animate-pulse rounded-2xl bg-white ring-1 ring-slate-200/80" />)}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="h-60 animate-pulse rounded-2xl bg-white ring-1 ring-slate-200/80 lg:col-span-2" />
+        <div className="h-60 animate-pulse rounded-2xl bg-white ring-1 ring-slate-200/80" />
+      </div>
+      <div className="h-72 animate-pulse rounded-2xl bg-white ring-1 ring-slate-200/80" />
     </div>
   );
 }
