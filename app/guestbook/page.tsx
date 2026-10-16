@@ -119,7 +119,10 @@ function GuestbookContent({ closed = false }: { closed?: boolean }) {
       }
     } catch (error) {
       console.error(error);
-      alert("Oups, impossible d'envoyer votre message avec la photo. Réessayez !");
+      const msg = String((error as { message?: string })?.message ?? '');
+      // Limite de messages (migration 29) : explication claire plutôt qu'une erreur générale
+      if (/GUESTBOOK_RATE/.test(msg)) alert('Beaucoup de messages ont été envoyés en peu de temps. Réessayez dans un moment.');
+      else alert("Oups, impossible d'envoyer votre message avec la photo. Réessayez !");
     } finally {
       setSubmitting(false);
     }

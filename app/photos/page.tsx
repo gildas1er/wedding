@@ -20,7 +20,10 @@ function describeError(error: { message?: string; statusCode?: string | number }
   const msg = (error.message || '').toLowerCase();
   if (msg.includes('space_archived')) return "Le mariage a eu lieu : l'envoi de photos est terminé.";
   if (msg.includes('album_required') || msg.includes('album_path')) return "Ce lien est incomplet : demandez aux mariés leur lien d'envoi de photos.";
-  if (msg.includes('row-level security') || msg.includes('unauthorized') || msg.includes('permission')) return `${fallback} (accès refusé : les mariés doivent vérifier la configuration du dépôt de photos).`;
+  // Limites d'envoi (migration 29)
+  if (msg.includes('album_rate')) return 'Beaucoup de photos ont été envoyées en peu de temps. Réessayez dans un moment.';
+  if (msg.includes('album_full')) return "L'album de ce mariage est complet : il ne peut plus recevoir de photos.";
+  if (msg.includes('row-level security') || msg.includes('unauthorized') || msg.includes('permission')) return `${fallback} Réessayez dans un moment ; si cela continue, prévenez les mariés.`;
   if (msg.includes('payload too large') || msg.includes('exceeded') || String(error.statusCode) === '413') return 'Cette photo est trop lourde pour être envoyée.';
   if (msg.includes('bucket not found')) return "L'album n'est pas encore configuré par les mariés.";
   if (msg.includes('fetch') || msg.includes('network')) return 'La connexion semble interrompue. Vérifiez votre réseau puis réessayez.';

@@ -15,6 +15,7 @@ import { TIERS, formatXof } from '../../lib/plan';
 import { ConfirmProvider, useConfirm } from '../../components/ui/ConfirmDialog';
 import CoupleDrawer, { daysTo, fmtDate, tierLabel, type AdminCouple } from '../../components/admin/CoupleDrawer';
 import PromosPanel, { type AdminPromo, type AdminReferral } from '../../components/admin/PromosPanel';
+import AdminMfa from '../../components/admin/AdminMfa';
 
 type Payment = { id: string; created_at: string; completed_at: string | null; marriage_id: string; couple: string | null; amount: number; status: string; provider: string; note: string | null };
 type Action = { id: string; created_at: string; admin_email: string; couple: string | null; action: string; details: Record<string, unknown> | null };
@@ -36,7 +37,7 @@ export default function AdminPage() {
 function AdminContent() {
   const { notify } = useConfirm();
   const [data, setData] = useState<Data | null>(null);
-  const [status, setStatus] = useState<{ code: number; message: string } | null>(null);
+  const [status, setStatus] = useState<{ code: number; message: string; mfa?: 'mfa_setup' | 'mfa_required' } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -52,7 +53,7 @@ function AdminContent() {
     setLoading(true);
     const res = await fetch('/api/admin/overview', { cache: 'no-store' }).catch(() => null);
     const json = await res?.json().catch(() => null);
-    if (!res?.ok) setStatus({ code: res?.status ?? 0, message: json?.error ?? 'Connexion impossible.' });
+    if (!res?.ok) setStatus({ code: res?.status ?? 0, message: json?.error ?? 'Connexion impossible.', mfa: json?.code === 'mfa_setup' || json?.code === 'mfa_required' ? json.code : undefined });
     else { setStatus(null); setData(json); }
     setLoading(false);
   }, []);
@@ -130,6 +131,9 @@ function AdminContent() {
   }, [couples, query, formula, state, sort]);
 
   const open = couples.find((c) => c.id === openId) ?? null;
+
+  // Double authentification : activation (première fois) ou code de la connexion
+  if (status?.mfa) return <AdminMfa mode={status.mfa === 'mfa_setup' ? 'setup' : 'verify'} onDone={() => { setStatus(null); load(); }} />;
 
   if (status && !data) {
     return (
