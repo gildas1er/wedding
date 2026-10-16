@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, ArrowRight, Mail, MailCheck, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import AuthShell, { authButtonClass, authInputClass, authLabelClass } from '../../components/auth/AuthShell';
+import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
 
 const COOLDOWN = 60; // Supabase limite à un e-mail par minute et par adresse
 
@@ -17,6 +18,9 @@ export default function ForgotPasswordPage() {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  // Anti-robot (Turnstile) : jeton à usage unique, renouvelé après chaque envoi
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   // Adresse reprise de la page de connexion ; lien expiré signalé par ?lien=expire
   useEffect(() => {
@@ -38,17 +42,22 @@ export default function ForgotPasswordPage() {
     e?.preventDefault();
     const address = email.trim().toLowerCase();
     if (!address || sending || cooldown) return;
+    if (captchaEnabled && !captchaToken) { setError('Vérification anti-robot en cours : réessayez dans un instant.'); return; }
     setSending(true);
     setError(null);
     const { error: err } = await supabase.auth.resetPasswordForEmail(address, {
       redirectTo: `${window.location.origin}/auth/callback?next=/nouveau-mot-de-passe`,
+      captchaToken: captchaToken ?? undefined,
     });
     setSending(false);
+    setCaptchaReset((n) => n + 1);
     if (err) {
       const msg = err.message.toLowerCase();
       if (err.status === 429 || msg.includes('security purposes') || msg.includes('rate limit')) {
         setError('Un lien vient déjà d’être envoyé. Patientez une minute avant d’en redemander un.');
         setCooldown(COOLDOWN);
+      } else if (isCaptchaError(err)) {
+        setError(CAPTCHA_ERROR_FR);
       } else if (msg.includes('invalid') && msg.includes('email')) {
         setError('Cette adresse e-mail n’est pas valide.');
       } else {
@@ -113,6 +122,8 @@ export default function ForgotPasswordPage() {
           </button>
         </form>
       )}
+
+      <div className="mt-5"><Captcha onToken={setCaptchaToken} resetSignal={captchaReset} /></div>
 
       <p className="mt-10 text-center text-sm font-medium text-slate-500">
         <Link href="/login" className="inline-flex items-center gap-1.5 font-black text-rose-500 underline-offset-4 hover:underline">

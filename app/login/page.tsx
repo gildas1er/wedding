@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
 import { safeNextPath } from '../../lib/safe-redirect';
+import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
 import { PROVIDER_LABELS, fetchEnabledProviders, type SocialProvider } from '../../lib/auth-providers';
 
 export default function LoginPage() {
@@ -17,6 +18,9 @@ export default function LoginPage() {
   // États pour les champs
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Anti-robot (Turnstile) : jeton à usage unique, renouvelé après chaque essai
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   
   // Gestion des messages
   // Après une suppression de compte : /login?compte=supprime
@@ -40,6 +44,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
+    if (captchaEnabled && !captchaToken) { setMessage({ type: 'error', content: 'Vérification anti-robot en cours : réessayez dans un instant.' }); return; }
     
     setIsLoading(true);
     setMessage({ type: '', content: '' });
@@ -48,6 +53,7 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken: captchaToken ?? undefined },
       });
 
       if (error) throw error;
@@ -64,10 +70,13 @@ export default function LoginPage() {
       let errorMsg = "Email ou mot de passe incorrect.";
       if (error.message === "Email not confirmed") {
         errorMsg = "Veuillez confirmer votre email avant de vous connecter.";
+      } else if (isCaptchaError(error)) {
+        errorMsg = CAPTCHA_ERROR_FR;
       }
       setMessage({ type: 'error', content: errorMsg });
     } finally {
       setIsLoading(false);
+      setCaptchaReset((n) => n + 1);
     }
   };
 
@@ -173,6 +182,8 @@ export default function LoginPage() {
               </div>
 
             </div>
+
+            <Captcha onToken={setCaptchaToken} resetSignal={captchaReset} />
 
             <button type="submit" disabled={isLoading || !allValid} className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all flex items-center justify-center gap-2 ${allValid ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`}>
               {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Se connecter <ArrowRight className="w-4 h-4" /></>}

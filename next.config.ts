@@ -17,15 +17,15 @@ const supabaseWs = supabase.replace(/^http/, "ws");
 const csp = [
   "default-src 'self'",
   // Next.js insère des scripts dans la page ; jsDelivr sert l'outil de compression des photos (browser-image-compression)
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   `img-src 'self' data: blob: ${supabase} https://images.unsplash.com https://images.pexels.com`,
   `media-src 'self' blob: ${supabase} https://cdn.pixabay.com https://upload.wikimedia.org`,
-  `connect-src 'self' ${supabase} ${supabaseWs} https://cdn.jsdelivr.net`,
+  `connect-src 'self' ${supabase} ${supabaseWs} https://cdn.jsdelivr.net https://challenges.cloudflare.com`,
   // Le Studio affiche un aperçu de l'invitation du site dans un cadre : seulement depuis le site lui-même
-  "frame-src 'self'",
+  "frame-src 'self' https://challenges.cloudflare.com",
   "frame-ancestors 'self'",
   "object-src 'none'",
   "base-uri 'self'",

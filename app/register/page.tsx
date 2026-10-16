@@ -7,6 +7,7 @@ import {
   Check, User, Calendar, Phone, ChevronDown, AlertCircle, Gift
 } from 'lucide-react';
 import Link from 'next/link';
+import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
 import { LEGAL } from '../../lib/legal';
 import { REFERRAL_DISCOUNT_XOF, REFERRAL_STORAGE_KEY, normalizeCode } from '../../lib/promo';
 import { formatXof } from '../../lib/plan';
@@ -30,6 +31,9 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
   const [role, setRole] = useState("");
+  // Anti-robot (Turnstile) : jeton à usage unique, renouvelé après chaque envoi
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   
@@ -115,6 +119,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!allValid) return;
+    if (captchaEnabled && !captchaToken) { setMessage({ type: 'error', content: 'Vérification anti-robot en cours : réessayez dans un instant.' }); return; }
     
     setIsLoading(true);
     setMessage({ type: '', content: '' });
@@ -127,6 +132,7 @@ export default function RegisterPage() {
         options: {
           // Le lien de confirmation revient sur l'app, qui ouvre la session puis le tableau de bord
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          captchaToken: captchaToken ?? undefined,
           data: {
             full_name: fullName,
             partner_name_1: fullName,
@@ -192,9 +198,10 @@ export default function RegisterPage() {
       }
 
     } catch (error: any) {
-      setMessage({ type: 'error', content: translateError(error.message) });
+      setMessage({ type: 'error', content: isCaptchaError(error) ? CAPTCHA_ERROR_FR : translateError(error.message) });
     } finally {
       setIsLoading(false);
+      setCaptchaReset((n) => n + 1);
     }
   };
 
@@ -345,6 +352,8 @@ export default function RegisterPage() {
                 <span className="text-xs text-slate-500 leading-relaxed font-medium">J&apos;accepte de recevoir des conseils et nouveautés de WeddingStudio (facultatif, désinscription à tout moment).</span>
               </label>
             </div>
+
+            <Captcha onToken={setCaptchaToken} resetSignal={captchaReset} />
 
             <button disabled={isLoading || !allValid} className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all flex items-center justify-center gap-2 mt-4 ${allValid ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`}>
               {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Créer mon compte <ArrowRight className="w-4 h-4" /></>}
