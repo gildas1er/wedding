@@ -18,6 +18,7 @@ import PracticalInfoSection from '../../../components/rsvp/PracticalInfoSection'
 import EnvelopeIntro from '../../../components/rsvp/EnvelopeIntro';
 import PremiereIntro, { type PremiereAnswer } from '../../../components/rsvp/PremiereIntro';
 import StoryIntro from '../../../components/rsvp/StoryIntro';
+import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
 import { nameFontStyle } from '../../../lib/name-fonts';
 
@@ -694,6 +695,9 @@ function RSVPContent() {
               </motion.div>
             )}
           </motion.div>
+
+          {/* Après le mariage : WeddingStudio pour le mariage des invités (offre des mariés, recommandation) */}
+          {closed && <AfterWeddingPromo couple={[m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ')} referralCode={m.referral_code} />}
         </div>
 
         {/* FOOTER */}
