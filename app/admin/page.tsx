@@ -8,7 +8,7 @@ import AlliancesMark from '../../components/brand/AlliancesMark';
 import { AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, ShieldAlert, LogOut,
-  Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket,
+  Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket, UserX,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIERS, formatXof } from '../../lib/plan';
@@ -16,11 +16,12 @@ import { ConfirmProvider, useConfirm } from '../../components/ui/ConfirmDialog';
 import CoupleDrawer, { daysTo, fmtDate, tierLabel, type AdminCouple } from '../../components/admin/CoupleDrawer';
 import PromosPanel, { type AdminPromo, type AdminReferral } from '../../components/admin/PromosPanel';
 import AdminMfa from '../../components/admin/AdminMfa';
+import AccountsPanel, { type AdminAccount } from '../../components/admin/AccountsPanel';
 
 type Payment = { id: string; created_at: string; completed_at: string | null; marriage_id: string; couple: string | null; amount: number; status: string; provider: string; note: string | null };
 type Action = { id: string; created_at: string; admin_email: string; couple: string | null; action: string; details: Record<string, unknown> | null };
-type Data = { generatedAt: string; couples: AdminCouple[]; payments: Payment[]; actions: Action[]; journalReady: boolean; promos?: AdminPromo[]; referrals?: AdminReferral[]; promosReady?: boolean };
-type Tab = 'overview' | 'couples' | 'promos' | 'payments' | 'journal';
+type Data = { generatedAt: string; couples: AdminCouple[]; payments: Payment[]; actions: Action[]; journalReady: boolean; promos?: AdminPromo[]; referrals?: AdminReferral[]; promosReady?: boolean; accounts?: AdminAccount[]; strayProfiles?: string[]; accountsReady?: boolean };
+type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'journal';
 
 const ACTION_LABELS: Record<string, string> = {
   palier: 'Palier activé', gratuit: 'Retour au gratuit', prolongation: 'Prolongation', paiement: 'Paiement enregistré',
@@ -28,6 +29,7 @@ const ACTION_LABELS: Record<string, string> = {
   recompense: 'Récompense de parrainage versée', code_promo: 'Code promo enregistré', code_active: 'Code promo activé',
   code_desactive: 'Code promo désactivé', code_supprime: 'Code promo supprimé',
   purge: 'Suppression automatique (12 mois)',
+  fiche_creee: 'Fiche mariage créée', compte_supprime: 'Compte sans mariage supprimé', profil_efface: 'Ancien profil effacé',
 };
 
 export default function AdminPage() {
@@ -69,6 +71,16 @@ function AdminContent() {
     if (!res?.ok) { notify(json?.error ?? 'L’action a échoué.', 'error'); return false; }
     notify({ tier: 'Palier activé', free: 'Couple repassé en version gratuite', extend: 'Espace prolongé', payment: 'Paiement enregistré', disable: 'Compte désactivé', enable: 'Compte réactivé', delete: 'Couple supprimé', referral_paid: 'Récompense notée' }[action] ?? 'C’est fait');
     if (action === 'delete') setOpenId(null);
+    await load();
+    return true;
+  }, [load, notify]);
+
+  // Comptes sans mariage : créer la fiche, supprimer le compte, effacer un ancien profil
+  const actAccount = useCallback(async (id: string, action: 'create_marriage' | 'delete' | 'delete_profile') => {
+    const res = await fetch(`/api/admin/accounts/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, confirm: action === 'delete' ? 'SUPPRIMER' : undefined }) }).catch(() => null);
+    const json = await res?.json().catch(() => null);
+    if (!res?.ok) { notify(json?.error ?? 'L’action a échoué.', 'error'); return false; }
+    notify({ create_marriage: 'Fiche mariage créée : le couple apparaît dans « Couples »', delete: 'Compte supprimé', delete_profile: 'Ancien profil effacé' }[action]);
     await load();
     return true;
   }, [load, notify]);
@@ -154,6 +166,7 @@ function AdminContent() {
   const tabs: { id: Tab; label: string; icon: typeof Users; n?: number }[] = [
     { id: 'overview', label: 'Vue d’ensemble', icon: LayoutDashboard },
     { id: 'couples', label: 'Couples', icon: Users, n: data ? couples.length : undefined },
+    { id: 'accounts', label: 'Sans mariage', icon: UserX, n: data ? (data.accounts?.length ?? 0) + (data.strayProfiles?.length ?? 0) : undefined },
     { id: 'promos', label: 'Promos & parrainage', icon: Ticket, n: data?.promos?.length },
     { id: 'payments', label: 'Paiements', icon: Banknote, n: data?.payments.length },
     { id: 'journal', label: 'Journal', icon: ScrollText },
@@ -321,6 +334,10 @@ function AdminContent() {
               {!filtered.length && <li className="rounded-2xl bg-white p-8 text-center text-slate-500 ring-1 ring-slate-200">Aucun couple ne correspond.</li>}
             </ul>
           </div>
+        )}
+
+        {tab === 'accounts' && (
+          <AccountsPanel accounts={data?.accounts ?? []} strayProfiles={data?.strayProfiles ?? []} ready={data?.accountsReady !== false} onAction={actAccount} />
         )}
 
         {tab === 'promos' && (

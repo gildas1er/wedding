@@ -15,7 +15,11 @@ type Marriage = {
   applied_code_used_at?: string | null; referral_reward_paid_at?: string | null;
 };
 type Payment = { marriage_id: string; amount: number | null; status: string | null; [key: string]: unknown };
-type AuthUser = { email?: string; phone?: string; created_at?: string; last_sign_in_at?: string; banned_until?: string; user_metadata?: { phone?: string }; app_metadata?: { provider?: string } };
+type AuthUser = {
+  email?: string; phone?: string; created_at?: string; last_sign_in_at?: string; banned_until?: string; email_confirmed_at?: string;
+  user_metadata?: { phone?: string; full_name?: string; partner_name_1?: string; partner_name_2?: string; wedding_date?: string };
+  app_metadata?: { provider?: string; admin?: boolean };
+};
 type Guest = { marriage_id: string; guests_count: number | null; status: string | null };
 
 // Vue d'ensemble de la plateforme : couples, invités, formules, paiements, journal
@@ -26,17 +30,20 @@ export async function GET() {
 
   try {
     // Toutes les lectures partent en même temps (auparavant : les unes après les autres)
+    let usersComplete = true;
     const listUsers = async () => {
       const found = new Map<string, AuthUser>();
       for (let page = 1; page < 50; page++) {
         const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
-        if (error) break;
+        if (error) { usersComplete = false; break; }
         data.users.forEach((u) => found.set(u.id, u as AuthUser));
         if (data.users.length < 1000) break;
       }
       return found;
     };
-    const [marriages, guests, payments, users, promoResult, actionsResult] = await Promise.all([
+    // Ancienne table « profiles » (créée avant les migrations) : une ligne par compte
+    const readProfiles = () => readAll<{ id: string }>((a, b) => db.from('profiles').select('id', { count: 'exact' }).order('id').range(a, b)).catch(() => null);
+    const [marriages, guests, payments, users, promoResult, actionsResult, profiles] = await Promise.all([
       readAll<Marriage>((a, b) => db.from('marriages').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(a, b)),
       readAll<Guest>((a, b) => db.from('invite').select('marriage_id, guests_count, status', { count: 'exact' }).order('id').range(a, b)),
       readAll<Payment>((a, b) => db.from('payments').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(a, b)).catch(() => []),
@@ -44,6 +51,7 @@ export async function GET() {
       // Codes promo (migration 19) : utilisations payées, en attente, commissions
       db.from('promo_codes').select('*').order('created_at', { ascending: false }),
       db.from('admin_actions').select('*').order('created_at', { ascending: false }).limit(60),
+      readProfiles(),
     ]);
     const { data: promoRows, error: promoError } = promoResult;
     const actions = actionsResult.data;
@@ -128,8 +136,29 @@ export async function GET() {
       };
     });
 
+    // Comptes sans mariage : inscrits mais sans fiche (création échouée, fiche supprimée à la main,
+    // compte de test, compte administrateur…), et anciennes lignes « profiles » dont le compte n'existe plus
+    const married = new Set(marriages.map((m) => m.user_id).filter(Boolean));
+    const accounts = usersComplete ? [...users.entries()].filter(([uid]) => !married.has(uid)).map(([uid, u]) => ({
+      id: uid,
+      email: u.email ?? null,
+      phone: u.user_metadata?.phone || u.phone || null,
+      provider: u.app_metadata?.provider ?? null,
+      admin: u.app_metadata?.admin === true,
+      names: [u.user_metadata?.partner_name_1 || u.user_metadata?.full_name, u.user_metadata?.partner_name_2].filter(Boolean).join(' & ') || null,
+      weddingDate: u.user_metadata?.wedding_date ?? null,
+      confirmed: Boolean(u.email_confirmed_at),
+      createdAt: u.created_at ?? null,
+      lastSignIn: u.last_sign_in_at ?? null,
+      banned: Boolean(u.banned_until && new Date(u.banned_until) > now),
+    })).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) : [];
+    const strayProfiles = usersComplete && profiles ? profiles.map((p) => p.id).filter((pid) => !users.has(pid)) : [];
+
     return NextResponse.json({
       generatedAt: now.toISOString(),
+      accounts,
+      strayProfiles,
+      accountsReady: usersComplete,
       couples,
       payments: payments.slice(0, 100),
       actions: actions ?? [],
