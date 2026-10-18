@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
-import { LaunchCard } from '../../components/promo/LaunchOffer';
+import { LaunchCard, useLaunchOffer } from '../../components/promo/LaunchOffer';
 import { LEGAL } from '../../lib/legal';
 import { REFERRAL_DISCOUNT_XOF, REFERRAL_STORAGE_KEY, normalizeCode } from '../../lib/promo';
 import { formatXof } from '../../lib/plan';
@@ -35,6 +35,9 @@ export default function RegisterPage() {
   // Anti-robot (Turnstile) : jeton à usage unique, renouvelé après chaque envoi
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
+  // Pendant l'offre de lancement (-30 %, non cumulable), le bandeau du parrain n'est pas affiché ;
+  // le code reste enregistré à l'inscription (récompense du parrain si le couple paie)
+  const launchActive = useLaunchOffer();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   
@@ -245,7 +248,7 @@ export default function RegisterPage() {
 
           <LaunchCard variant="dark" className="mb-4" />
 
-          {referral && (
+          {referral && !launchActive && (
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-400 text-white"><Gift className="h-4 w-4" /></span>
               <p><strong>{referral.inviter}</strong> vous invitent sur WeddingStudio : <strong>{formatXof(REFERRAL_DISCOUNT_XOF)} de réduction</strong> sur votre palier, avec le code <span className="font-mono font-semibold">{referral.code}</span>.</p>
