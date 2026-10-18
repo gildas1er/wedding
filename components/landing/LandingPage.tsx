@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AlliancesMark from '../brand/AlliancesMark';
+import { LaunchCard, LaunchRibbon } from '../promo/LaunchOffer';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Check, Mail, Wallet, Armchair, Users, CalendarClock,
@@ -64,6 +65,7 @@ export default function LandingPage() {
     <div className="min-h-screen overflow-x-hidden bg-ivory text-ink">
       {/* ── NAVIGATION ── */}
       <nav className="fixed inset-x-0 top-0 z-[100] border-b border-slate-200/60 bg-ivory/80 backdrop-blur-xl">
+        <LaunchRibbon />
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
           <Wordmark />
           <div className="hidden items-center gap-9 text-sm text-slate-600 md:flex">
@@ -117,6 +119,7 @@ export default function LandingPage() {
                 Découvrir
               </a>
             </div>
+            <LaunchCard className="mt-8" />
             <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
               {['Gratuit pour commencer', 'Pensé pour le mobile', 'En FCFA'].map((t) => (
                 <li key={t} className="flex items-center gap-2"><Check size={15} className="text-amber-600" />{t}</li>

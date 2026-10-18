@@ -11,6 +11,7 @@ import { TIERS, formatXof, tierById, upgradePrice } from '../../lib/plan';
 import { EXTENSION_MONTHS, EXTENSION_PRICE_XOF } from '../../lib/lifecycle';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { REFERRAL_REWARD_XOF, describeDiscount, discountFor, type AppliedCode } from '../../lib/promo';
+import { LAUNCH_OFFER, bestReduction, launchDiscount, launchOfferActive } from '../../lib/launch-offer';
 
 export type AdminCouple = {
   id: string; ref: string; userId: string | null; couple: string; email: string | null; phone: string | null; provider: string | null;
@@ -48,16 +49,21 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
   const nextTier = TIERS.find((t) => t.max >= c.persons && (!tierById(currentTier) || t.max > tierById(currentTier)!.max)) ?? TIERS[TIERS.length - 1];
   // Code saisi par le couple, encore utilisable : déduit du montant proposé (décochable)
   const usableCode = c.code && c.code.valid && !c.code.used ? c.code : null;
-  const [useCode, setUseCode] = useState(Boolean(usableCode));
-  const priceFor = (id: string, withCode: boolean) => {
-    const t = tierById(id);
-    if (!t) return '';
-    const base = upgradePrice(currentTier, t.id);
-    return String(base - (withCode ? discountFor(base, usableCode) : 0));
+  // Offre de lancement : première formule activée aujourd'hui (date d'activation), non cumulable avec un code
+  const launchNow = launchOfferActive() && !c.premium && !c.tier;
+  const baseFor = (id: string) => (tierById(id) ? upgradePrice(currentTier, id as never) : 0);
+  const bestFor = (id: string) => (tierById(id) ? bestReduction(baseFor(id), { launch: launchNow, code: usableCode }) : null);
+  const [useCode, setUseCode] = useState(bestFor(nextTier.id)?.kind === 'code');
+  const [useLaunch, setUseLaunch] = useState(bestFor(nextTier.id)?.kind === 'launch');
+  const priceFor = (id: string, withCode: boolean, withLaunch: boolean) => {
+    if (!tierById(id)) return '';
+    const base = baseFor(id);
+    const cut = withLaunch && launchNow ? launchDiscount(base) : withCode ? discountFor(base, usableCode) : 0;
+    return String(base - cut);
   };
   const [tier, setTier] = useState<string>(nextTier.id);
   const [limit, setLimit] = useState('400');
-  const [amount, setAmount] = useState(priceFor(nextTier.id, Boolean(usableCode)));
+  const [amount, setAmount] = useState(priceFor(nextTier.id, bestFor(nextTier.id)?.kind === 'code', bestFor(nextTier.id)?.kind === 'launch'));
   const [rewardAmount, setRewardAmount] = useState(String(REFERRAL_REWARD_XOF));
   const [note, setNote] = useState('');
   const [extAmount, setExtAmount] = useState(String(EXTENSION_PRICE_XOF));
@@ -71,9 +77,13 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
     setBusy(null);
   };
 
+  // Changement de palier : la réduction la plus avantageuse est proposée de nouveau
   const pickTier = (id: string) => {
     setTier(id);
-    setAmount(priceFor(id, useCode));
+    const best = bestFor(id);
+    setUseCode(best?.kind === 'code');
+    setUseLaunch(best?.kind === 'launch');
+    setAmount(priceFor(id, best?.kind === 'code', best?.kind === 'launch'));
   };
 
   const days = daysTo(c.weddingDate);
@@ -168,16 +178,23 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
               </label>
             </div>
             {currentTier && tierById(tier) && <p className="mt-2 text-xs text-slate-500">Différence avec le palier actuel ({tierLabel(c)}) : {formatXof(upgradePrice(currentTier, tier as never))}</p>}
+            {launchNow && tierById(tier) && (
+              <label className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 ring-1 ring-emerald-100">
+                <input type="checkbox" checked={useLaunch} onChange={(e) => { const on = e.target.checked; setUseLaunch(on); if (on) setUseCode(false); setAmount(priceFor(tier, on ? false : useCode, on)); }} className="mt-0.5 h-4 w-4 accent-emerald-600" />
+                <span>Offre de lancement -{LAUNCH_OFFER.percent} % : <strong>-{formatXof(launchDiscount(baseFor(tier)))}</strong> (première formule, jusqu&apos;au {LAUNCH_OFFER.endLabel}).</span>
+              </label>
+            )}
+            {currentTier && tierById(tier) && launchOfferActive() && <p className="mt-2 text-xs text-rose-700">Montée de palier : l&apos;offre de lancement ne s&apos;applique pas.</p>}
             {usableCode && (
               <label className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 ring-1 ring-emerald-100">
-                <input type="checkbox" checked={useCode} onChange={(e) => { setUseCode(e.target.checked); setAmount(priceFor(tier, e.target.checked)); }} className="mt-0.5 h-4 w-4 accent-emerald-600" />
-                <span>Appliquer le code <span className="font-mono font-semibold">{usableCode.code}</span> ({describeDiscount(usableCode)}{usableCode.label ? ` · ${usableCode.label}` : ''}). Il sera marqué comme utilisé.</span>
+                <input type="checkbox" checked={useCode} onChange={(e) => { const on = e.target.checked; setUseCode(on); if (on) setUseLaunch(false); setAmount(priceFor(tier, on, on ? false : useLaunch)); }} className="mt-0.5 h-4 w-4 accent-emerald-600" />
+                <span>Appliquer le code <span className="font-mono font-semibold">{usableCode.code}</span> ({describeDiscount(usableCode)}{usableCode.label ? ` · ${usableCode.label}` : ''}). Il sera marqué comme utilisé.{launchNow && tierById(tier) ? ' Non cumulable avec l’offre de lancement : la plus avantageuse est cochée.' : ''}</span>
               </label>
             )}
             <button
               type="button"
               disabled={busy !== null}
-              onClick={() => run('tier', 'tier', { tier, limit: Number(limit), amount: Number(amount) || 0, note, useCode: Boolean(usableCode && useCode) })}
+              onClick={() => run('tier', 'tier', { tier, limit: Number(limit), amount: Number(amount) || 0, note, useCode: Boolean(usableCode && useCode && !useLaunch), launch: Boolean(launchNow && useLaunch && tierById(tier)) })}
               className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
             >
               {busy === 'tier' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4 text-amber-300" />} Activer ce palier

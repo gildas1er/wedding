@@ -4,6 +4,7 @@ import { deleteSpace } from '../../../../../lib/account-server';
 import { TIERS, tierById } from '../../../../../lib/plan';
 import { EXTENSION_MONTHS } from '../../../../../lib/lifecycle';
 import { crossSiteRefusal, isSameOrigin } from '../../../../../lib/same-origin';
+import { LAUNCH_OFFER, isFirstPurchase, launchOfferActive } from '../../../../../lib/launch-offer';
 
 type Body = {
   action: 'tier' | 'free' | 'extend' | 'payment' | 'disable' | 'enable' | 'delete' | 'referral_paid';
@@ -13,6 +14,7 @@ type Body = {
   note?: string;
   confirm?: string;
   useCode?: boolean; // appliquer le code promo ou de parrainage saisi par le couple
+  launch?: boolean;  // offre de lancement -30 % (première formule, date d'activation avant la fin de l'offre)
 };
 
 const addMonths = (d: Date, n: number) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
@@ -56,15 +58,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const limit = t ? t.max : custom ? Math.round(Number(body.limit) || 0) : null;
         if (custom && (!limit || limit <= TIERS.at(-1)!.max)) return NextResponse.json({ error: `Indiquez une limite de plus de ${TIERS.at(-1)!.max} invités.` }, { status: 400 });
         const until = new Date(Math.max(addMonths(wedding, 1).getTime(), addMonths(new Date(), 1).getTime()));
-        // Code saisi par le couple : consommé avec ce paiement
-        const code = body.useCode && m.applied_code && !m.applied_code_used_at ? String(m.applied_code) : null;
+        // Offre de lancement : vérifiée ici à la date d'activation (première formule, palier Intime à Royal)
+        const launch = Boolean(body.launch && t && launchOfferActive() && isFirstPurchase(m));
+        // Code saisi par le couple : consommé avec ce paiement, jamais en plus de l'offre de lancement
+        const code = !launch && body.useCode && m.applied_code && !m.applied_code_used_at ? String(m.applied_code) : null;
         const { error } = await db.from('marriages').update({
           plan: 'premium', tier: body.tier, guest_limit: limit, premium_until: until.toISOString(),
           ...(code ? { applied_code_used_at: new Date().toISOString() } : {}),
         }).eq('id', id);
         if (error) throw error;
-        await recordPayment(`Palier ${t?.label ?? (custom ? 'Sur mesure' : 'Illimité')}`, code);
-        await log('palier', { tier: body.tier, limit, amount, note: body.note ?? null, until: until.toISOString(), code });
+        await recordPayment(`Palier ${t?.label ?? (custom ? 'Sur mesure' : 'Illimité')}${launch ? ` · offre de lancement -${LAUNCH_OFFER.percent} %` : ''}`, code);
+        await log('palier', { tier: body.tier, limit, amount, note: body.note ?? null, until: until.toISOString(), code, launch });
         break;
       }
       case 'free': {

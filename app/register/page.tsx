@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
+import { LaunchCard } from '../../components/promo/LaunchOffer';
 import { LEGAL } from '../../lib/legal';
 import { REFERRAL_DISCOUNT_XOF, REFERRAL_STORAGE_KEY, normalizeCode } from '../../lib/promo';
 import { formatXof } from '../../lib/plan';
@@ -241,6 +242,8 @@ export default function RegisterPage() {
             </h1>
             <p className="text-slate-500 font-medium text-sm">Créez votre compte gratuit en quelques secondes.</p>
           </div>
+
+          <LaunchCard variant="dark" className="mb-4" />
 
           {referral && (
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

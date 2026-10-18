@@ -9,6 +9,7 @@ import PricingModal from '@/components/dashboard/PricingModal';
 import WelcomeFlow from '@/components/dashboard/WelcomeFlow';
 import JourneyCard, { type JourneyState } from '@/components/dashboard/JourneyCard';
 import { daysUntil } from '../../lib/planning';
+import { isFirstPurchase } from '../../lib/launch-offer';
 import { 
   Heart, Users, Banknote, Calendar, LogOut, 
   MessageSquare, Settings, ChevronRight,
@@ -174,7 +175,7 @@ export default function WeddingDashboard() {
       
       <AnimatePresence>
         {celebration && <MilestoneCelebration title={celebration.title} message={celebration.message} onConfirm={() => setCelebration(null)} />}
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showPricing && <PricingModal onClose={() => setShowPricing(false)} allowLaunch={isFirstPurchase(marriage)} marriageId={marriage?.id} />}
       </AnimatePresence>
 
 

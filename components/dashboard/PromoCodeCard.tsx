@@ -6,7 +6,8 @@ import { Ticket, Loader2, X, Check, AlertCircle } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import { describeDiscount, normalizeCode, type AppliedCode } from '../../lib/promo';
 
-export default function PromoCodeCard({ applied, onChange }: { applied: AppliedCode | null; onChange: () => Promise<void> | void }) {
+// launch : offre de lancement en cours pour ce couple (non cumulable : la plus avantageuse s'applique sur chaque formule)
+export default function PromoCodeCard({ applied, onChange, launch = false }: { applied: AppliedCode | null; onChange: () => Promise<void> | void; launch?: boolean }) {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export default function PromoCodeCard({ applied, onChange }: { applied: AppliedC
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-600 text-white"><Check className="h-4 w-4" /></span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-emerald-900"><span className="font-mono">{applied.code}</span> · {describeDiscount(applied)}</p>
-            <p className="text-xs text-emerald-800">{applied.label ?? (applied.kind === 'parrainage' ? 'Parrainage' : 'Code promo')}. La réduction est déjà comptée dans les prix ci-dessus.</p>
+            <p className="text-xs text-emerald-800">{applied.label ?? (applied.kind === 'parrainage' ? 'Parrainage' : 'Code promo')}. {launch ? 'Non cumulable avec l’offre de lancement : sur chaque formule, la réduction la plus avantageuse est déjà comptée dans les prix ci-dessus.' : 'La réduction est déjà comptée dans les prix ci-dessus.'}</p>
           </div>
           <button type="button" onClick={remove} disabled={busy} className="inline-flex min-h-[40px] items-center gap-1 rounded-lg px-3 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />} Retirer

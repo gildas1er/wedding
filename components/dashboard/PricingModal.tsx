@@ -6,6 +6,8 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Crown, MessageCircle, Sparkles, X } from 'lucide-react';
+import { LAUNCH_OFFER, launchDiscount } from '../../lib/launch-offer';
+import { useLaunchOffer } from '../promo/LaunchOffer';
 import {
   FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS,
   formatXof, recommendedTier, tierById, tierWhatsappLink, upgradePrice,
@@ -17,12 +19,14 @@ type Props = {
   persons?: number;              // personnes déjà prévues (fiches + accompagnants)
   byPersons?: boolean;
   currentTier?: string | null;   // palier déjà acheté
+  allowLaunch?: boolean;         // offre de lancement : seulement si le couple n'a encore jamais payé de formule
   marriageId?: string | null;
   couple?: string;
 };
 
-export default function PricingModal({ onClose, reason = 'discover', persons = 0, currentTier = null, marriageId = null, couple = '' }: Props) {
+export default function PricingModal({ onClose, reason = 'discover', persons = 0, currentTier = null, marriageId = null, couple = '', allowLaunch = false }: Props) {
   const current = tierById(currentTier);
+  const launch = useLaunchOffer() && allowLaunch;
   // Palier conseillé : celui qui accueille la liste actuelle plus au moins une personne
   const need = reason === 'limit' ? persons + 1 : Math.max(persons, 1);
   const advised = recommendedTier(Math.max(need, (current?.max ?? 0) + 1));
@@ -54,6 +58,9 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
           {persons > 0 && <> Votre liste compte aujourd&apos;hui <strong className="text-ink">{persons} invité{persons > 1 ? 's' : ''}</strong>.</>}
         </p>
 
+        {launch && !current && (
+          <p className="mt-4 rounded-xl bg-ink px-3 py-2 text-xs text-white"><strong className="text-amber-300">Offre de lancement : -{LAUNCH_OFFER.percent} %</strong> sur votre première formule jusqu&apos;au {LAUNCH_OFFER.endLabel}, déjà déduits ci-dessous.</p>
+        )}
         <ul className="mt-5 space-y-2" aria-label="Paliers">
           {TIERS.map((t) => {
             const isCurrent = current?.id === t.id;
@@ -62,10 +69,12 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
             const isAdvised = advised?.id === t.id;
             const price = current ? upgradePrice(current.id, t.id) : t.price;
             const disabled = isCurrent || below || tooSmall;
+            // Offre de lancement : première formule seulement
+            const launchCut = launch && !current ? launchDiscount(t.price) : 0;
             return (
               <li key={t.id}>
                 <a
-                  href={disabled ? undefined : tierWhatsappLink(couple, marriageId, t.id, current?.id, persons)}
+                  href={disabled ? undefined : tierWhatsappLink(couple, marriageId, t.id, current?.id, persons, launchCut ? { discount: launchCut, launch: true } : null)}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-disabled={disabled}
@@ -82,7 +91,14 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
                     <span className="block text-xs text-slate-500">jusqu&apos;à {t.max} invités</span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block whitespace-nowrap font-semibold text-ink">{current && !isCurrent && !below ? `+ ${formatXof(price)}` : formatXof(t.price)}</span>
+                    {launchCut ? (
+                      <>
+                        <span className="block whitespace-nowrap font-semibold text-ink">{formatXof(t.price - launchCut)}</span>
+                        <s className="block text-[11px] text-slate-400">{formatXof(t.price)}</s>
+                      </>
+                    ) : (
+                      <span className="block whitespace-nowrap font-semibold text-ink">{current && !isCurrent && !below ? `+ ${formatXof(price)}` : formatXof(t.price)}</span>
+                    )}
                     {current && !isCurrent && !below && <span className="block text-[11px] text-slate-500">la différence</span>}
                   </span>
                 </a>

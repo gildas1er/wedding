@@ -10,7 +10,9 @@ import {
   PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS,
   countPersons, formatXof, guestQuota, recommendedTier, tierWhatsappLink, upgradePrice,
 } from '../../../lib/plan';
-import { activeCode, discountFor, type AppliedCode } from '../../../lib/promo';
+import { activeCode, type AppliedCode } from '../../../lib/promo';
+import { LAUNCH_OFFER, bestReduction, isFirstPurchase } from '../../../lib/launch-offer';
+import { LaunchRibbon, useLaunchOffer } from '../../../components/promo/LaunchOffer';
 import PromoCodeCard from '../../../components/dashboard/PromoCodeCard';
 import ReferralCard, { type Referrals } from '../../../components/dashboard/ReferralCard';
 import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
@@ -36,6 +38,7 @@ export default function PremiumPage() {
   const [applied, setApplied] = useState<AppliedCode | null>(null);
   const [referrals, setReferrals] = useState<Referrals | null>(null);
   const [codesReady, setCodesReady] = useState(false);
+  const launchActive = useLaunchOffer();
 
   const loadCodes = useCallback(async () => {
     const [code, refs] = await Promise.all([supabase.rpc('my_code'), supabase.rpc('my_referrals')]);
@@ -72,10 +75,17 @@ export default function PremiumPage() {
   const until = marriage?.premium_until ? new Date(marriage.premium_until).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
   const pct = quota.limit ? Math.min(100, (quota.used / quota.limit) * 100) : 0;
   const code = activeCode(applied);
-  const promoFor = (price: number) => (code ? { code: code.code, discount: discountFor(price, code) } : null);
+  // Offre de lancement : première formule seulement (pas de montée de palier), non cumulable avec un code
+  const launch = launchActive && isFirstPurchase(marriage);
+  const promoFor = (price: number) => {
+    const best = bestReduction(price, { launch, code });
+    if (!best) return null;
+    return best.kind === 'launch' ? { code: null, discount: best.discount, launch: true } : { code: best.code, discount: best.discount };
+  };
 
   return (
     <div className="min-h-screen bg-ivory">
+      {launch && <LaunchRibbon />}
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10 lg:py-12">
         <header className="mb-8">
           <p className="eyebrow">Votre formule</p>
@@ -138,7 +148,7 @@ export default function PremiumPage() {
                           <span className="font-display text-3xl text-ink">{current ? '+ ' : ''}{formatXof(reduced)}</span>
                           <s className="text-sm text-slate-400">{formatXof(diff)}</s>
                         </p>
-                        <p className="text-xs font-semibold text-emerald-700">avec le code {promo!.code}{current ? ` · différence avec le palier ${current.label}` : ''}</p>
+                        <p className="text-xs font-semibold text-emerald-700">{promo!.launch ? `Offre de lancement -${LAUNCH_OFFER.percent} % · vous économisez ${formatXof(promo!.discount)}` : `avec le code ${promo!.code}`}{current ? ` · différence avec le palier ${current.label}` : ''}</p>
                       </>
                     ) : (
                       <>
@@ -170,12 +180,13 @@ export default function PremiumPage() {
                 </a>
               </article>
             </div>
+            {launch && <p className="mt-3 text-center text-xs text-slate-500">Offre de lancement : -{LAUNCH_OFFER.percent} % sur votre première formule activée au plus tard le {LAUNCH_OFFER.endLabel}. Non cumulable avec un code promo ou de parrainage (la réduction la plus avantageuse s&apos;applique).</p>}
           </section>
         )}
 
         {codesReady && (
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {!unlimited && <PromoCodeCard applied={applied} onChange={loadCodes} />}
+            {!unlimited && <PromoCodeCard applied={applied} onChange={loadCodes} launch={launch} />}
             {referrals && <ReferralCard referrals={referrals} />}
           </div>
         )}

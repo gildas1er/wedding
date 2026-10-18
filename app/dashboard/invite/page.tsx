@@ -8,6 +8,7 @@ import Papa from 'papaparse';
 import { normalizePhone, whatsappLink } from '../../../lib/phone';
 import { buildInvitationMessage } from '../../../lib/whatsapp-message';
 import { countPersons, guestQuota, isGuestLimitError } from '../../../lib/plan';
+import { isFirstPurchase } from '../../../lib/launch-offer';
 import PricingModal from '../../../components/dashboard/PricingModal';
 import { 
   Users, Search, Plus, Send, Edit3, Trash2, 
@@ -949,7 +950,7 @@ export default function GuestPage() {
       </button>
 
       <AnimatePresence>
-        {pricing && <PricingModal reason={pricing} persons={countPersons(guests)} byPersons={quota.byPersons} currentTier={quota.tierId} marriageId={marriage?.id} couple={[marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ')} onClose={() => setPricing(null)} />}
+        {pricing && <PricingModal allowLaunch={isFirstPurchase(marriage)} reason={pricing} persons={countPersons(guests)} byPersons={quota.byPersons} currentTier={quota.tierId} marriageId={marriage?.id} couple={[marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ')} onClose={() => setPricing(null)} />}
       </AnimatePresence>
       <AnimatePresence>
         {contactsOpen && (

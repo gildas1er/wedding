@@ -18,6 +18,7 @@ import { isPremium, tierById } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 import { guideHref } from '../../lib/guide';
 import { REFERRAL_STORAGE_KEY } from '../../lib/promo';
+import { isFirstPurchase } from '../../lib/launch-offer';
 import { getSessionUser, loadMarriage } from '../../lib/current-marriage';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
@@ -47,7 +48,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 ];
 
 type Couple = {
-  id: string; p1: string; p2: string; date: string | null; premium: boolean; tierLabel: string | null; guestLimit: number | null;
+  id: string; p1: string; p2: string; date: string | null; premium: boolean; tierLabel: string | null; guestLimit: number | null; firstPurchase: boolean;
   lifecycle: ReturnType<typeof spaceLifecycle>;
 };
 
@@ -238,7 +239,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       const { data } = await loadMarriage(user.id);
       if (!data) return;
       const lifecycle = spaceLifecycle(data);
-      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, lifecycle });
+      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, firstPurchase: isFirstPurchase(data), lifecycle });
       // Parrainage : code du lien d'inscription gardé dans le navigateur (inscription Google comprise)
       try {
         const pending = localStorage.getItem(REFERRAL_STORAGE_KEY);
@@ -351,7 +352,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </AnimatePresence>
 
       <AnimatePresence>
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showPricing && <PricingModal onClose={() => setShowPricing(false)} allowLaunch={Boolean(couple?.firstPurchase)} marriageId={couple?.id} couple={[couple?.p1, couple?.p2].filter(Boolean).join(' & ')} />}
       </AnimatePresence>
       <AnimatePresence>
         {souvenirModal && couple && (
