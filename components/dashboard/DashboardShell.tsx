@@ -14,11 +14,12 @@ import PricingModal from './PricingModal';
 import SouvenirModal from './SouvenirModal';
 import DeleteAccountModal from './DeleteAccountModal';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
-import { isPremium, tierById } from '../../lib/plan';
+import { FREE_GUEST_LIMIT, countPersons, isPremium, tierById } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 import { guideHref } from '../../lib/guide';
 import { REFERRAL_STORAGE_KEY } from '../../lib/promo';
-import { isFirstPurchase } from '../../lib/launch-offer';
+import { LAUNCH_OFFER, isFirstPurchase } from '../../lib/launch-offer';
+import { useLaunchOffer } from '../promo/LaunchOffer';
 import { getSessionUser, loadMarriage } from '../../lib/current-marriage';
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
@@ -49,6 +50,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 
 type Couple = {
   id: string; p1: string; p2: string; date: string | null; premium: boolean; tierLabel: string | null; guestLimit: number | null; firstPurchase: boolean;
+  byPersons: boolean; // version gratuite : compte les personnes (fiches avant la migration 17)
   lifecycle: ReturnType<typeof spaceLifecycle>;
 };
 
@@ -111,8 +113,8 @@ function CoupleCard({ couple }: { couple: Couple | null }) {
   );
 }
 
-function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
-  pathname: string; couple: Couple | null; onUpgrade: () => void; onLogout: () => void; onNavigate?: () => void;
+function SidebarContent({ pathname, couple, used, onUpgrade, onLogout, onNavigate }: {
+  pathname: string; couple: Couple | null; used: number | null; onUpgrade: () => void; onLogout: () => void; onNavigate?: () => void;
 }) {
   const souvenir = couple?.lifecycle.phase === 'souvenir';
   // Mode souvenir : « Mes souvenirs » et l'album en tête, le reste verrouillé
@@ -192,21 +194,7 @@ function SidebarContent({ pathname, couple, onUpgrade, onLogout, onNavigate }: {
             <span><span className="block font-semibold text-ink">{couple.tierLabel ? `Palier ${couple.tierLabel}` : 'Premium actif'}</span><span className="text-xs text-slate-500">{couple.guestLimit ? `Jusqu’à ${couple.guestLimit} invités` : 'Invités illimités'}</span></span>
           </Link>
         ) : (
-          <div className="relative mt-6 mb-3 overflow-hidden rounded-2xl bg-ink p-4 text-white">
-            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-400/20 blur-2xl" />
-            <div className="relative">
-              <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-300">
-                <Crown size={13} /> Premium
-              </p>
-              <p className="mt-1.5 font-display text-[15px] leading-snug">Recevez tous vos proches, dès 50 000 F</p>
-              <button
-                onClick={onUpgrade}
-                className="mt-3 w-full rounded-lg bg-amber-300 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-amber-200"
-              >
-                Découvrir l&apos;offre
-              </button>
-            </div>
-          </div>
+          <GuestAllowanceCard used={used} byPersons={couple?.byPersons ?? true} firstPurchase={couple?.firstPurchase ?? true} onUpgrade={onUpgrade} onNavigate={onNavigate} />
         )}
       </nav>
 
@@ -232,6 +220,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [souvenirModal, setSouvenirModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
 
+  // Invités offerts déjà utilisés (carte du menu) : relus à chaque changement de page et quand la liste change
+  const [used, setUsed] = useState<number | null>(null);
+  useEffect(() => {
+    if (!couple?.id || couple.premium) return;
+    const read = () => supabase.from('invite').select('guests_count').eq('marriage_id', couple.id).then(({ data }) => {
+      if (data) setUsed(couple.byPersons ? countPersons(data) : data.length);
+    });
+    read();
+    window.addEventListener('ws-guests-changed', read);
+    return () => window.removeEventListener('ws-guests-changed', read);
+  }, [couple?.id, couple?.premium, couple?.byPersons, pathname]);
+
   // Noms et date du couple pour la carte du menu
   useEffect(() => {
     getSessionUser().then(async ({ data: { user } }) => {
@@ -239,7 +239,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       const { data } = await loadMarriage(user.id);
       if (!data) return;
       const lifecycle = spaceLifecycle(data);
-      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, firstPurchase: isFirstPurchase(data), lifecycle });
+      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, firstPurchase: isFirstPurchase(data), byPersons: data.legacy_free_fiches === false, lifecycle });
       // Parrainage : code du lien d'inscription gardé dans le navigateur (inscription Google comprise)
       try {
         const pending = localStorage.getItem(REFERRAL_STORAGE_KEY);
@@ -292,7 +292,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       {/* BARRE LATÉRALE — ORDINATEUR */}
       <aside className="paper hidden lg:flex fixed inset-y-0 left-0 w-[17rem] z-40 flex-col border-r border-slate-200/80 print:hidden">
         <div className="px-7 pt-7 pb-5"><Wordmark /></div>
-        <SidebarContent pathname={pathname} couple={couple} onUpgrade={openPricing} onLogout={handleLogout} />
+        <SidebarContent pathname={pathname} couple={couple} used={used} onUpgrade={openPricing} onLogout={handleLogout} />
       </aside>
 
       {/* BARRE DU HAUT — MOBILE & TABLETTE */}
@@ -345,7 +345,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   <X size={20} />
                 </button>
               </div>
-              <SidebarContent pathname={pathname} couple={couple} onUpgrade={openPricing} onLogout={handleLogout} onNavigate={() => setDrawerOpen(false)} />
+              <SidebarContent pathname={pathname} couple={couple} used={used} onUpgrade={openPricing} onLogout={handleLogout} onNavigate={() => setDrawerOpen(false)} />
             </motion.aside>
           </>
         )}
@@ -382,5 +382,49 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
     </div>
     </ConfirmProvider>
+  );
+}
+
+// Carte du menu (version gratuite) : accompagne la liste d'invités au lieu d'annoncer un prix.
+// 0 invité : « 30 invités offerts pour bien démarrer » ; en cours ; presque plein ; complet.
+// L'offre de lancement n'est rappelée que lorsque la liste approche de la limite.
+function GuestAllowanceCard({ used, byPersons, firstPurchase, onUpgrade, onNavigate }: {
+  used: number | null; byPersons: boolean; firstPurchase: boolean; onUpgrade: () => void; onNavigate?: () => void;
+}) {
+  const launch = useLaunchOffer() && firstPurchase;
+  const limit = FREE_GUEST_LIMIT;
+  const n = used ?? 0;
+  const pct = Math.min(100, Math.round((n / limit) * 100));
+  const remaining = Math.max(0, limit - n);
+  const unit = byPersons ? 'invités' : 'fiches';
+  const stage = used === null || n === 0 ? 'start' : n >= limit ? 'full' : pct >= 80 ? 'almost' : 'growing';
+  const title = {
+    start: `${limit} invités offerts pour bien démarrer`,
+    growing: 'Votre liste prend forme',
+    almost: `Plus que ${remaining} place${remaining > 1 ? 's' : ''} offerte${remaining > 1 ? 's' : ''}`,
+    full: 'Votre liste est complète : invitez tout le monde',
+  }[stage];
+  const action = { start: 'Ajouter mes invités', growing: 'Agrandir ma liste', almost: 'Recevoir toute la famille', full: 'Choisir mon palier' }[stage];
+  const button = 'mt-2.5 block w-full rounded-lg bg-amber-300 py-2 text-center text-[13px] font-semibold text-ink transition-colors hover:bg-amber-200';
+  return (
+    <div className="relative mt-4 mb-2 overflow-hidden rounded-2xl bg-ink p-3.5 text-white">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-400/20 blur-2xl" />
+      <div className="relative">
+        <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-300">
+          <Crown size={13} /> Votre liste d&apos;invités
+        </p>
+        <p className="mt-1.5 font-display text-[15px] leading-snug">{title}</p>
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuemin={0} aria-valuemax={limit} aria-valuenow={n} aria-label={`${n} ${unit} sur ${limit} offerts`}>
+          <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500 transition-[width] duration-700" style={{ width: `${Math.max(pct, n > 0 ? 3 : 0)}%` }} />
+        </div>
+        <p className="mt-1 flex justify-between gap-2 text-[11px] text-white/65">
+          <span>{used === null ? '…' : n} / {limit} {unit}</span>
+          <span>{launch && (stage === 'almost' || stage === 'full') ? `-${LAUNCH_OFFER.percent} % jusqu'au ${LAUNCH_OFFER.shortEnd.replace('décembre', 'déc.')}` : byPersons ? 'offerts' : 'offertes'}</span>
+        </p>
+        {stage === 'start'
+          ? <Link href="/dashboard/invite" onClick={onNavigate} className={button}>{action}</Link>
+          : <button type="button" onClick={onUpgrade} className={button}>{action}</button>}
+      </div>
+    </div>
   );
 }

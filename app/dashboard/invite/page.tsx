@@ -475,6 +475,8 @@ export default function GuestPage() {
       setMarriage(marriageData);
       const { data: guestsData } = await supabase.from('invite').select('*').eq('marriage_id', marriageData.id).order('created_at', { ascending: false });
       setGuests(guestsData || []);
+      // Carte « Votre liste d'invités » du menu : elle se met à jour aussitôt
+      window.dispatchEvent(new Event('ws-guests-changed'));
     }
     setLoading(false);
   }, [router]);

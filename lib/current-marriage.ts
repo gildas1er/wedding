@@ -11,8 +11,18 @@ export async function getSessionUser() {
   return { data: { user: session?.user ?? null } };
 }
 
-const readMarriage = (userId: string) =>
+const selectMarriage = (userId: string) =>
   supabase.from('marriages').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(1).maybeSingle();
+
+// Couple connecté sans fiche (création à l'inscription échouée) : la base la crée aussitôt
+// (fonction ensure_my_marriage, migration 30). Sans la migration, on garde le résultat vide.
+async function readMarriage(userId: string) {
+  const res = await selectMarriage(userId);
+  if (res.data || res.error) return res;
+  const { data: created, error } = await supabase.rpc('ensure_my_marriage');
+  if (error || !Array.isArray(created) || !created[0]) return res;
+  return { ...res, data: created[0] as typeof res.data };
+}
 
 type MarriageResult = Awaited<ReturnType<typeof readMarriage>>;
 let shared: { userId: string; at: number; promise: Promise<MarriageResult> } | null = null;
