@@ -14,7 +14,7 @@ import PricingModal from './PricingModal';
 import SouvenirModal from './SouvenirModal';
 import DeleteAccountModal from './DeleteAccountModal';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
-import { FREE_GUEST_LIMIT, countPersons, isPremium, tierById } from '../../lib/plan';
+import { FREE_GUEST_LIMIT, TIERS, countPersons, formatXof, isPremium, tierById, upgradePrice } from '../../lib/plan';
 import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 import { guideHref } from '../../lib/guide';
 import { REFERRAL_STORAGE_KEY } from '../../lib/promo';
@@ -49,7 +49,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 ];
 
 type Couple = {
-  id: string; p1: string; p2: string; date: string | null; premium: boolean; tierLabel: string | null; guestLimit: number | null; firstPurchase: boolean;
+  id: string; p1: string; p2: string; date: string | null; premium: boolean; tierId: string | null; tierLabel: string | null; guestLimit: number | null; firstPurchase: boolean;
   byPersons: boolean; // version gratuite : compte les personnes (fiches avant la migration 17)
   lifecycle: ReturnType<typeof spaceLifecycle>;
 };
@@ -188,6 +188,8 @@ function SidebarContent({ pathname, couple, used, onUpgrade, onLogout, onNavigat
               Lecture seule. Suppression le {formatLongDate(couple?.lifecycle.deleteAt ?? null)}.
             </span>
           </Link>
+        ) : couple?.premium && couple.guestLimit && tierById(couple.tierId) ? (
+          <TierGaugeCard tierId={couple.tierId!} limit={couple.guestLimit} used={used} onUpgrade={onUpgrade} onNavigate={onNavigate} />
         ) : couple?.premium ? (
           <Link href="/dashboard/premium" onClick={onNavigate} className="mt-6 mb-3 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50/70 p-3 text-sm">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink text-amber-300"><Crown size={15} /></span>
@@ -223,14 +225,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   // Invités offerts déjà utilisés (carte du menu) : relus à chaque changement de page et quand la liste change
   const [used, setUsed] = useState<number | null>(null);
   useEffect(() => {
-    if (!couple?.id || couple.premium) return;
+    // Premium : seulement pour un palier limité (la jauge du palier)
+    if (!couple?.id || (couple.premium && !couple.guestLimit)) return;
     const read = () => supabase.from('invite').select('guests_count').eq('marriage_id', couple.id).then(({ data }) => {
-      if (data) setUsed(couple.byPersons ? countPersons(data) : data.length);
+      if (data) setUsed(couple.premium || couple.byPersons ? countPersons(data) : data.length);
     });
     read();
     window.addEventListener('ws-guests-changed', read);
     return () => window.removeEventListener('ws-guests-changed', read);
-  }, [couple?.id, couple?.premium, couple?.byPersons, pathname]);
+  }, [couple?.id, couple?.premium, couple?.guestLimit, couple?.byPersons, pathname]);
 
   // Noms et date du couple pour la carte du menu
   useEffect(() => {
@@ -239,7 +242,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       const { data } = await loadMarriage(user.id);
       if (!data) return;
       const lifecycle = spaceLifecycle(data);
-      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, firstPurchase: isFirstPurchase(data), byPersons: data.legacy_free_fiches === false, lifecycle });
+      setCouple({ id: data.id, p1: data.partner_1_name || '', p2: data.partner_2_name || '', date: data.wedding_date, premium: isPremium(data), tierId: data.tier ?? null, tierLabel: tierById(data.tier)?.label ?? (data.tier === 'sur_mesure' ? 'Sur mesure' : null), guestLimit: data.guest_limit ?? null, firstPurchase: isFirstPurchase(data), byPersons: data.legacy_free_fiches === false, lifecycle });
       // Parrainage : code du lien d'inscription gardé dans le navigateur (inscription Google comprise)
       try {
         const pending = localStorage.getItem(REFERRAL_STORAGE_KEY);
@@ -352,7 +355,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </AnimatePresence>
 
       <AnimatePresence>
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} allowLaunch={Boolean(couple?.firstPurchase)} marriageId={couple?.id} couple={[couple?.p1, couple?.p2].filter(Boolean).join(' & ')} />}
+        {showPricing && <PricingModal onClose={() => setShowPricing(false)} allowLaunch={Boolean(couple?.firstPurchase)} currentTier={couple?.premium ? couple.tierId : null} persons={used ?? 0} reason={couple?.premium && couple.guestLimit && (used ?? 0) >= couple.guestLimit ? 'limit' : 'discover'} marriageId={couple?.id} couple={[couple?.p1, couple?.p2].filter(Boolean).join(' & ')} />}
       </AnimatePresence>
       <AnimatePresence>
         {souvenirModal && couple && (
@@ -382,6 +385,57 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
     </div>
     </ConfirmProvider>
+  );
+}
+
+// Carte du menu (palier payé) : jauge du palier, puis le palier suivant au bon moment.
+// Moins de 80 % : « Votre liste avance bien » ; dès 80 % : places restantes et palier suivant
+// avec la différence à payer ; complet : rassure (« Vos invités restent en place »).
+function TierGaugeCard({ tierId, limit, used, onUpgrade, onNavigate }: {
+  tierId: string; limit: number; used: number | null; onUpgrade: () => void; onNavigate?: () => void;
+}) {
+  const tier = tierById(tierId)!;
+  const next = TIERS.find((t) => t.max > tier.max) ?? null;
+  const n = used ?? 0;
+  const pct = Math.min(100, Math.round((n / limit) * 100));
+  const remaining = Math.max(0, limit - n);
+  const stage = n >= limit ? 'full' : pct >= 80 ? 'almost' : 'ok';
+  const title = {
+    ok: n === 0 ? `Jusqu’à ${limit} invités` : 'Votre liste avance bien',
+    almost: `Plus que ${remaining} place${remaining > 1 ? 's' : ''}`,
+    full: 'Votre palier est complet',
+  }[stage];
+  const diff = next ? formatXof(upgradePrice(tier.id, next.id)).replace('FCFA', 'F') : null;
+  const button = 'mt-2.5 block w-full rounded-lg bg-amber-300 py-2 text-center text-[13px] font-semibold text-ink transition-colors hover:bg-amber-200';
+  return (
+    <div className="relative mt-4 mb-2 overflow-hidden rounded-2xl bg-ink p-3.5 text-white">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-400/20 blur-2xl" />
+      <div className="relative">
+        <Link href="/dashboard/premium" onClick={onNavigate} className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-amber-300 hover:text-amber-200">
+          <Crown size={13} /> Palier {tier.label}
+        </Link>
+        <p className="mt-1.5 font-display text-[15px] leading-snug">{title}</p>
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuemin={0} aria-valuemax={limit} aria-valuenow={n} aria-label={`${n} invités sur ${limit}`}>
+          <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500 transition-[width] duration-700" style={{ width: `${Math.max(pct, n > 0 ? 3 : 0)}%` }} />
+        </div>
+        <p className="mt-1 flex justify-between gap-2 text-[11px] text-white/65">
+          <span>{used === null ? '…' : n} / {limit} invités</span>
+          <span>{tier.label}</span>
+        </p>
+        {stage === 'almost' && (
+          <p className="mt-2 text-[12px] leading-snug text-white/75">
+            {next ? <><strong className="font-semibold text-amber-200">{next.label}</strong> : +{next.max - tier.max} places pour {diff}</> : 'Plus de 300 invités : formule sur mesure'}
+          </p>
+        )}
+        {stage === 'full' && (
+          <p className="mt-2 text-[12px] leading-snug text-white/75">
+            Vos invités restent en place.{next && <> {next.label} : +{diff}</>}
+          </p>
+        )}
+        {stage === 'almost' && <button type="button" onClick={onUpgrade} className={button}>{next ? `Voir le palier ${next.label}` : 'Demander un devis'}</button>}
+        {stage === 'full' && <button type="button" onClick={onUpgrade} className={button}>Agrandir ma liste</button>}
+      </div>
+    </div>
   );
 }
 

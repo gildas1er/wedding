@@ -24,6 +24,9 @@ type Props = {
   couple?: string;
 };
 
+// Montant court, pour le prix par invité (« 500 F »)
+const formatF = (n: number) => `${new Intl.NumberFormat('fr-FR').format(n)} F`;
+
 export default function PricingModal({ onClose, reason = 'discover', persons = 0, currentTier = null, marriageId = null, couple = '', allowLaunch = false }: Props) {
   const current = tierById(currentTier);
   const launch = useLaunchOffer() && allowLaunch;
@@ -47,16 +50,36 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
           <X size={18} />
         </button>
 
-        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-600"><Crown size={14} /> Premium</p>
-        <h2 id="pricing-title" className="mt-2 pr-10 text-2xl font-normal text-ink sm:text-3xl">
-          {reason === 'limit' ? (current ? `Votre palier ${current.label} est complet` : 'Votre liste gratuite est complète') : 'Choisissez votre palier'}
-        </h2>
-        <p className="mt-2 text-sm text-slate-500">
-          {reason === 'limit'
-            ? 'Vos invités, votre plan de table et vos réglages restent intacts. Choisissez un palier pour continuer à ajouter des proches.'
-            : `La version gratuite accueille ${FREE_GUEST_LIMIT} invités. Choisissez le palier qui correspond à la taille de votre mariage, accompagnants compris.`}
-          {persons > 0 && <> Votre liste compte aujourd&apos;hui <strong className="text-ink">{persons} invité{persons > 1 ? 's' : ''}</strong>.</>}
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-600">
+          <Crown size={14} /> {current ? `Palier ${current.label} · ${Math.min(persons, current.max)} / ${current.max}` : 'Premium'}
         </p>
+        {current ? (
+          // Montée de palier : présentée comme une bonne nouvelle, avec seulement la différence à payer
+          <>
+            <h2 id="pricing-title" className="mt-2 pr-10 text-2xl font-normal text-ink sm:text-3xl">
+              {reason === 'limit' ? 'Bonne nouvelle : votre liste s’agrandit' : 'Agrandissez votre liste'}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Pour accueillir vos prochains invités, passez au palier supérieur. Vous ne payez que la différence avec {current.label}.
+            </p>
+            <p className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+              <Check size={16} className="mt-0.5 shrink-0" />
+              <span>{persons > 0 ? `Vos ${persons} invités` : 'Vos invités'}, votre plan de table et vos faire-part restent en place.</span>
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 id="pricing-title" className="mt-2 pr-10 text-2xl font-normal text-ink sm:text-3xl">
+              {reason === 'limit' ? 'Votre liste gratuite est complète' : 'Choisissez votre palier'}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              {reason === 'limit'
+                ? 'Vos invités, votre plan de table et vos réglages restent intacts. Choisissez un palier pour continuer à ajouter des proches.'
+                : `La version gratuite accueille ${FREE_GUEST_LIMIT} invités. Choisissez le palier qui correspond à la taille de votre mariage, accompagnants compris.`}
+              {persons > 0 && <> Votre liste compte aujourd&apos;hui <strong className="text-ink">{persons} invité{persons > 1 ? 's' : ''}</strong>.</>}
+            </p>
+          </>
+        )}
 
         {launch && !current && (
           <p className="mt-4 rounded-xl bg-ink px-3 py-2 text-xs text-white"><strong className="text-amber-300">Offre de lancement : -{LAUNCH_OFFER.percent} %</strong> sur votre première formule jusqu&apos;au {LAUNCH_OFFER.endLabel}, déjà déduits ci-dessous.</p>
@@ -71,6 +94,9 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
             const disabled = isCurrent || below || tooSmall;
             // Offre de lancement : première formule seulement
             const launchCut = launch && !current ? launchDiscount(t.price) : 0;
+            // Montée de palier : seuls les paliers supérieurs sont proposés
+            if (current && (isCurrent || below)) return null;
+            const extra = current ? t.max - current.max : 0;
             return (
               <li key={t.id}>
                 <a
@@ -88,7 +114,7 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
                       {isAdvised && <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"><Sparkles size={10} /> Conseillé</span>}
                       {isCurrent && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Votre palier</span>}
                     </span>
-                    <span className="block text-xs text-slate-500">jusqu&apos;à {t.max} invités</span>
+                    <span className="block text-xs text-slate-500">jusqu&apos;à {t.max} invités{extra > 0 && <> · +{extra} places</>}</span>
                   </span>
                   <span className="shrink-0 text-right">
                     {launchCut ? (
@@ -99,7 +125,7 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
                     ) : (
                       <span className="block whitespace-nowrap font-semibold text-ink">{current && !isCurrent && !below ? `+ ${formatXof(price)}` : formatXof(t.price)}</span>
                     )}
-                    {current && !isCurrent && !below && <span className="block text-[11px] text-slate-500">la différence</span>}
+                    {current && extra > 0 && <span className="block text-[11px] text-slate-500">{isAdvised ? 'soit ' : ''}{formatF(Math.round(price / extra))} par invité de plus</span>}
                   </span>
                 </a>
               </li>
@@ -123,7 +149,9 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
 
         <p className="mt-4 flex items-start gap-2 text-xs text-slate-500">
           <Check size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-          Paiement unique · toutes les fonctionnalités · accès jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après le mariage. Vous pourrez monter de palier plus tard en payant seulement la différence.
+          {current
+            ? <>Paiement unique de la différence · le nouveau palier s&apos;applique aussitôt après la confirmation.</>
+            : <>Paiement unique · toutes les fonctionnalités · accès jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après le mariage. Vous pourrez monter de palier plus tard en payant seulement la différence.</>}
         </p>
 
         {advised && (
@@ -133,8 +161,13 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
             rel="noopener noreferrer"
             className="mt-5 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-ink text-sm font-semibold text-white hover:bg-rose-700"
           >
-            <MessageCircle size={16} /> Choisir le palier {advised.label}
+            <MessageCircle size={16} /> {current ? `Passer à ${advised.label} sur WhatsApp` : `Choisir le palier ${advised.label}`}
           </a>
+        )}
+        {current && (
+          <button type="button" onClick={onClose} className="mt-2 flex min-h-[44px] w-full items-center justify-center text-sm font-semibold text-slate-600 hover:text-ink">
+            Plus tard
+          </button>
         )}
         <Link href="/dashboard/premium" onClick={onClose} className="mt-2 flex min-h-[44px] items-center justify-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-ink">
           Voir le détail des paliers <ArrowRight size={14} />
