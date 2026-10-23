@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import { normalizePhone, whatsappLink } from '../../../lib/phone';
 import { buildInvitationMessage } from '../../../lib/whatsapp-message';
-import { countPersons, guestQuota, isGuestLimitError } from '../../../lib/plan';
+import { countPersons, guestQuota, sentQuota, isGuestLimitError } from '../../../lib/plan';
 import { isFirstPurchase } from '../../../lib/launch-offer';
 import PricingModal from '../../../components/dashboard/PricingModal';
 import { 
@@ -94,7 +94,7 @@ function StatusPill({ guest, dotEnabled = false }: { guest: any; dotEnabled?: bo
 
 // --- 2. MODAL D'AJOUT ET ÉDITION ---
 
-function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEnabled = false }: any) {
+function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEnabled = false, sentLocked = false }: any) {
   const [pickerSupported] = useState(() => contactPickerSupported());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAccompanist, setHasAccompanist] = useState(false);
@@ -191,6 +191,10 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEn
         const { error: updateError } = await supabase.from('invite').update(dataToSave).eq('id', guestToEdit.id);
         error = updateError;
       } else {
+        if (sentLocked) {
+          setErrorMessage("Vos invitations gratuites ont été envoyées : supprimer un invité ne libère pas de place. Passez à une formule pour continuer.");
+          return;
+        }
         const { error: insertError } = await supabase.from('invite').insert([dataToSave]);
         error = insertError;
       }
@@ -202,7 +206,7 @@ function GuestModal({ isOpen, onClose, onSuccess, marriageId, guestToEdit, dotEn
       if (error.code === '23505') {
         setErrorMessage("Ce numéro WhatsApp est déjà utilisé pour un autre invité.");
       } else if (isGuestLimitError(error)) {
-        setErrorMessage("La limite d'invités de votre formule est atteinte : passez au palier supérieur pour en ajouter d'autres (ou réduisez le nombre d'accompagnants).");
+        setErrorMessage("La limite d'invités de votre formule est atteinte : passez au palier supérieur pour en ajouter d'autres. Supprimer un invité ne libère pas de place.");
       } else {
         setErrorMessage("Oups ! Une petite erreur technique s'est glissée.");
       }
@@ -411,6 +415,12 @@ export default function GuestPage() {
   const quota = guestQuota(marriage, guests);
   const limitActive = Boolean(marriage && 'plan' in marriage && quota.limit !== null);
   const room = limitActive ? quota.remaining : Infinity;
+
+  // Quota « invitations envoyées » (version gratuite uniquement) et limite effective
+  const sent = sentQuota(marriage);
+  const isFreePlan = Boolean(marriage && 'plan' in marriage && !quota.premium);
+  const sentLocked = isFreePlan && sent.limit !== null && sent.remaining <= 0;
+  const canAdd = room > 0 && !sentLocked;
 
   // CALCUL DES STATISTIQUES DES CÉRÉMONIES
   const confirmedGuests = guests.filter(g => g.status === 'confirmé');
@@ -632,16 +642,31 @@ export default function GuestPage() {
       notify(`Le numéro de ${guest.name} n'est pas valide. Modifiez la fiche puis réessayez.`, 'error');
       return;
     }
+    // Premier envoi seulement : vérifie le quota « invitations envoyées »
+    if (isFreePlan && !guest.invitation_sent && sent.limit !== null && sent.remaining <= 0) {
+      notify('Vos 30 invitations gratuites ont été envoyées. Passez à une formule pour inviter d\'autres personnes.', 'error');
+      return;
+    }
     window.open(whatsappUrl, '_blank');
 
-    await supabase
+    const { error: sendError } = await supabase
       .from('invite')
       .update({ invitation_sent: true })
       .eq('id', guest.id);
 
-    setGuests(prevGuests => 
+    if (sendError) {
+      if (isGuestLimitError(sendError)) {
+        notify('Vos 30 invitations gratuites ont été envoyées. Passez à une formule pour inviter d\'autres personnes.', 'error');
+      } else {
+        notify("L'invitation est partie, mais son envoi n'a pas pu être enregistré. Rechargez la page puis réessayez.", 'error');
+      }
+      return;
+    }
+
+    setGuests(prevGuests =>
       prevGuests.map(g => g.id === guest.id ? { ...g, invitation_sent: true } : g)
     );
+    loadData();   // rafraîchit le compteur d'invitations envoyées
   };
 
   const getCategoryIcon = (category: string) => {
@@ -693,16 +718,16 @@ export default function GuestPage() {
           <div className="flex shrink-0 items-center gap-2">
             <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => { if (!canAdd) setPricing('limit'); else fileInputRef.current?.click(); }}
               disabled={importing}
               aria-label="Importer un fichier CSV"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50 sm:px-4"
+              className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50 sm:px-4 ${!canAdd ? 'opacity-50' : ''}`}
             >
               {importing ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} className="text-emerald-600" />}
               <span className="hidden sm:inline">{importing ? 'Importation…' : 'Importer un CSV'}</span>
             </button>
             <button
-              onClick={() => { if (room <= 0) setPricing('limit'); else setContactsOpen(true); }}
+              onClick={() => { if (!canAdd) setPricing('limit'); else setContactsOpen(true); }}
               disabled={importing}
               aria-label="Ajouter depuis mes contacts"
               className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50 sm:px-4"
@@ -711,13 +736,37 @@ export default function GuestPage() {
               <span>Contacts</span>
             </button>
             {/* Sur ordinateur : bouton classique ; sur mobile : bouton flottant en bas à droite */}
-            <button onClick={openAdd} className="hidden min-h-[44px] items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-700 lg:inline-flex">
+            <button onClick={() => (canAdd ? openAdd() : setPricing('limit'))} aria-disabled={!canAdd}
+              className={`hidden min-h-[44px] items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-700 lg:inline-flex ${!canAdd ? 'cursor-not-allowed opacity-50' : ''}`}>
               <Plus size={16} /> Ajouter un proche
             </button>
           </div>
         </header>
 
-        {limitActive && quota.limit !== null && quota.used >= quota.limit * 0.8 && (
+        {isFreePlan && sent.limit !== null && (sent.used > 0 || quota.used >= quota.limit! * 0.8) && (
+          <div className={`mb-6 flex flex-col gap-3 rounded-2xl p-4 ring-1 sm:flex-row sm:items-center ${sentLocked ? 'bg-rose-50 ring-rose-200' : 'bg-amber-50 ring-amber-200'}`}>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-ink">
+                {sentLocked
+                  ? `Vos ${sent.limit} invitations gratuites ont été envoyées.`
+                  : `Invitations envoyées : ${sent.used} / ${sent.limit}`}
+              </p>
+              <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-white">
+                <div className={`h-full rounded-full ${sentLocked ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (sent.used / sent.limit) * 100)}%` }} />
+              </div>
+              <p className="mt-1.5 text-xs text-slate-600">
+                {sentLocked
+                  ? 'Supprimer un invité ne libère pas de place : les invitations parties restent comptées.'
+                  : `Il vous reste ${sent.remaining} personne${sent.remaining > 1 ? 's' : ''} à inviter.`}
+              </p>
+            </div>
+            <button onClick={() => setPricing(sentLocked ? 'limit' : 'discover')} className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-rose-700">
+              Voir les formules
+            </button>
+          </div>
+        )}
+
+        {!isFreePlan && limitActive && quota.limit !== null && quota.used >= quota.limit * 0.8 && (
           <div className={`mb-6 flex flex-col gap-3 rounded-2xl p-4 ring-1 sm:flex-row sm:items-center ${quota.remaining <= 0 ? 'bg-rose-50 ring-rose-200' : 'bg-amber-50 ring-amber-200'}`}>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-ink">
@@ -973,6 +1022,7 @@ export default function GuestPage() {
         onSuccess={loadData} 
         guestToEdit={selectedGuest} 
         dotEnabled={dotEnabled}
+        sentLocked={sentLocked}
       />
     </div>
   );

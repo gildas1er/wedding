@@ -60,7 +60,7 @@ export const PREMIUM_FEATURES = [
   'Faire-part, album photos et livre d’or',
 ] as const;
 
-type PlanLike = { plan?: string | null; premium_until?: string | null; tier?: string | null; guest_limit?: number | null; legacy_free_fiches?: boolean | null } | null | undefined;
+type PlanLike = { plan?: string | null; premium_until?: string | null; tier?: string | null; guest_limit?: number | null; legacy_free_fiches?: boolean | null; invited_persons_used?: number | null } | null | undefined;
 
 export function isPremium(m: PlanLike) {
   if (m?.plan !== 'premium') return false;
@@ -107,6 +107,25 @@ export function guestQuota(m: PlanLike, guests: GuestLike[]) {
   };
 }
 export type GuestQuota = ReturnType<typeof guestQuota>;
+
+// Quota « invitations envoyées » : permanent, et réservé à la version gratuite.
+// Les paliers payants (Intime → Royal) ne sont pas concernés : limit = null.
+export function sentQuota(m: PlanLike) {
+  if (isPremium(m)) return { limit: null as number | null, used: 0, remaining: Infinity, unit: 'invités envoyés' };
+  const used = Math.max(0, Number(m?.invited_persons_used) || 0);
+  return {
+    limit: FREE_GUEST_LIMIT as number | null,
+    used,
+    remaining: Math.max(0, FREE_GUEST_LIMIT - used),
+    unit: 'invités envoyés',
+  };
+}
+export type SentQuota = ReturnType<typeof sentQuota>;
+
+// Limite effective affichée : la plus contraignante des deux (liste vs envois).
+export function effectiveRemaining(quota: GuestQuota, sent: SentQuota) {
+  return Math.min(quota.remaining, sent.remaining);
+}
 
 // Erreur renvoyée par la base quand la limite gratuite est atteinte
 export function isGuestLimitError(error: { message?: string; hint?: string } | null | undefined) {
