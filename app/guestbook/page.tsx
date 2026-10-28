@@ -7,6 +7,7 @@ import { usePublicMarriage } from '../../lib/use-public-marriage';
 import { useSearchParams } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import { Heart, Send, Sparkles, MessageSquare, Clock, User, Camera, X, Image as ImageIcon, Check, Feather } from 'lucide-react';
+import posthog from 'posthog-js';
 
 // Fonction absente : la base n'a pas encore la migration 21
 const isMissingFunction = (e: { code?: string; message?: string }) => e.code === 'PGRST202' || e.code === '42883' || /function .* does not exist|Could not find the function/i.test(e.message ?? '');
@@ -109,6 +110,7 @@ function GuestbookContent({ closed = false }: { closed?: boolean }) {
       }
 
       if (!error && data && data[0]) {
+        posthog.capture('guestbook_message_submitted', { has_photo: Boolean(selectedFile) });
         setMessages((prev) => [data[0], ...prev]);
         setText('');
         removeSelectedFile();

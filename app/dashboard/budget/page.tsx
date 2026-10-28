@@ -11,6 +11,7 @@ import {
   User, Phone, Printer
 } from 'lucide-react';
 import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
+import posthog from 'posthog-js';
 
 // --- COMPOSANT DES PÉTALES ROUGES ---
 const EXCHANGE_RATES: { [key: string]: number } = { FCFA: 1, EUR: 0.0015, USD: 0.0016 };
@@ -164,6 +165,11 @@ export default function BudgetDashboard() {
         if (error) throw error;
         setExpenses((prev) => [data, ...prev]);
       }
+      posthog.capture('budget_item_saved', {
+        action: editor.id ? 'updated' : 'created',
+        category: payload.category,
+        status: payload.status,
+      });
       setEditor(null);
     } catch (err: any) {
       setErrorMsg(err.message || "Erreur lors de l'enregistrement");
@@ -176,7 +182,7 @@ export default function BudgetDashboard() {
     const expense = expenses.find((ex) => ex.id === id);
     if (!(await confirm({ title: 'Supprimer cette dépense ?', item: expense?.label, message: 'Ses montants seront retirés du total de votre budget.' }))) return;
     const { error } = await supabase.from('budget_items').delete().eq('id', id);
-    if (!error) { setExpenses((prev) => prev.filter(ex => ex.id !== id)); setEditor(null); notify('Dépense supprimée'); }
+    if (!error) { posthog.capture('budget_item_deleted'); setExpenses((prev) => prev.filter(ex => ex.id !== id)); setEditor(null); notify('Dépense supprimée'); }
     else notify('La suppression a échoué. Réessayez.', 'error');
   };
 

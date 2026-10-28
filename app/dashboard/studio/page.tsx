@@ -22,6 +22,7 @@ import {
   DEFAULT_WHATSAPP_TEMPLATE, WHATSAPP_PLACEHOLDERS, buildInvitationMessage, hasLinkPlaceholder,
 } from '../../../lib/whatsapp-message';
 import { forgetMarriage, getSessionUser, loadMarriage } from '../../../lib/current-marriage';
+import posthog from 'posthog-js';
 
 type Config = {
   invitation_template: InvitationTemplate;
@@ -337,6 +338,12 @@ export default function InvitationStudio() {
       return;
     }
     setSavedConfig(config);
+    posthog.capture('invitation_customization_saved', {
+      invitation_template: config.invitation_template,
+      enabled_ceremony_count: [config.show_dot, config.show_civil, config.show_religious, config.show_reception].filter(Boolean).length,
+      has_cover_photo: Boolean(config.bg_image_url),
+      has_music: Boolean(config.music_url && config.music_url !== 'none'),
+    });
     forgetMarriage();
     setMarriage((m: any) => ({ ...m, ...config }));
     flash({ type: 'success', text: "L'invitation est publiée !" });

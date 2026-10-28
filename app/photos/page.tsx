@@ -4,6 +4,7 @@ import { Camera, Upload, CheckCircle2, Loader2, Sparkles, Heart, X, Image as Ima
 import { guestSupabase } from '../../lib/supabase-guest';
 import imageCompression from 'browser-image-compression';
 import { usePublicMarriage } from '../../lib/use-public-marriage';
+import posthog from 'posthog-js';
 
 const MAX_PHOTOS_LIMIT = 5; 
 
@@ -136,6 +137,7 @@ export default function DepotPhotosPage() {
         setSelectedFiles((prev) => prev.filter((f) => f.id !== currentItem.id));
       }
 
+      posthog.capture('guest_photo_uploaded', { photo_count: sent });
       setIsSuccess(true);
       setGuestName('');
       setMessage('');

@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
+import { SeverityNumber, posthogLogger, posthogLogProvider } from '../../../../instrumentation';
 import { createClient } from '../../../../utils/supabase/server';
 import { createCheckout, paymentsConfigured, serviceSupabase } from '../../../../lib/premium-server';
 import { isPremium, ONLINE_PAYMENT_ENABLED, PREMIUM_PRICE_XOF } from '../../../../lib/plan';
@@ -43,6 +44,15 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ url, reference: payment.reference });
     // Retenue quelques heures pour vérifier le paiement au retour sur le site
     response.cookies.set('premium_ref', payment.reference, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 });
+    posthogLogger?.emit({
+      body: 'premium_checkout_created',
+      severityNumber: SeverityNumber.INFO,
+      attributes: {
+        payment_provider: 'geniuspay',
+        payment_environment: payment.environment ?? 'unknown',
+      },
+    });
+    if (posthogLogger) after(async () => { await posthogLogProvider?.forceFlush(); });
     return response;
   } catch (e) {
     console.error('Création du paiement Premium :', e);

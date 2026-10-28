@@ -21,6 +21,7 @@ import StoryIntro from '../../../components/rsvp/StoryIntro';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
 import { nameFontStyle } from '../../../lib/name-fonts';
+import posthog from 'posthog-js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -265,6 +266,13 @@ function RSVPContent() {
     setSending(false);
 
     if (error || !updated) return error?.message ?? 'invitation introuvable.';
+    posthog.capture('rsvp_submitted', {
+      response_status: values.status,
+      attending_dot: flags.dot && values.attending_dot,
+      attending_civil: flags.civil && values.attending_civil,
+      attending_religious: flags.religious && values.attending_church,
+      attending_reception: flags.reception && values.attending_reception,
+    });
     setSubmitted(true);
     if (values.status === 'confirmé') triggerConfetti();
     return null;

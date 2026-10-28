@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>ad-a-1080x1350</title>
+<link rel="preload" href="fonts/fraunces-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/manrope-400.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Fraunces";font-style:normal;font-weight:300 700;src:url("fonts/fraunces-normal.woff2") format("woff2");font-display:block}
+@font-face{font-family:"Fraunces";font-style:italic;font-weight:300 700;src:url("fonts/fraunces-italic.woff2") format("woff2");font-display:block}
+@font-face{font-family:"Manrope";font-style:normal;font-weight:400;src:url("fonts/manrope-400.woff2") format("woff2");font-display:block}
+@font-face{font-family:"Manrope";font-style:normal;font-weight:500;src:url("fonts/manrope-500.woff2") format("woff2");font-display:block}
+@font-face{font-family:"Manrope";font-style:normal;font-weight:600;src:url("fonts/manrope-600.woff2") format("woff2");font-display:block}
+@font-face{font-family:"Manrope";font-style:normal;font-weight:700;src:url("fonts/manrope-700.woff2") format("woff2");font-display:block}
+
+:root{
+  --bordeaux:#9E3A55;--or:#B38C4A;--or-clair:#DCC28A;--encre:#1F1B18;
+  --ivoire:#FAF7F2;--papier:#EFE9DF;--ligne:#E2D9CF;--muet:#7A6E65;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow:hidden;background:#fff}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--encre)}
+img{display:block;max-width:100%}
+
+.ad{
+  position:relative;width:1080px;height:1350px;padding:86.4px;border-radius:0;overflow:hidden;
+  display:flex;flex-direction:column;container-type:inline-size;isolation:isolate;
+}
+.ad.story{height:1920px;padding:97.2px}
+.ad .logo{width:36cqw;height:auto;margin-bottom:6cqw}
+.ad.story .logo{width:44cqw}
+.ad .kicker{font-size:2.4cqw;letter-spacing:.2em;text-transform:uppercase;font-weight:600;margin-bottom:2.4cqw}
+.ad .title{font-family:"Fraunces",Georgia,serif;font-weight:500;font-size:10.4cqw;line-height:.98;
+  letter-spacing:-.02em;margin:0}
+.ad.story .title{font-size:11.4cqw;line-height:1}
+.ad .title em{font-style:italic}
+.ad .sub{font-size:3.2cqw;line-height:1.4;margin:3cqw 0 0;max-width:88%}
+.ad .cta{margin-top:auto;display:inline-flex;align-items:center;gap:2cqw;align-self:flex-start;
+  border-radius:999px;padding:2.6cqw 4.2cqw;font-size:3cqw;font-weight:600;letter-spacing:.01em}
+.ad .cta::after{content:"→";font-weight:400}
+
+.ad.a{background:radial-gradient(120% 90% at 100% 0%, #FDFBF7 0%, var(--ivoire) 45%, #F3ECE1 100%);color:var(--encre)}
+.ad.a .kicker{color:var(--or)}
+.ad.a .title em{color:var(--bordeaux)}
+.ad.a .sub{color:#5C534C}
+.ad.a .cta{background:var(--bordeaux);color:#fff}
+.ad.a .rows{display:grid;gap:2.2cqw;margin:5cqw 0 5cqw}
+.ad.a .row{display:flex;align-items:center;gap:2.4cqw;background:#fff;border:1px solid #E9E0D4;
+  border-radius:2.2cqw;padding:2.6cqw 3cqw;font-size:3cqw;box-shadow:0 .8cqw 1.8cqw rgba(31,27,24,.04)}
+.ad.a .row i{width:2.4cqw;height:2.4cqw;border-radius:50%;background:var(--or-clair);
+  flex:none;box-shadow:0 0 0 .7cqw rgba(179,140,74,.14)}
+.ad.a .row b{font-weight:600}
+.ad.a .row span{margin-left:auto;color:var(--muet);font-size:2.5cqw}
+
+.ad.b{background:radial-gradient(100% 70% at 10% 0%, #B24A66 0%, var(--bordeaux) 42%, #7E2E45 100%);color:var(--ivoire)}
+.ad.b .kicker{color:var(--or-clair)}
+.ad.b .title em{color:var(--or-clair)}
+.ad.b .sub{color:rgba(250,247,242,.72)}
+.ad.b .cta{background:var(--or-clair);color:#3A2418}
+.ad.b .figure{font-family:"Fraunces",Georgia,serif;font-size:12.6cqw;line-height:1;margin:4cqw 0 1cqw;letter-spacing:-.02em}
+.ad.b .figure small{font-family:"Manrope",sans-serif;font-size:3cqw;letter-spacing:.06em;opacity:.7}
+.ad.b .engaged{font-size:2.8cqw;color:rgba(250,247,242,.72);margin-bottom:2cqw}
+.ad.b .bar{height:2cqw;border-radius:999px;background:rgba(255,255,255,.16);overflow:hidden;margin:2.4cqw 0 4.4cqw}
+.ad.b .bar span{display:block;height:100%;width:65%;border-radius:999px;background:linear-gradient(90deg,var(--or),var(--or-clair))}
+.ad.b .lines{display:grid;gap:0;margin-bottom:auto}
+.ad.b .line{display:flex;justify-content:space-between;gap:12px;font-size:2.8cqw;padding:2.2cqw 0;border-bottom:1px solid rgba(250,247,242,.16)}
+.ad.b .line:last-child{border-bottom:0}
+.ad.b .line span{color:rgba(250,247,242,.7)}
+.ad.b .line b{font-weight:600;font-variant-numeric:tabular-nums}
+
+.ad.c{background:radial-gradient(90% 60% at 90% 0%, #332C26 0%, var(--encre) 55%, #141110 100%);color:var(--ivoire)}
+.ad.c .kicker{color:var(--or-clair)}
+.ad.c .title em{color:var(--or-clair)}
+.ad.c .sub{color:rgba(250,247,242,.68)}
+.ad.c .cta{background:transparent;border:1px solid rgba(220,194,138,.55);color:var(--or-clair)}
+.ad.c .tri{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4cqw;margin:auto 0 4cqw}
+.ad.c .col{border-left:1px solid rgba(220,194,138,.35);padding-left:2.6cqw}
+.ad.c .num{font-family:"Fraunces",Georgia,serif;font-size:9.4cqw;line-height:1;color:var(--or-clair)}
+.ad.c .lab{font-size:2.4cqw;letter-spacing:.14em;text-transform:uppercase;color:rgba(250,247,242,.6);margin-top:1.4cqw}
+
+.ad.d{background:radial-gradient(110% 80% at 0% 0%, #FFFFFF 0%, var(--ivoire) 55%, #F3EBDD 100%);color:var(--encre);border:1px solid #E6D9C4}
+.ad.d .kicker{color:var(--or)}
+.ad.d .title em{color:var(--bordeaux)}
+.ad.d .sub{color:#5C534C}
+.ad.d .cta{background:var(--bordeaux);color:#fff}
+.ad.d .offer{font-family:"Fraunces",Georgia,serif;font-size:21cqw;line-height:.86;color:var(--bordeaux);letter-spacing:-.035em;margin:3cqw 0 1cqw}
+.ad.d .offer sup{font-size:.38em;vertical-align:super;letter-spacing:0}
+.ad.d .price{display:flex;align-items:baseline;gap:2.6cqw;flex-wrap:wrap;margin:2.4cqw 0 0}
+.ad.d .price b{font-size:4.4cqw;font-weight:700}
+.ad.d .price s{font-size:3cqw;color:#9C9188}
+.ad.d .fine{font-size:2.4cqw;color:#8B8076;margin-top:3cqw}
+.ad.d .rule{height:1px;background:#E3D6C1;margin:3.6cqw 0}
+
+.ad.e{background:radial-gradient(120% 80% at 80% 0%, #B24A66 0%, var(--bordeaux) 45%, #6E263B 100%);color:var(--ivoire)}
+.ad.e .kicker{color:var(--or-clair)}
+.ad.e .title em{color:var(--or-clair)}
+.ad.e .cta{background:var(--or-clair);color:#3A2418}
+.ad.e .count{font-family:"Fraunces",Georgia,serif;font-size:27cqw;line-height:.8;letter-spacing:-.04em;
+  color:transparent;-webkit-text-stroke:.4cqw rgba(220,194,138,.85);margin:auto 0 4cqw}
+.ad.e .sub{color:rgba(250,247,242,.72)}
+
+html,body{width:1080px;height:1350px}
+</style>
+</head>
+<body><div class="ad a">
+      <img class="logo" src="../assets/logo-couleur.png" alt="WeddingStudio">
+      <div class="kicker">L’atelier des mariés</div>
+      <h2 class="title">Arrêtez de <em>chercher.</em></h2>
+      <p class="sub">Invités, budget et plan de table réunis dans un seul espace.</p>
+      <div class="rows">
+        <div class="row"><i></i><b>Invités</b><span>WhatsApp</span></div>
+        <div class="row"><i></i><b>Budget</b><span>FCFA</span></div>
+        <div class="row"><i></i><b>Plan de table</b><span>à imprimer</span></div>
+      </div>
+      <div class="cta">Gratuit jusqu’à 30 invités</div>
+    </div></body>
+</html>

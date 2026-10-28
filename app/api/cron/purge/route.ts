@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
+import { SeverityNumber, posthogLogger, posthogLogProvider } from '../../../../instrumentation';
 import { serviceSupabase } from '../../../../lib/premium-server';
 import { deleteSpace } from '../../../../lib/account-server';
 import { DELETE_MONTHS_AFTER_WEDDING, spaceLifecycle } from '../../../../lib/lifecycle';
@@ -71,6 +72,16 @@ export async function GET(request: Request) {
   }
 
   if (deleted.length || failed.length || remaining) await journal(db, { deleted, failed, remaining });
+  posthogLogger?.emit({
+    body: 'space_purge_completed',
+    severityNumber: SeverityNumber.INFO,
+    attributes: {
+      deleted_count: deleted.length,
+      failed_count: failed.length,
+      remaining,
+    },
+  });
+  if (posthogLogger) after(async () => { await posthogLogProvider?.forceFlush(); });
   return NextResponse.json({ deleted, failed, remaining });
 }
 

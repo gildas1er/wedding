@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { safeNextPath } from '../../lib/safe-redirect';
 import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
 import { PROVIDER_LABELS, fetchEnabledProviders, type SocialProvider } from '../../lib/auth-providers';
+import posthog from 'posthog-js';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -59,6 +60,7 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
+        posthog.capture('login_completed', { method: 'password' });
         setMessage({ type: 'success', content: 'Connexion réussie ! Redirection...' });
         // Revient sur la page demandée avant la connexion (ex. /dashboard/budget)
         const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));

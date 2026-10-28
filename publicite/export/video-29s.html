@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1080, initial-scale=1">
+  <title>ws-video-15s</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bordeaux:#9E3A55;--or:#B38C4A;--or-clair:#DCC28A;--encre:#1F1B18;--ivoire:#FAF7F2}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;width:1080px;height:1920px;overflow:hidden;background:#000}
+    body{font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ivoire)}
+    #stage{position:relative;width:1080px;height:1920px;overflow:hidden}
+    .layer{position:absolute;inset:0;opacity:0}
+    .layer.on{opacity:1}
+    .bg-bordeaux{background:radial-gradient(120% 80% at 80% 0%, #B24A66 0%, var(--bordeaux) 45%, #6E263B 100%)}
+    .bg-ivoire{background:radial-gradient(110% 80% at 0% 0%, #FFFFFF 0%, var(--ivoire) 55%, #F3EBDD 100%);color:var(--encre)}
+    .bg-ink{background:radial-gradient(90% 60% at 90% 0%, #332C26 0%, var(--encre) 55%, #141110 100%)}
+    .logo{position:absolute;top:96px;left:97px;width:476px;filter:drop-shadow(0 30px 80px rgba(31,27,24,.18))}
+    .logo.clair{filter:none}
+    .kicker{position:absolute;left:97px;top:288px;font-size:26px;letter-spacing:.2em;text-transform:uppercase;font-weight:600}
+    .kicker.or{color:var(--or)} .kicker.orc{color:var(--or-clair)}
+    .title{position:absolute;left:97px;top:352px;font-family:"Fraunces",Georgia,serif;font-weight:500;font-size:123px;line-height:1;letter-spacing:-.02em;max-width:886px}
+    .title em{font-style:italic}
+    .title.bordeaux em{color:var(--bordeaux)} .title.orc em{color:var(--or-clair)}
+    .sub{position:absolute;left:97px;top:600px;font-size:35px;line-height:1.4;max-width:780px}
+    .sub.mute{color:rgba(250,247,242,.72)}
+    .tri{position:absolute;left:97px;top:820px;display:grid;grid-template-columns:repeat(3,220px);gap:26px}
+    .tri .col{border-left:1px solid rgba(220,194,138,.35);padding-left:28px}
+    .tri .num{font-family:"Fraunces",Georgia,serif;font-size:102px;color:var(--or-clair);line-height:1}
+    .tri .lab{font-size:26px;letter-spacing:.14em;text-transform:uppercase;color:rgba(250,247,242,.6);margin-top:15px}
+    .screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:scale(1.02)}
+    .screen img{width:1080px;height:1920px;object-fit:cover;object-position:top}
+    .screen.blur{filter:brightness(.9)}
+    .cta{position:absolute;left:97px;bottom:318px;display:inline-flex;align-items:center;gap:22px;border-radius:999px;padding:28px 46px;font-size:33px;font-weight:600}
+    .cta.rose{background:var(--bordeaux);color:#fff}
+    .cta.orc{background:var(--or-clair);color:#3A2418}
+    .cta::after{content:"→"}
+    .offer{position:absolute;left:97px;top:660px;font-family:"Fraunces",Georgia,serif;font-size:227px;color:var(--bordeaux);line-height:.86}
+    .offer sup{font-size:.38em;vertical-align:super}
+    .price{position:absolute;left:97px;top:920px;display:flex;gap:28px;align-items:baseline}
+    .price b{font-size:48px;font-weight:700}
+    .price s{font-size:33px;color:#9C9188}
+    .fine{position:absolute;left:97px;top:990px;font-size:26px;color:#8B8076}
+    .subt{position:absolute;left:72px;right:72px;bottom:118px;text-align:center;font-size:30px;line-height:1.5;text-shadow:0 6px 80px rgba(0,0,0,.9),0 2px 40px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:6px}
+    .subt span{display:block}
+    .kin{animation:kin 4s ease-in-out infinite alternate}
+    @keyframes kin{from{transform:scale(1.02)}to{transform:scale(1.05)}}
+    .fade{transition:opacity 900ms ease}
+    .move{transition:opacity 900ms ease, transform 900ms ease}
+    .move.from{opacity:0;transform:translateY(24px)}
+    .move.in{opacity:1;transform:translateY(0)}
+    .move.out{opacity:0;transform:translateY(-18px)}
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div class="layer bg-bordeaux on" data-t="0">
+      <img class="logo clair" src="../assets/logo-clair.png">
+      <div class="kicker orc">Mairie · Église · Réception</div>
+      <div class="title orc">Trois listes. <em>Un seul espace.</em></div>
+      <div class="tri">
+        <div class="col"><div class="num">120</div><div class="lab">Mairie</div></div>
+        <div class="col"><div class="num">180</div><div class="lab">Église</div></div>
+        <div class="col"><div class="num">250</div><div class="lab">Réception</div></div>
+      </div>
+      <div class="cta orc">Invitations par WhatsApp</div>
+    </div>
+    <div class="layer bg-ink" data-t="6">
+      <img class="logo clair" src="../assets/logo-clair.png">
+      <div class="screen kin"><img src="../assets/screens/dashboard.jpg"></div>
+      <div class="cta orc" style="bottom:318px">Budget en FCFA · Plan de table</div>
+    </div>
+    <div class="layer bg-ink" data-t="10.5">
+      <div class="screen kin"><img src="../assets/screens/guests.jpg"></div>
+      <div class="cta orc">Invitations WhatsApp · Réponses en direct</div>
+    </div>
+    <div class="layer bg-ivoire" data-t="14">
+      <img class="logo" src="../assets/logo-couleur.png">
+      <div class="kicker or">L’atelier des mariés</div>
+      <div class="title bordeaux">Arrêtez de <em>chercher.</em></div>
+      <div class="sub">Invités, budget et plan de table réunis dans un seul espace.</div>
+      <div class="cta rose">Gratuit jusqu’à 30 invités</div>
+    </div>
+    <div class="layer bg-ivoire" data-t="21">
+      <img class="logo" src="../assets/logo-couleur.png">
+      <div class="kicker or">Offre de lancement</div>
+      <div class="title bordeaux">30 invitations <em>offertes.</em></div>
+      <div class="offer">-30<sup>%</sup></div>
+      <div class="sub">sur votre première formule</div>
+      <div class="price"><b>35 000 FCFA</b><s>50 000 FCFA</s></div>
+      <div class="fine">Jusqu’au 20 décembre 2026 · sans code</div>
+      <div class="cta rose">Créer mon espace</div>
+    </div>
+    <div class="subt" id="subt"></div>
+  </div>
+  <audio id="vo" src="vo-master.mp3" preload="auto"></audio>
+  <script>
+    const cues = [
+      {t:0, lines:["Mariage ivoirien : la mairie, l'église, la réception."]},
+      {t:3.0, lines:["Trois listes... et des réponses partout dans WhatsApp."]},
+      {t:6.2, lines:["WeddingStudio réunit tes invités dans un seul espace."]},
+      {t:10.6, lines:["Ton budget en FCFA : ce qui est engagé, ce qui reste."]},
+      {t:13.7, lines:["Le plan de table se prépare à l'écran, prêt à imprimer."]},
+      {t:17.0, lines:["Tu envoies les invitations par WhatsApp, les réponses arrivent en direct."]},
+      {t:21.2, lines:["Commence gratuitement. Trente invitations offertes, accompagnants compris."]},
+      {t:25.2, lines:["Moins trente pour cent sur ta première formule, jusqu'au vingt décembre."]}
+    ];
+    const layers = [...document.querySelectorAll('.layer')];
+    const subt = document.getElementById('subt');
+    const vo = document.getElementById('vo');
+    let last=-1;
+    function render(t){
+      for(let i=0;i<layers.length;i++){
+        const lt = parseFloat(layers[i].dataset.t);
+        const nt = layers[i+1] ? parseFloat(layers[i+1].dataset.t) : 9999;
+        if(t>=lt && t<nt) layers[i].classList.add('on'); else layers[i].classList.remove('on');
+      }
+      let cur=null;
+      for(const c of cues){ if(t>=c.t-0.01) cur=c; }
+      if(cur && cur!==last){
+        last=cur;
+        subt.innerHTML = cur.lines.map(l=>'<span>'+l+'</span>').join('');
+      }
+    }
+    vo.addEventListener('timeupdate', ()=>render(vo.currentTime));
+    vo.play().catch(()=>{});
+    window.__VO = vo;
+  </script>
+</body>
+</html>

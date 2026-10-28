@@ -16,6 +16,7 @@ import {
 } from '../../../lib/planning';
 import { buildTemplate, type TemplateMoment } from '../../../lib/planning-template';
 import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
+import posthog from 'posthog-js';
 
 type Marriage = Record<string, unknown> & { id: string; wedding_date?: string | null; partner_1_name?: string | null; partner_2_name?: string | null };
 
@@ -114,6 +115,7 @@ export default function PlanningPage() {
     setSaving(false);
     if (err || !data) { setError("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez."); return; }
     setEvents((prev) => sortEvents(editor.id ? prev.map((e) => (e.id === editor.id ? data : e)) : [...prev, data]));
+    posthog.capture('planning_event_saved', { action: editor.id ? 'updated' : 'created', is_major_step: v.is_major_step });
     setEditor(null);
   };
 
@@ -131,6 +133,7 @@ export default function PlanningPage() {
     setSaving(false);
     if (err || !data) { setError("Le modèle n'a pas pu être ajouté. Vérifiez votre connexion puis réessayez."); return; }
     setEvents((prev) => sortEvents([...prev, ...data]));
+    posthog.capture('planning_template_applied', { event_count: data.length });
     setTemplateOpen(false);
   };
 
@@ -139,6 +142,7 @@ export default function PlanningPage() {
     const { error: err } = await supabase.from('planning_events').delete().eq('id', event.id);
     if (err) { notify('La suppression a échoué. Réessayez.', 'error'); return; }
     setEvents((prev) => prev.filter((e) => e.id !== event.id));
+    posthog.capture('planning_event_deleted');
     setEditor(null);
     notify('Moment retiré du déroulé');
   };

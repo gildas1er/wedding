@@ -18,6 +18,7 @@ import {
   type Task, type TaskState, type TemplateTask,
 } from '../../../lib/checklist';
 import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
+import posthog from 'posthog-js';
 
 type Marriage = { id: string; wedding_date?: string | null };
 type Filter = 'todo' | 'late' | 'done' | 'all';
@@ -98,6 +99,7 @@ export default function TasksPage() {
       setError("La tâche n'a pas pu être mise à jour. Réessayez.");
       return;
     }
+    posthog.capture('task_completion_changed', { completed: next });
     if (next && done + 1 === tasks.length) confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
   };
 
@@ -129,6 +131,7 @@ export default function TasksPage() {
     setSaving(false);
     if (err || !data) { setError("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez."); return; }
     setTasks((prev) => (editor.id ? prev.map((t) => (t.id === editor.id ? data : t)) : [...prev, data]));
+    posthog.capture('task_saved', { action: editor.id ? 'updated' : 'created', category: v.category, priority: v.priority });
     setEditor(null);
   };
 
@@ -137,6 +140,7 @@ export default function TasksPage() {
     const { error: err } = await supabase.from('tasks').delete().eq('id', task.id);
     if (err) { notify('La suppression a échoué. Réessayez.', 'error'); return; }
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    posthog.capture('task_deleted');
     setEditor(null);
     notify('Tâche supprimée');
   };

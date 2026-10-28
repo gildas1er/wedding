@@ -14,6 +14,7 @@ import { REFERRAL_DISCOUNT_XOF, REFERRAL_STORAGE_KEY, normalizeCode } from '../.
 import { formatXof } from '../../lib/plan';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
+import posthog from 'posthog-js';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -190,6 +191,7 @@ export default function RegisterPage() {
           if (marriageError) throw marriageError;
         }
 
+        posthog.capture('registration_completed');
         setMessage({ 
           type: 'success', 
           content: 'Compte créé avec succès ! Préparation de votre espace...' 
