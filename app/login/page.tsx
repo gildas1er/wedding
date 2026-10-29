@@ -26,13 +26,21 @@ export default function LoginPage() {
   // Gestion des messages
   // Après une suppression de compte : /login?compte=supprime
   const [message, setMessage] = useState<{ type: 'success' | 'error' | '', content: string }>({ type: '', content: '' });
+  // Après une inscription : /login?inscription=ok&email=… (carte de confirmation, e-mail pré-rempli)
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   // Services de connexion réellement activés dans Supabase (null = inconnu)
   const [providers, setProviders] = useState<Partial<Record<SocialProvider, boolean>> | null>(null);
   const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   useEffect(() => { fetchEnabledProviders().then(setProviders); }, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('compte') === 'supprime') {
+    if (params.get('inscription') === 'ok') {
+      const address = (params.get('email') ?? '').trim();
+      Promise.resolve().then(() => {
+        setRegisteredEmail(address);
+        if (address) setEmail(address);
+      });
+    } else if (params.get('compte') === 'supprime') {
       Promise.resolve().then(() => setMessage({ type: 'success', content: 'Votre compte a été supprimé définitivement. Merci d’avoir organisé votre mariage avec WeddingStudio.' }));
     } else if (params.get('error') === 'auth_failed') {
       Promise.resolve().then(() => setMessage({ type: 'error', content: 'Ce lien de connexion a expiré ou a déjà été utilisé. Connectez-vous avec votre mot de passe.' }));
@@ -49,6 +57,8 @@ export default function LoginPage() {
     
     setIsLoading(true);
     setMessage({ type: '', content: '' });
+    // Le message d'inscription a rempli son rôle : on le retire dès la tentative de connexion
+    setRegisteredEmail(null);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -90,6 +100,7 @@ export default function LoginPage() {
     }
     setSocialLoading(provider);
     setMessage({ type: '', content: '' });
+    setRegisteredEmail(null);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -130,6 +141,33 @@ export default function LoginPage() {
             <h1 className="text-3xl font-normal text-slate-900 mb-2" style={{ fontFamily: 'var(--font-display)' }}>Connexion</h1>
             <p className="text-slate-500 font-medium">Entrez vos identifiants pour accéder à votre espace.</p>
           </div>
+
+          {/* APRÈS INSCRIPTION : e-mail de confirmation à valider */}
+          {registeredEmail !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Check className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 text-sm">
+                  <p className="font-bold text-emerald-600">Compte créé, plus qu&apos;une étape !</p>
+                  <p className="mt-1 leading-relaxed text-slate-600">
+                    {registeredEmail
+                      ? <>Un e-mail de confirmation vient d&apos;être envoyé à <span className="break-all rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-900">{registeredEmail}</span>.</>
+                      : <>Un e-mail de confirmation vient d&apos;être envoyé à votre adresse.</>}
+                  </p>
+                  <p className="mt-1 leading-relaxed text-slate-600">
+                    Ouvrez-le, cliquez sur le lien de confirmation, puis connectez-vous ci-dessous.
+                  </p>
+                  <p className="mt-1.5 text-xs text-slate-400">Rien reçu ? Regardez dans les spams et l&apos;onglet Promotions.</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* MESSAGES D'ALERTE */}
           {message.content && (

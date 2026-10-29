@@ -161,11 +161,9 @@ export default function RegisterPage() {
       } else if (data?.user) {
         // 2. Le mariage est créé par un trigger en base (create_marriage_for_new_user).
         if (!data.session) {
-          // Confirmation par e-mail activée : pas encore de session
-          setMessage({
-            type: 'success',
-            content: 'Compte créé ! Confirmez votre adresse via le lien reçu par e-mail, puis connectez-vous.'
-          });
+          // Confirmation par e-mail activée : pas encore de session.
+          // On envoie le couple sur la connexion avec un message clair et l'e-mail pré-rempli.
+          router.push(`/login?inscription=ok&email=${encodeURIComponent(email)}`);
           return;
         }
 
@@ -211,10 +209,13 @@ export default function RegisterPage() {
     }
   };
 
-  const Criterion = ({ met, label }: { met: boolean; label: string }) => (
+  const Criterion = ({ met, label, example }: { met: boolean; label: string; example: string }) => (
     <div className="flex items-center gap-1.5">
-      {met ? <Check className="w-3 h-3 text-emerald-500" /> : <div className="w-1 h-1 rounded-full bg-slate-300 mx-1" />}
+      <span className="flex w-3.5 shrink-0 justify-center">
+        {met ? <Check className="w-3 h-3 text-emerald-500" /> : <div className="w-1 h-1 rounded-full bg-slate-300" />}
+      </span>
       <span className={`text-[10px] font-medium ${met ? 'text-emerald-600' : 'text-slate-400'}`}>{label}</span>
+      <span className={`ml-auto shrink-0 rounded-md border px-1.5 py-px font-mono text-[10px] ${met ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-slate-50 text-slate-500'}`}>{example}</span>
     </div>
   );
 
@@ -340,12 +341,12 @@ export default function RegisterPage() {
                 <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="w-full bg-white border border-slate-200 py-4 pl-12 pr-12 rounded-2xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all font-medium text-slate-900 shadow-sm" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
               </div>
-              <div className="mt-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm grid grid-cols-2 gap-y-2">
-                <Criterion met={validation.length} label="8+ caractères" />
-                <Criterion met={validation.upper} label="1 Majuscule" />
-                <Criterion met={validation.lower} label="1 Minuscule" />
-                <Criterion met={validation.number} label="1 Chiffre" />
-                <Criterion met={validation.special} label="1 Spécial" />
+              <div className="mt-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col gap-1.5">
+                <Criterion met={validation.length} label="8+ caractères" example="ex. Mariage2026!" />
+                <Criterion met={validation.upper} label="1 Majuscule" example="ex. M" />
+                <Criterion met={validation.lower} label="1 Minuscule" example="ex. a" />
+                <Criterion met={validation.number} label="1 Chiffre" example="ex. 2026" />
+                <Criterion met={validation.special} label="1 Spécial" example="ex. ! @ # ?" />
               </div>
             </div>
 
