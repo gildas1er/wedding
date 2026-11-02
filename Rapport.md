@@ -1,6 +1,6 @@
 # Rapport de développement — WeddingStudio
 
-*Dernière mise à jour : 9 octobre 2026*
+*Dernière mise à jour : 2 novembre 2026*
 
 WeddingStudio est une plateforme d'organisation de mariage pensée pour la Côte d'Ivoire. Elle couvre les invitations et réponses par WhatsApp, le faire-part en ligne, le plan de table, le budget, la checklist, le déroulé du Jour J, l'album photos et le livre d'or.
 
@@ -49,6 +49,8 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 28 | `20261016_28_parrainage_sur_invitation.sql` | Code de parrainage du couple ajouté aux informations publiques de l'invitation (bloc WeddingStudio après le mariage) |
 | 29 | `20261016_29_securite_envois_invites.sql` | Sécurité : livre d'or limité aux photos de notre stockage ; limites d'envoi (messages, photos, place par mariage) ; photos d'invités de 3 Mo au plus (revue du 16 octobre, points 1 et 2) |
 | 30 | `20261019_30_fiche_mariage_automatique.sql` | Fiche mariage créée automatiquement : déclencheur à l'inscription remis en place, filet de sécurité `ensure_my_marriage()` à la première ouverture de l'espace, rattrapage des comptes sans fiche (hors administrateurs), consentement de nouveau enregistré |
+| 31 | `20261023_31_quota_invitations_envoyees.sql` | Version gratuite : 30 personnes invitées au total, une invitation envoyée garde sa place même si l'invité est supprimé ; date d'envoi de l'invitation (`invitation_sent_at`) |
+| 32 | `20261102_32_billet_controle_entree.sql` | Billet d'entrée et contrôle à l'entrée (formules payantes) : code de billet et heure d'arrivée par fiche, clé de l'équipe d'accueil, fonctions `get_guest_ticket`, `my_checkin_key`, `checkin_open`, `checkin_ticket`, `checkin_force`, `checkin_search` ; 20 refus au plus par IP en 10 minutes |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -160,7 +162,21 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - compte à rebours avant le mariage, et moment en cours le jour même ;
   - **feuille de route imprimable** en deux versions, équipe et invités, et partage par WhatsApp.
 
-### 2.7 Photos et souvenirs
+### 2.7 Billet d'entrée et accueil des invités (formules payantes)
+
+- **Billet « Le Pass »** (`lib/ticket.ts`, `components/rsvp/GuestTicketCard.tsx`) : après « Je serai là », l'invité voit son billet et le télécharge en **image** (1 080 × 1 920 px, feuille de partage du téléphone pour l'enregistrer dans les photos) ou en **PDF** (9 × 16 cm). Il le retrouve en rouvrant son lien d'invitation.
+  - Contenu : monogramme et prénoms du couple dans leur police, date, nom de l'invité, nombre de personnes (fixé par les mariés), grand QR code, programme limité aux cérémonies confirmées par l'invité (avec le jour quand il diffère, par exemple la dot), numéro du billet, et table si le plan de table est fait.
+  - Couleurs de la palette du couple. Un billet par fiche invité. Dessiné dans le navigateur, sans bibliothèque en plus.
+  - Rien ne s'affiche en version gratuite, en mode souvenir, ou si l'invité n'a pas confirmé.
+- **Page de l'équipe d'accueil** (`/accueil`) : ouverte avec le lien donné par les mariés. La clé reste enregistrée sur le téléphone et disparaît de l'adresse.
+  - **Scanner un billet** avec la caméra (lecture du navigateur sur Android, jsQR sur iPhone). Écran vert « Bienvenue ! » avec nom, nombre de personnes et table ; orange « Déjà entré à 19 h 42 » ou « Présence non confirmée » (avec « Faire entrer quand même ») ; rouge « Billet inconnu » ou « Autre mariage ». « Annuler cette entrée » en cas d'erreur.
+  - **Numéro du billet** à taper, et **recherche par nom** pour un invité sans billet (« Faire entrer »).
+  - Compteur « personnes arrivées / personnes attendues ».
+  - Un billet scanné avec l'appareil photo ordinaire ouvre aussi `/accueil` : sur le téléphone de l'équipe, l'entrée est enregistrée ; sur un autre téléphone, la page dit seulement de présenter le billet.
+  - La caméra n'est autorisée que sur cette page (`Permissions-Policy` dans `next.config.ts`).
+- **Page « Accueil des invités » du tableau de bord** (`/dashboard/accueil`) : lien de l'équipe d'accueil (copie, WhatsApp, QR code, renouvellement qui coupe l'ancien lien), chiffres (confirmés, billets créés, arrivés) et liste des arrivées, actualisée toutes les 30 secondes. En version gratuite : présentation de la fonction et bouton vers les formules.
+
+### 2.8 Photos et souvenirs
 
 - **Album photos par mariage** : envoi par le lien du couple (`/photos?id=…`). La page **Album photos** du couple permet de voir les photos en grand et de **tout télécharger en .zip**.
 - **Livre d'or** rattaché à chaque mariage.
@@ -171,7 +187,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - Prolongation : **5 000 F pour 6 mois**.
 - **Suppression définitive** à la demande, depuis le pop-up, « Mes souvenirs » ou les Paramètres, en tapant « SUPPRIMER ». Elle efface les données, les fichiers et le compte de connexion.
 
-### 2.8 Offre et paiement
+### 2.9 Offre et paiement
 
 | Formule | Invités, accompagnants compris | Prix |
 |---|---|---|
@@ -190,7 +206,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 - **Activation par contact** : appel ou WhatsApp au **01 01 54 06 87**, avec un message prérempli contenant le palier et la référence du couple. Le paiement en ligne GeniusPay est développé mais désactivé (`ONLINE_PAYMENT_ENABLED = false`).
 - **La limite est appliquée par la base**, y compris pour les imports et les hausses du nombre d'accompagnants.
 
-### 2.9 Administration (`/admin`)
+### 2.10 Administration (`/admin`)
 
 - **Accès** réservé aux adresses de `ADMIN_EMAILS`, vérifié par le serveur à chaque demande.
 - **Vue d'ensemble** :
@@ -204,7 +220,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - désactiver ou réactiver le compte, supprimer le couple.
 - **Paiements** et **journal** de toutes les actions.
 
-### 2.12 Codes promo et parrainage
+### 2.11 Codes promo et parrainage
 
 - **Codes promo** (onglet « Promos & parrainage » de `/admin`) : réduction en montant ou en %, date limite, nombre d'utilisations, partenaire et commission par vente. Un code déjà saisi n'est jamais supprimé, seulement désactivé.
 - **Parrainage** : chaque couple a son code (ex. `AWAYAO27`) et un lien `/register?parrain=CODE`. Le filleul a **5 000 F de réduction** ; le parrain reçoit **5 000 F** quand le filleul paie (versement à la main, noté dans la fiche du filleul). Montants dans `lib/promo.ts` et la fonction SQL `my_code()`.
@@ -213,13 +229,13 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 - **Administration** : la fiche du couple propose le montant réduit (case « Appliquer le code »), le code est marqué utilisé et noté sur le paiement.
 - **Sécurité** : les champs du code ne peuvent être changés que par le serveur ou par les fonctions de la base ; un code ne sert qu'une fois par couple ; le parrainage est refusé à un couple qui a déjà payé.
 
-### 2.11 Logo « Les Alliances »
+### 2.12 Logo « Les Alliances »
 
 - **Symbole** : deux alliances entrelacées, bordeaux et or, avec un petit diamant (`components/brand/AlliancesMark.tsx`). Couleurs fixes de la marque, indépendantes de la palette du couple.
 - **Où** : en-têtes de l'accueil, de l'espace des mariés, des pages de compte, des pages légales, de l'administration et du guide.
 - **Icônes** : onglet du navigateur (`app/icon.svg`), écran d'accueil iPhone (`app/apple-icon.tsx`), image de partage WhatsApp (`lib/og-card.tsx`).
 
-### 2.10 Guide d'utilisation (`/guide`)
+### 2.13 Guide d'utilisation (`/guide`)
 
 - **Page statique** `public/guide/index.html` et 35 captures (`public/guide/img/`), servie sur `/guide` (réécriture dans `next.config.ts`).
 - Une seule page pour **ordinateur et téléphone** : sommaire fixe à gauche ou repliable en haut, recherche, captures agrandissables, bouton WhatsApp.

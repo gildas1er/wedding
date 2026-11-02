@@ -43,14 +43,18 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Le site n'utilise ni caméra, ni micro, ni géolocalisation, ni paiement intégré au navigateur
+  // Le site n'utilise ni caméra (sauf /accueil, plus bas), ni micro, ni géolocalisation, ni paiement intégré au navigateur
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
 ];
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Accueil du jour J : l'équipe scanne les billets avec la caméra (le dernier en-tête l'emporte)
+      { source: "/accueil", headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()" }] },
+    ];
   },
   // Guide d'utilisation : page statique (public/guide/index.html) servie sur /guide
   async rewrites() {

@@ -19,6 +19,7 @@ import EnvelopeIntro from '../../../components/rsvp/EnvelopeIntro';
 import PremiereIntro, { type PremiereAnswer } from '../../../components/rsvp/PremiereIntro';
 import StoryIntro from '../../../components/rsvp/StoryIntro';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
+import GuestTicketCard from '../../../components/rsvp/GuestTicketCard';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
 import { nameFontStyle } from '../../../lib/name-fonts';
 import posthog from 'posthog-js';
@@ -62,6 +63,8 @@ function RSVPContent() {
   const [sending, setSending] = useState(false);
   const [marriage, setMarriage] = useState<any>(null);
   const [guestName, setGuestName] = useState('');
+  // Réponse déjà enregistrée : un invité confirmé retrouve son billet en rouvrant son lien
+  const [savedStatus, setSavedStatus] = useState<string | null>(null);
 
   // Gestion Audio
   const [isPlaying, setIsPlaying] = useState(false);
@@ -100,6 +103,7 @@ function RSVPContent() {
 
           if (gData) {
             setGuestName(gData.name);
+            setSavedStatus(gData.status ?? null);
             const isDot = gData.attending_dot ?? true;
             const isCivil = gData.attending_civil ?? true;
             const isChurch = gData.attending_church ?? true;
@@ -273,6 +277,7 @@ function RSVPContent() {
       attending_religious: flags.religious && values.attending_church,
       attending_reception: flags.reception && values.attending_reception,
     });
+    setSavedStatus(values.status);
     setSubmitted(true);
     if (values.status === 'confirmé') triggerConfetti();
     return null;
@@ -529,6 +534,12 @@ function RSVPContent() {
                 <p className="mt-2 text-sm text-slate-500">Utilisez le lien reçu par WhatsApp : il vous est réservé et permet d&apos;indiquer votre présence.</p>
               </div>
             ) : !submitted ? (
+              <>
+              {guestId && !isPreview && savedStatus === 'confirmé' && (
+                <div className="mb-8 -mt-6">
+                  <GuestTicketCard m={m} marriageId={String(id)} guestId={guestId} />
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="text-center mb-6">
                   <p className="eyebrow mb-1">Réponse de</p>
@@ -681,6 +692,7 @@ function RSVPContent() {
                   )}
                 </AnimatePresence>
               </form>
+              </>
             ) : (
               <motion.div 
                 initial={{ scale: 0.8, opacity: 0 }} 
@@ -700,6 +712,9 @@ function RSVPContent() {
                     <h3 className="text-2xl font-black text-slate-900">C'est noté !</h3>
                     <p className="text-slate-500 font-medium text-sm mt-1">Merci pour votre réponse, {shownGuestName}.</p>
                 </div>
+                {guestId && !isPreview && savedStatus === 'confirmé' && (
+                  <GuestTicketCard m={m} marriageId={String(id)} guestId={guestId} />
+                )}
               </motion.div>
             )}
           </motion.div>
