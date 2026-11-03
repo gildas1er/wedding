@@ -1,15 +1,22 @@
 "use client";
-// Accueil du jour J (formules payantes, migration 32) : lien de l'équipe d'accueil et suivi des arrivées.
+// Accueil du jour J (formules payantes, migrations 32 et 33) : envoi des billets, lien de l'équipe d'accueil
+// et suivi des arrivées.
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
-import { Check, Copy, Crown, ExternalLink, Loader2, MessageCircle, RefreshCw, ScanLine, Ticket, Users, type LucideIcon } from 'lucide-react';
+import { Check, Copy, Crown, ExternalLink, Loader2, MessageCircle, RefreshCw, ScanLine, Send, Ticket, Users, type LucideIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 import { isPremium } from '../../../lib/plan';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
+import { whatsappLink } from '../../../lib/phone';
+import { formatDayFr, resolveTicketRelease, ticketAvailableFrom, todayAbidjan } from '../../../lib/ticket';
 
-type Row = { id: string; name: string; guests_count: number | null; status: string | null; ticket_code: string | null; checked_in_at: string | null };
+type Row = {
+  id: string; name: string; phone: string | null; guests_count: number | null; status: string | null;
+  ticket_code: string | null; checked_in_at: string | null; ticket_sent_at: string | null;
+  attending_dot: boolean | null; attending_civil: boolean | null; attending_church: boolean | null; attending_reception: boolean | null;
+};
 
 const people = (rows: Row[]) => rows.reduce((s, r) => s + Math.max(1, Number(r.guests_count) || 1), 0);
 const hour = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
@@ -24,6 +31,7 @@ export default function AccueilDashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [rowsError, setRowsError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showAllTickets, setShowAllTickets] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -42,7 +50,7 @@ export default function AccueilDashboardPage() {
     if (!marriageId) return;
     const { data, error } = await supabase
       .from('invite')
-      .select('id, name, guests_count, status, ticket_code, checked_in_at')
+      .select('id, name, phone, guests_count, status, ticket_code, checked_in_at, ticket_sent_at, attending_dot, attending_civil, attending_church, attending_reception')
       .eq('marriage_id', marriageId);
     setRowsError(Boolean(error));
     if (!error) setRows((data ?? []) as Row[]);
@@ -92,11 +100,32 @@ export default function AccueilDashboardPage() {
     notify('Nouveau lien d’accueil créé');
   };
 
+  // « Votre billet est prêt » : message WhatsApp avec le lien personnel de l'invité, puis envoi noté
+  const sendTicket = async (r: Row) => {
+    if (!marriage) return;
+    const couple = [marriage.partner_1_name, marriage.partner_2_name].filter(Boolean).join(' & ');
+    const message = `Bonjour ${r.name} ! 🎟️ Votre billet d'entrée pour le mariage${couple ? ` de ${couple}` : ''} est prêt.\nOuvrez votre invitation pour l'enregistrer dans vos photos :\n${window.location.origin}/rsvp/${marriage.id}?guest=${r.id}\nIl est à votre nom et ne sert qu'une fois : présentez-le à l'accueil le jour J.`;
+    const url = whatsappLink(r.phone, message);
+    if (!url) { notify(`Le numéro de ${r.name} n'est pas valide. Modifiez sa fiche dans la page Invités.`, 'error'); return; }
+    window.open(url, '_blank');
+    const at = new Date().toISOString();
+    const { error } = await supabase.from('invite').update({ ticket_sent_at: at }).eq('id', r.id);
+    if (error) { notify("Le message est parti, mais son envoi n'a pas pu être noté.", 'error'); return; }
+    setRows((prev) => prev.map((g) => (g.id === r.id ? { ...g, ticket_sent_at: at } : g)));
+  };
+
   if (loading) return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>;
 
   const confirmed = rows.filter((r) => r.status === 'confirmé');
   const arrived = rows.filter((r) => r.checked_in_at).sort((a, b) => b.checked_in_at!.localeCompare(a.checked_in_at!));
   const tickets = confirmed.filter((r) => r.ticket_code);
+  const today = todayAbidjan();
+  const veille = resolveTicketRelease(marriage?.ticket_release) === 'veille';
+  const toSend = confirmed
+    .map((r) => ({ ...r, from: ticketAvailableFrom(marriage ?? {}, r) }))
+    .sort((a, b) => Number(Boolean(a.ticket_sent_at)) - Number(Boolean(b.ticket_sent_at)) || (a.from ?? '').localeCompare(b.from ?? '') || a.name.localeCompare(b.name));
+  const sentCount = toSend.filter((r) => r.ticket_sent_at).length;
+  const shownToSend = showAllTickets ? toSend : toSend.filter((r) => !r.ticket_sent_at);
   const couple = [marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ');
   const whatsapp = `Bonjour ! Merci de nous aider à l'accueil de notre mariage${couple ? ` (${couple})` : ''} 🙏\nOuvrez ce lien sur votre téléphone le jour J pour scanner les billets des invités :\n${link}\nNe le partagez pas : il donne accès à la liste des invités.`;
 
@@ -163,7 +192,7 @@ export default function AccueilDashboardPage() {
                 <button type="button" onClick={loadRows} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-ink"><RefreshCw className="h-3.5 w-3.5" /> Actualiser</button>
               </div>
               {rowsError ? (
-                <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Les arrivées s&apos;afficheront après la mise à jour de la base (migration 32).</p>
+                <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Les arrivées s&apos;afficheront après la mise à jour de la base (migrations 32 et 33).</p>
               ) : (
                 <>
                   <div className="mt-4 grid grid-cols-3 gap-2">
@@ -182,6 +211,64 @@ export default function AccueilDashboardPage() {
                         </li>
                       ))}
                     </ul>
+                  )}
+                </>
+              )}
+            </section>
+
+            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300 text-amber-700"><Send className="h-[18px] w-[18px]" strokeWidth={1.6} /></span>
+                  <div className="min-w-0">
+                    <h2 className="font-display text-xl text-ink">Envoyer les billets</h2>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      {veille
+                        ? 'Vous avez choisi « la veille » dans le Studio : chaque invité peut ouvrir son billet la veille de sa première cérémonie. Envoyez-lui le message ce jour-là.'
+                        : 'Prévenez vos invités confirmés que leur billet les attend, en particulier ceux qui ont répondu avant l’arrivée des billets.'}
+                    </p>
+                  </div>
+                </div>
+                <p className="shrink-0 rounded-full bg-ivory px-3 py-1 text-xs font-semibold text-slate-600 tabular-nums">{sentCount} / {toSend.length} envoyés</p>
+              </div>
+              {rowsError ? null : toSend.length === 0 ? (
+                <p className="mt-5 text-sm text-slate-500">Aucun invité n&apos;a encore confirmé sa présence.</p>
+              ) : (
+                <>
+                  {shownToSend.length === 0 ? (
+                    <p className="mt-5 text-sm text-slate-500">Tous les billets ont été envoyés.</p>
+                  ) : (
+                    <ul className="mt-5 max-h-[480px] divide-y divide-slate-100 overflow-y-auto">
+                      {shownToSend.map((r) => {
+                        const later = r.from && r.from > today;
+                        return (
+                          <li key={r.id} className="flex items-center justify-between gap-3 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-ink">{r.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {Math.max(1, Number(r.guests_count) || 1)} pers.
+                                {r.ticket_sent_at && <span className="text-emerald-700"> · Envoyé le {new Date(r.ticket_sent_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                                {later && <span className="text-amber-700"> · Billet disponible le {formatDayFr(r.from!)}</span>}
+                                {!r.phone && <span className="text-amber-700"> · Pas de numéro</span>}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => sendTicket(r)}
+                              disabled={Boolean(later) || !r.phone}
+                              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 ${r.ticket_sent_at ? 'border border-slate-200 text-ink hover:border-ink' : 'bg-ink text-white hover:bg-rose-700'}`}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" /> {r.ticket_sent_at ? 'Renvoyer' : 'WhatsApp'}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {sentCount > 0 && (
+                    <button type="button" onClick={() => setShowAllTickets((v) => !v)} className="mt-3 text-xs font-medium text-slate-500 underline-offset-4 hover:text-ink hover:underline">
+                      {showAllTickets ? 'Masquer les billets déjà envoyés' : `Voir aussi les ${sentCount} billets déjà envoyés`}
+                    </button>
                   )}
                 </>
               )}

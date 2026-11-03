@@ -370,7 +370,7 @@ function ResultSheet({ result, working, onNext, onClose, onUndo, onForce }: {
 }) {
   const r = result;
   const look = !r ? null : {
-    ok: { bg: 'bg-emerald-600', icon: CheckCircle2, title: 'Bienvenue !', text: 'Entrée enregistrée.' },
+    ok: { bg: 'bg-emerald-600', icon: CheckCircle2, title: 'Bienvenue !', text: 'Entrée enregistrée. Vérifiez que le nom est bien celui de la personne.' },
     already: { bg: 'bg-amber-500', icon: AlertTriangle, title: 'Déjà entré', text: `Ce billet a été scanné à ${hour(r.checked_in_at)}.` },
     not_confirmed: { bg: 'bg-amber-500', icon: AlertTriangle, title: 'Présence non confirmée', text: r.status === 'décliné' ? 'Cet invité avait répondu qu’il ne viendrait pas.' : 'Cet invité n’a pas confirmé sa présence.' },
     undone: { bg: 'bg-slate-700', icon: RotateCcw, title: 'Entrée annulée', text: 'Le billet peut être scanné de nouveau.' },

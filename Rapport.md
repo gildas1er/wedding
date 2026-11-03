@@ -1,6 +1,6 @@
 # Rapport de développement — WeddingStudio
 
-*Dernière mise à jour : 2 novembre 2026*
+*Dernière mise à jour : 3 novembre 2026*
 
 WeddingStudio est une plateforme d'organisation de mariage pensée pour la Côte d'Ivoire. Elle couvre les invitations et réponses par WhatsApp, le faire-part en ligne, le plan de table, le budget, la checklist, le déroulé du Jour J, l'album photos et le livre d'or.
 
@@ -51,6 +51,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 30 | `20261019_30_fiche_mariage_automatique.sql` | Fiche mariage créée automatiquement : déclencheur à l'inscription remis en place, filet de sécurité `ensure_my_marriage()` à la première ouverture de l'espace, rattrapage des comptes sans fiche (hors administrateurs), consentement de nouveau enregistré |
 | 31 | `20261023_31_quota_invitations_envoyees.sql` | Version gratuite : 30 personnes invitées au total, une invitation envoyée garde sa place même si l'invité est supprimé ; date d'envoi de l'invitation (`invitation_sent_at`) |
 | 32 | `20261102_32_billet_controle_entree.sql` | Billet d'entrée et contrôle à l'entrée (formules payantes) : code de billet et heure d'arrivée par fiche, clé de l'équipe d'accueil, fonctions `get_guest_ticket`, `my_checkin_key`, `checkin_open`, `checkin_ticket`, `checkin_force`, `checkin_search` ; 20 refus au plus par IP en 10 minutes |
+| 33 | `20261103_33_billet_disponibilite.sql` | Choix du couple « billet dès la confirmation » ou « la veille » de la première cérémonie de l'invité (`ticket_release`, « dès la confirmation » pour les couples existants) ; date d'envoi du billet par WhatsApp (`ticket_sent_at`) ; `get_guest_ticket` ne donne que la date de disponibilité avant l'heure |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -168,13 +169,15 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - Contenu : monogramme et prénoms du couple dans leur police, date, nom de l'invité, nombre de personnes (fixé par les mariés), grand QR code, programme limité aux cérémonies confirmées par l'invité (avec le jour quand il diffère, par exemple la dot), numéro du billet, et table si le plan de table est fait.
   - Couleurs de la palette du couple. Un billet par fiche invité. Dessiné dans le navigateur, sans bibliothèque en plus.
   - Rien ne s'affiche en version gratuite, en mode souvenir, ou si l'invité n'a pas confirmé.
+  - **Quand ?** Le couple choisit dans le Studio (carte « Billet d'entrée ») : **dès la confirmation** (par défaut, et pour les couples existants) ou **la veille** de la première cérémonie à laquelle l'invité vient (la dot peut avoir lieu plusieurs jours avant), à minuit, heure d'Abidjan. Avant cette date, l'invité lit « Votre billet d'entrée arrive bientôt : il sera disponible ici à partir du mercredi 26 août » ; la base ne renvoie aucun code, donc aucun QR code ne peut circuler avant.
+  - Message sous le billet : « Il est à votre nom et ne sert qu'une fois : gardez-le pour vous. »
 - **Page de l'équipe d'accueil** (`/accueil`) : ouverte avec le lien donné par les mariés. La clé reste enregistrée sur le téléphone et disparaît de l'adresse.
-  - **Scanner un billet** avec la caméra (lecture du navigateur sur Android, jsQR sur iPhone). Écran vert « Bienvenue ! » avec nom, nombre de personnes et table ; orange « Déjà entré à 19 h 42 » ou « Présence non confirmée » (avec « Faire entrer quand même ») ; rouge « Billet inconnu » ou « Autre mariage ». « Annuler cette entrée » en cas d'erreur.
+  - **Scanner un billet** avec la caméra (lecture du navigateur sur Android, jsQR sur iPhone). Écran vert « Bienvenue ! » avec nom, nombre de personnes et table, et la consigne de vérifier le nom ; orange « Déjà entré à 19 h 42 » ou « Présence non confirmée » (avec « Faire entrer quand même ») ; rouge « Billet inconnu » ou « Autre mariage ». « Annuler cette entrée » en cas d'erreur.
   - **Numéro du billet** à taper, et **recherche par nom** pour un invité sans billet (« Faire entrer »).
   - Compteur « personnes arrivées / personnes attendues ».
   - Un billet scanné avec l'appareil photo ordinaire ouvre aussi `/accueil` : sur le téléphone de l'équipe, l'entrée est enregistrée ; sur un autre téléphone, la page dit seulement de présenter le billet.
   - La caméra n'est autorisée que sur cette page (`Permissions-Policy` dans `next.config.ts`).
-- **Page « Accueil des invités » du tableau de bord** (`/dashboard/accueil`) : lien de l'équipe d'accueil (copie, WhatsApp, QR code, renouvellement qui coupe l'ancien lien), chiffres (confirmés, billets créés, arrivés) et liste des arrivées, actualisée toutes les 30 secondes. En version gratuite : présentation de la fonction et bouton vers les formules.
+- **Page « Accueil des invités » du tableau de bord** (`/dashboard/accueil`) : **« Envoyer les billets »**, la liste des invités confirmés avec un message WhatsApp prêt (« Votre billet d'entrée est prêt », avec leur lien personnel), un toucher par invité, « n / m envoyés », bouton grisé jusqu'à la date de disponibilité en mode « la veille ». Utile aussi aux couples qui ont envoyé leurs invitations avant l'arrivée des billets : leurs invités confirmés ont un billet, mais ne le savent pas. Lien de l'équipe d'accueil (copie, WhatsApp, QR code, renouvellement qui coupe l'ancien lien), chiffres (confirmés, billets créés, arrivés) et liste des arrivées, actualisée toutes les 30 secondes. En version gratuite : présentation de la fonction et bouton vers les formules.
 
 ### 2.8 Photos et souvenirs
 

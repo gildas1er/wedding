@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
-  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, Handshake, type LucideIcon,
+  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, Handshake, Ticket, Lock, type LucideIcon,
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +23,8 @@ import {
 } from '../../../lib/whatsapp-message';
 import { forgetMarriage, getSessionUser, loadMarriage } from '../../../lib/current-marriage';
 import posthog from 'posthog-js';
+import { isPremium } from '../../../lib/plan';
+import { resolveTicketRelease, type TicketRelease } from '../../../lib/ticket';
 
 type Config = {
   invitation_template: InvitationTemplate;
@@ -55,6 +57,7 @@ type Config = {
   whatsapp_message: string;
   music_url: string; // '' = mélodie d'origine, 'none' = sans musique
   practical_info: PracticalInfo[];
+  ticket_release: TicketRelease;
 };
 
 const EMPTY_CONFIG: Config = {
@@ -76,6 +79,7 @@ const EMPTY_CONFIG: Config = {
   whatsapp_message: DEFAULT_WHATSAPP_TEMPLATE,
   music_url: '',
   practical_info: [],
+  ticket_release: 'confirmation',
 };
 
 // Colonnes ajoutées par les migrations 3 et 4 (enregistrées à part pour ne pas bloquer le reste)
@@ -87,6 +91,7 @@ const INFO_KEYS = ['practical_info'] as const;
 const RECEPTION_DATE_KEYS = ['reception_date'] as const;
 const TEMPLATE_KEYS = ['invitation_template'] as const;
 const NAMES_FONT_KEYS = ['names_font'] as const;
+const TICKET_KEYS = ['ticket_release'] as const;
 const DOT_KEYS = ['show_dot', 'dot_date', 'dot_hour', 'dot_location', 'dot_maps_url'] as const;
 const MAX_MUSIC_MB = 10;
 
@@ -112,6 +117,7 @@ export default function InvitationStudio() {
   const [templateAvailable, setTemplateAvailable] = useState(true);
   const [dotAvailable, setDotAvailable] = useState(true);
   const [namesFontAvailable, setNamesFontAvailable] = useState(true);
+  const [ticketAvailable, setTicketAvailable] = useState(true);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -141,6 +147,7 @@ export default function InvitationStudio() {
         setTemplateAvailable('invitation_template' in data);
         setDotAvailable('show_dot' in data);
         setNamesFontAvailable('names_font' in data);
+        setTicketAvailable('ticket_release' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -187,6 +194,7 @@ export default function InvitationStudio() {
           whatsapp_message: data.whatsapp_message || DEFAULT_WHATSAPP_TEMPLATE,
           music_url: data.music_url || '',
           practical_info: sanitizeInfos(data.practical_info),
+          ticket_release: resolveTicketRelease(data.ticket_release),
         };
         setLegacyValues(legacy);
         setConfig(loaded);
@@ -312,6 +320,10 @@ export default function InvitationStudio() {
         label: config.invitation_template === 'avant_premiere' ? "la migration 27 (modèle L'Avant-première)" : "la migration 11 (modèle d'invitation)",
         onMissing: () => { if (config.invitation_template !== 'avant_premiere') setTemplateAvailable(false); },
         values: { invitation_template: config.invitation_template },
+      },
+      {
+        keys: TICKET_KEYS, label: "la migration 33 (billet d'entrée)", onMissing: () => setTicketAvailable(false),
+        values: { ticket_release: config.ticket_release },
       },
       {
         keys: RECEPTION_DATE_KEYS, label: 'la migration 10 (date de la réception)', onMissing: () => {},
@@ -608,6 +620,41 @@ export default function InvitationStudio() {
               </p>
             )}
             <PracticalInfoEditor value={config.practical_info} onChange={(v) => set('practical_info', v)} />
+          </Card>
+
+          <Card icon={Ticket} title="Billet d'entrée" subtitle="Chaque invité qui confirme reçoit un billet à son nom, avec un QR code scanné à l'accueil.">
+            {!isPremium(marriage) ? (
+              <p className="flex items-start gap-2 rounded-xl bg-ivory p-3 text-sm text-slate-600">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <span>Disponible avec les formules payantes. <a href="/dashboard/accueil" className="font-semibold text-rose-600 underline-offset-4 hover:underline">Découvrir l&apos;accueil des invités</a></span>
+              </p>
+            ) : (
+              <>
+                <div role="radiogroup" aria-label="Quand l'invité reçoit-il son billet ?" className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    { id: 'confirmation', title: 'Dès la confirmation', text: "L'invité voit son billet juste après avoir répondu « Je serai là »." },
+                    { id: 'veille', title: 'La veille', text: "Disponible la veille de sa première cérémonie : moins de risque qu'il le donne à quelqu'un d'autre." },
+                  ] as const).map((o) => {
+                    const active = config.ticket_release === o.id;
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => set('ticket_release', o.id)}
+                        className={`rounded-2xl border p-4 text-left transition-all ${active ? 'border-amber-400 bg-amber-50/60 ring-2 ring-amber-200' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                      >
+                        <span className="flex items-center gap-1.5 text-sm font-semibold text-ink">{active && <Check className="h-4 w-4 text-amber-700" />} {o.title}</span>
+                        <span className="mt-1 block text-xs text-slate-500">{o.text}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-500">Un billet ne sert qu&apos;une fois, et il est refusé si l&apos;invité annule sa venue. Envoyez les billets et suivez les arrivées depuis la page <a href="/dashboard/accueil" className="font-semibold text-rose-600 underline-offset-4 hover:underline">Accueil des invités</a>.</p>
+                {!ticketAvailable && <p className="text-xs text-amber-700">Ce choix sera enregistré après la migration « 20261103_33_billet_disponibilite.sql ».</p>}
+              </>
+            )}
           </Card>
 
           <Card icon={Music} title="Musique d'ambiance" subtitle="Vos invités peuvent l'écouter en ouvrant l'invitation. Appuyez sur lecture pour l'essayer.">

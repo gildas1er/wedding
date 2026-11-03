@@ -1,24 +1,28 @@
 "use client";
-// Billet d'entrée affiché après « Je serai là » (formules payantes, migration 32).
+// Billet d'entrée affiché après « Je serai là » (formules payantes, migrations 32 et 33).
+// Si le couple a choisi « la veille », l'invité voit seulement la date à laquelle il pourra l'ouvrir.
 // Rien ne s'affiche si le mariage est en version gratuite ou si la fonction n'est pas encore en base.
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Loader2, Ticket } from 'lucide-react';
+import { CalendarClock, Download, FileText, Loader2, Ticket } from 'lucide-react';
 import posthog from 'posthog-js';
 import { supabase } from '../../app/lib/supabase';
-import { canvasToBlob, canvasToPdf, drawTicket, saveFile, ticketFilename, ticketUrl, type GuestTicket, type TicketMarriage } from '../../lib/ticket';
+import { canvasToBlob, canvasToPdf, drawTicket, formatDayFr, saveFile, ticketFilename, ticketUrl, type GuestTicket, type TicketMarriage } from '../../lib/ticket';
 
 export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketMarriage; marriageId: string; guestId: string }) {
   const [ticket, setTicket] = useState<GuestTicket | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState<'png' | 'pdf' | null>(null);
+  const [availableFrom, setAvailableFrom] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const { data, error } = await supabase.rpc('get_guest_ticket', { p_marriage_id: marriageId, p_guest_id: guestId });
-      if (cancelled || error || !data?.code) return;
+      if (cancelled || error || !data) return;
+      if (data.available_from) { setAvailableFrom(String(data.available_from)); return; }
+      if (!data.code) return;
       const t = data as GuestTicket;
       const c = await drawTicket(m, t, ticketUrl(window.location.origin, marriageId, t.code));
       if (cancelled) return;
@@ -30,6 +34,27 @@ export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketM
     // Le billet est dessiné une fois, avec la fiche telle qu'enregistrée
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marriageId, guestId]);
+
+  if (availableFrom) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-5 text-left shadow-sm"
+      >
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600"><CalendarClock className="h-5 w-5" strokeWidth={1.7} /></span>
+          <div className="min-w-0">
+            <p className="font-display text-lg leading-tight text-ink">Votre billet d&apos;entrée arrive bientôt</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Il sera disponible ici à partir du <strong className="font-semibold text-ink">{formatDayFr(availableFrom)}</strong>. Gardez ce lien et rouvrez-le ce jour-là pour l&apos;enregistrer.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   if (!ticket || !canvas || !preview) return null;
 
@@ -55,7 +80,7 @@ export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketM
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600"><Ticket className="h-5 w-5" strokeWidth={1.7} /></span>
         <div className="min-w-0">
           <p className="font-display text-lg leading-tight text-ink">Votre billet d&apos;entrée</p>
-          <p className="text-xs text-slate-500">À présenter à l&apos;accueil le jour du mariage.</p>
+          <p className="text-xs text-slate-500">Il est à votre nom et ne sert qu&apos;une fois : gardez-le pour vous.</p>
         </div>
       </div>
 

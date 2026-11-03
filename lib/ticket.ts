@@ -40,6 +40,36 @@ export const ticketUrl = (origin: string, marriageId: string, code: string) => `
 // « 4K7Q2C9M » -> « 4K7Q-2C9M »
 export const formatTicketCode = (code: string) => code.replace(/^(.{4})(.+)$/, '$1-$2');
 
+/* ── Disponibilité (même règle que ticket_available_from, migration 33) ── */
+export type TicketRelease = 'confirmation' | 'veille';
+export const resolveTicketRelease = (v: unknown): TicketRelease => (v === 'veille' ? 'veille' : 'confirmation');
+
+type Attending = { attending_dot?: boolean | null; attending_civil?: boolean | null; attending_church?: boolean | null; attending_reception?: boolean | null };
+const isoOnly = (v: Text) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
+
+// « AAAA-MM-JJ » à partir duquel l'invité voit son billet (null : dès sa confirmation)
+export function ticketAvailableFrom(m: TicketMarriage & { ticket_release?: Text }, g: Attending): string | null {
+  if (resolveTicketRelease(m.ticket_release) !== 'veille') return null;
+  const flags = ceremonyFlags(m);
+  const dates = [
+    flags.dot && (g.attending_dot ?? true) && isoOnly(m.dot_date),
+    flags.civil && (g.attending_civil ?? true) && isoOnly(m.mairie_date),
+    flags.religious && (g.attending_church ?? true) && isoOnly(m.religious_date),
+    flags.reception && (g.attending_reception ?? true) && isoOnly(m.reception_date),
+  ].filter((d): d is string => Boolean(d)).sort();
+  const first = dates[0] ?? isoOnly(m.wedding_date);
+  if (!first) return null;
+  const d = new Date(`${first}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Aujourd'hui à Abidjan (UTC toute l'année)
+export const todayAbidjan = () => new Date().toISOString().slice(0, 10);
+
+// « mercredi 26 août »
+export const formatDayFr = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
 /* ── Couleurs ── */
 function mix(a: string, b: string, t: number) {
   const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
