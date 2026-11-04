@@ -8,7 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog';
 import { fmtDate } from './CoupleDrawer';
 
 export type AdminAccount = {
-  id: string; email: string | null; phone: string | null; provider: string | null; admin: boolean;
+  id: string; email: string | null; phone: string | null; loginPhone?: string | null; provider: string | null; admin: boolean;
   names: string | null; weddingDate: string | null; confirmed: boolean;
   createdAt: string | null; lastSignIn: string | null; banned: boolean;
 };
@@ -50,7 +50,7 @@ export default function AccountsPanel({ accounts, strayProfiles, ready, onAction
             <li key={a.id} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-ink">{a.email ?? 'Sans e-mail'}</p>
+                  <p className="truncate font-semibold text-ink">{a.loginPhone ? `Téléphone ${a.loginPhone}` : a.email ?? 'Sans e-mail'}</p>
                   <p className="text-sm text-slate-500">{a.names ?? 'Prénoms non renseignés'}{a.phone ? ` · ${a.phone}` : ''}</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -71,14 +71,14 @@ export default function AccountsPanel({ accounts, strayProfiles, ready, onAction
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="button" disabled={busy !== null}
                     onClick={async () => {
-                      if (await confirm({ title: 'Créer sa fiche mariage ?', item: a.email ?? a.id, tone: 'neutral', icon: HeartPlus, confirmLabel: 'Créer la fiche', message: 'La fiche est créée comme à l’inscription, avec les prénoms et la date saisis. Le couple retrouvera son espace à sa prochaine connexion et apparaîtra dans « Couples ».' })) run(`m-${a.id}`, a.id, 'create_marriage');
+                      if (await confirm({ title: 'Créer sa fiche mariage ?', item: a.loginPhone ?? a.email ?? a.id, tone: 'neutral', icon: HeartPlus, confirmLabel: 'Créer la fiche', message: 'La fiche est créée comme à l’inscription, avec les prénoms et la date saisis. Le couple retrouvera son espace à sa prochaine connexion et apparaîtra dans « Couples ».' })) run(`m-${a.id}`, a.id, 'create_marriage');
                     }}
                     className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-ink px-3.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
                     {busy === `m-${a.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <HeartPlus className="h-4 w-4" />} Créer sa fiche mariage
                   </button>
                   <button type="button" disabled={busy !== null}
                     onClick={async () => {
-                      if (await confirm({ title: 'Supprimer ce compte ?', item: a.email ?? a.id, icon: Trash2, confirmLabel: 'Supprimer', consequences: ['Le compte de connexion et sa fiche « profiles » seront effacés.', 'La personne ne pourra plus se connecter (elle pourra se réinscrire).'] })) run(`d-${a.id}`, a.id, 'delete');
+                      if (await confirm({ title: 'Supprimer ce compte ?', item: a.loginPhone ?? a.email ?? a.id, icon: Trash2, confirmLabel: 'Supprimer', consequences: ['Le compte de connexion et sa fiche « profiles » seront effacés.', 'La personne ne pourra plus se connecter (elle pourra se réinscrire).'] })) run(`d-${a.id}`, a.id, 'delete');
                     }}
                     className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
                     {busy === `d-${a.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Supprimer le compte

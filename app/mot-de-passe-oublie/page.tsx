@@ -2,10 +2,17 @@
 
 // Mot de passe oublié : envoi d'un lien de réinitialisation par e-mail.
 // Le message de confirmation est le même que le compte existe ou non (on ne révèle pas les adresses inscrites).
+// Compte créé avec un numéro de téléphone (?tel=…) : pas d'e-mail, le couple écrit à WeddingStudio
+// sur WhatsApp depuis ce numéro et reçoit un mot de passe provisoire (créé dans l'administration).
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, ArrowRight, Mail, MailCheck, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Mail, MailCheck, MessageCircle, Phone, RefreshCw } from 'lucide-react';
+import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
+import PhoneField from '../../components/auth/PhoneField';
+import { DEFAULT_COUNTRY, formatPhone, parsePhone } from '../../lib/phone-auth';
+import { PREMIUM_CONTACT } from '../../lib/plan';
+import { whatsappLink } from '../../lib/phone';
 import { supabase } from '../lib/supabase';
 import AuthShell, { authButtonClass, authInputClass, authLabelClass } from '../../components/auth/AuthShell';
 import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
@@ -14,6 +21,11 @@ const COOLDOWN = 60; // Supabase limite à un e-mail par minute et par adresse
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<'email' | 'phone'>('email');
+  const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
+  const [phone, setPhone] = useState('');
+  const parsedPhone = parsePhone(phone, country);
+  const helpLink = whatsappLink(PREMIUM_CONTACT.phone, `Bonjour, j'ai oublié le mot de passe de mon compte WeddingStudio. Mon numéro de compte : ${parsedPhone ? formatPhone(parsedPhone) : ''}`);
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +40,11 @@ export default function ForgotPasswordPage() {
     Promise.resolve().then(() => {
       const prefill = params.get('email');
       if (prefill) setEmail(prefill);
+      if (params.has('tel')) {
+        setMode('phone');
+        const p = parsePhoneNumberFromString(params.get('tel') ?? '');
+        if (p?.country) { setCountry(p.country); setPhone(p.nationalNumber); }
+      }
       if (params.get('lien') === 'expire') setError('Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau ci-dessous.');
     });
   }, []);
@@ -72,7 +89,9 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       title={sentTo ? 'Vérifiez votre boîte mail' : 'Mot de passe oublié'}
-      subtitle={sentTo ? undefined : 'Indiquez l’adresse e-mail de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.'}
+      subtitle={sentTo ? undefined : mode === 'phone'
+        ? 'Votre compte a été créé avec un numéro de téléphone : écrivez-nous sur WhatsApp depuis ce numéro, nous vous envoyons un mot de passe provisoire.'
+        : 'Indiquez l’adresse e-mail de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.'}
       sideTitle={<>Pas d&apos;inquiétude,<br />cela arrive à tout le monde.</>}
       sideText="En quelques instants, vous retrouvez l'accès à votre espace et à tout ce que vous avez préparé."
     >
@@ -83,7 +102,29 @@ export default function ForgotPasswordPage() {
         </motion.p>
       )}
 
-      {sentTo ? (
+      {mode === 'phone' ? (
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="reset-phone" className={authLabelClass}>Numéro de votre compte</label>
+            <PhoneField id="reset-phone" country={country} onCountry={setCountry} value={phone} onValue={setPhone} autoFocus />
+          </div>
+          <a
+            href={parsedPhone && helpLink ? helpLink : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={!parsedPhone}
+            className={`${authButtonClass} ${parsedPhone ? 'bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700' : 'pointer-events-none bg-slate-200 text-slate-400 shadow-none'}`}
+          >
+            <MessageCircle className="h-4 w-4" /> Écrire à WeddingStudio sur WhatsApp
+          </a>
+          <p className="text-center text-xs leading-relaxed text-slate-500">
+            Envoyez le message depuis le WhatsApp de ce numéro : c’est ce qui nous permet de vérifier que le compte est bien le vôtre. Vous pourrez ensuite changer le mot de passe dans Paramètres.
+          </p>
+          <button type="button" onClick={() => setMode('email')} className="flex w-full items-center justify-center gap-2 text-sm font-bold text-slate-500 underline-offset-4 hover:text-ink hover:underline">
+            <Mail className="h-4 w-4" /> Mon compte utilise une adresse e-mail
+          </button>
+        </div>
+      ) : sentTo ? (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           <div className="rounded-[1.75rem] border border-emerald-100 bg-white p-6 text-center shadow-sm">
             <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/50">
@@ -120,10 +161,13 @@ export default function ForgotPasswordPage() {
           <button type="submit" disabled={sending || !email.trim() || cooldown > 0} className={`${authButtonClass} ${email.trim() && !cooldown ? 'bg-rose-500 text-white shadow-rose-200 hover:bg-rose-600' : 'bg-slate-200 text-slate-400 shadow-none'}`}>
             {sending ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : cooldown > 0 ? `Patientez ${cooldown} s` : <>Recevoir le lien <ArrowRight className="h-4 w-4" /></>}
           </button>
+          <button type="button" onClick={() => setMode('phone')} className="flex w-full items-center justify-center gap-2 text-sm font-bold text-slate-500 underline-offset-4 hover:text-ink hover:underline">
+            <Phone className="h-4 w-4" /> Mon compte utilise un numéro de téléphone
+          </button>
         </form>
       )}
 
-      <div className="mt-5"><Captcha onToken={setCaptchaToken} resetSignal={captchaReset} /></div>
+      {mode === 'email' && <div className="mt-5"><Captcha onToken={setCaptchaToken} resetSignal={captchaReset} /></div>}
 
       <p className="mt-10 text-center text-sm font-medium text-slate-500">
         <Link href="/login" className="inline-flex items-center gap-1.5 font-black text-rose-500 underline-offset-4 hover:underline">

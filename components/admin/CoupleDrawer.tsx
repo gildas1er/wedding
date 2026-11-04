@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   X, Mail, Phone, MessageCircle, ExternalLink, Crown, CalendarDays, Clock, Users, Ban, RotateCcw,
-  Trash2, Loader2, CalendarPlus, Banknote, ArrowDownCircle, Check, Ticket, Gift,
+  Trash2, Loader2, CalendarPlus, Banknote, ArrowDownCircle, Check, Ticket, Gift, KeyRound,
 } from 'lucide-react';
 import { TIERS, formatXof, tierById, upgradePrice } from '../../lib/plan';
 import { EXTENSION_MONTHS, EXTENSION_PRICE_XOF } from '../../lib/lifecycle';
@@ -14,7 +14,7 @@ import { REFERRAL_REWARD_XOF, describeDiscount, discountFor, type AppliedCode } 
 import { LAUNCH_OFFER, bestReduction, launchDiscount, launchOfferActive } from '../../lib/launch-offer';
 
 export type AdminCouple = {
-  id: string; ref: string; userId: string | null; couple: string; email: string | null; phone: string | null; provider: string | null;
+  id: string; ref: string; userId: string | null; couple: string; email: string | null; phone: string | null; loginPhone?: string | null; provider: string | null;
   createdAt: string | null; lastSignIn: string | null; banned: boolean; weddingDate: string | null; city: string | null;
   phase: 'active' | 'souvenir'; deleteAt: string | null; plan: string; premium: boolean; tier: string | null;
   premiumUntil: string | null; keptUntil: string | null; limit: number | null; byPersons: boolean; used: number;
@@ -70,6 +70,22 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
   const [payAmount, setPayAmount] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [deleteWord, setDeleteWord] = useState('');
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [tempError, setTempError] = useState<string | null>(null);
+
+  // Mot de passe provisoire : la route le renvoie une seule fois, il n'est pas gardé ailleurs
+  const makeTempPassword = async () => {
+    setBusy('temp');
+    setTempError(null);
+    const res = await fetch(`/api/admin/couples/${c.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'temp_password' }) }).catch(() => null);
+    const out = res ? await res.json().catch(() => ({})) : {};
+    if (res?.ok && out.password) setTempPassword(out.password);
+    else setTempError(out.error || 'Le mot de passe n’a pas pu être créé.');
+    setBusy(null);
+  };
+  const tempMessage = tempPassword
+    ? `Bonjour ${c.couple}, voici votre mot de passe provisoire WeddingStudio : ${tempPassword}\nConnectez-vous avec votre numéro ${c.loginPhone ?? ''} et ce mot de passe, puis changez-le dans Paramètres → Général.`
+    : '';
 
   const run = async (key: string, action: string, payload?: Record<string, unknown>) => {
     setBusy(key);
@@ -263,6 +279,33 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
               {busy === 'ban' ? <Loader2 className="h-4 w-4 animate-spin" /> : c.banned ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
               {c.banned ? 'Réactiver le compte' : 'Désactiver le compte'}
             </button>
+          </Panel>
+
+          <Panel title="Mot de passe oublié" icon={KeyRound}>
+            <p className="text-xs text-slate-500">
+              {c.loginPhone
+                ? <>Compte créé avec le numéro <strong className="text-ink">{c.loginPhone}</strong>. Vérifiez que la demande WhatsApp vient bien de ce numéro avant de créer un mot de passe provisoire.</>
+                : 'Ce compte utilise une adresse e-mail : le couple peut recevoir un lien depuis « Mot de passe oublié ». En dernier recours, créez un mot de passe provisoire.'}
+            </p>
+            {tempPassword ? (
+              <div className="mt-2 space-y-2">
+                <p className="select-all rounded-xl bg-amber-50 py-2.5 text-center font-mono text-lg font-semibold tracking-wider text-ink ring-1 ring-amber-200">{tempPassword}</p>
+                <p className="text-[11px] text-slate-500">Affiché une seule fois. L’ancien mot de passe ne fonctionne plus.</p>
+                {(c.loginPhone || c.phone) && (
+                  <a href={`${waLink(c.loginPhone || c.phone!)}&text=${encodeURIComponent(tempMessage)}`} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700">
+                    <MessageCircle className="h-4 w-4" /> Envoyer par WhatsApp
+                  </a>
+                )}
+              </div>
+            ) : (
+              <button type="button" disabled={busy !== null || !c.userId}
+                onClick={async () => { if (await confirm({ title: 'Créer un mot de passe provisoire ?', item: c.couple, tone: 'neutral', icon: KeyRound, confirmLabel: 'Créer', message: 'L’ancien mot de passe ne fonctionnera plus. Envoyez le nouveau au couple, qui pourra le changer dans ses Paramètres.' })) makeTempPassword(); }}
+                className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-ink hover:border-ink disabled:opacity-50">
+                {busy === 'temp' ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Créer un mot de passe provisoire
+              </button>
+            )}
+            {tempError && <p className="mt-2 text-xs text-rose-600">{tempError}</p>}
           </Panel>
 
           <section className="rounded-2xl border border-rose-200 bg-white p-4">

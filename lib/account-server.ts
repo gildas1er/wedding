@@ -1,4 +1,4 @@
-// Suppression définitive d'un espace (à la demande du couple ou 12 mois après le mariage).
+// Suppression définitive d'un espace (à la demande du couple ou 3 mois après le mariage).
 // Réservé au serveur : utilise la clé service.
 import type { SupabaseClient } from '@supabase/supabase-js';
 

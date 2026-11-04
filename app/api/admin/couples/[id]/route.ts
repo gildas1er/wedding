@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
+import { randomInt } from 'node:crypto';
 import { requireAdmin } from '../../../../../lib/admin-server';
 import { deleteSpace } from '../../../../../lib/account-server';
 import { TIERS, tierById } from '../../../../../lib/plan';
-import { EXTENSION_MONTHS } from '../../../../../lib/lifecycle';
+import { EXTENSION_MONTHS, spaceLifecycle } from '../../../../../lib/lifecycle';
 import { crossSiteRefusal, isSameOrigin } from '../../../../../lib/same-origin';
 import { LAUNCH_OFFER, isFirstPurchase, launchOfferActive } from '../../../../../lib/launch-offer';
 
 type Body = {
-  action: 'tier' | 'free' | 'extend' | 'payment' | 'disable' | 'enable' | 'delete' | 'referral_paid';
+  action: 'tier' | 'free' | 'extend' | 'payment' | 'disable' | 'enable' | 'delete' | 'referral_paid' | 'temp_password';
   tier?: string;
   limit?: number;
   amount?: number;
@@ -47,6 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error && promoCode) { delete row.promo_code; await db.from('payments').insert(row); }
   };
   const wedding = m.wedding_date ? new Date(`${String(m.wedding_date).slice(0, 10)}T00:00:00Z`) : new Date();
+  let tempPassword: string | null = null;
 
   try {
     switch (body.action) {
@@ -78,9 +80,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         break;
       }
       case 'extend': {
-        const base = Math.max(Date.now(), addMonths(wedding, 1).getTime(), m.kept_until ? new Date(m.kept_until).getTime() : 0);
+        // Un mois de plus à partir de la date de suppression prévue (ou d'aujourd'hui si elle est passée).
+        // L'espace redevient complet jusque-là ; le dernier rappel sera renvoyé avant la nouvelle date.
+        const scheduled = spaceLifecycle({ ...m, space_phase: null }).deleteAt;
+        const base = Math.max(Date.now(), addMonths(wedding, 1).getTime(), scheduled?.getTime() ?? 0);
         const keptUntil = addMonths(new Date(base), EXTENSION_MONTHS);
-        const { error } = await db.from('marriages').update({ kept_until: keptUntil.toISOString() }).eq('id', id);
+        const { error } = await db.from('marriages').update({ kept_until: keptUntil.toISOString(), final_reminder_at: null }).eq('id', id);
         if (error) throw error;
         await recordPayment(`Prolongation ${EXTENSION_MONTHS} mois`);
         await log('prolongation', { until: keptUntil.toISOString(), amount, note: body.note ?? null });
@@ -99,6 +104,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { error } = await db.auth.admin.updateUserById(m.user_id, { ban_duration: body.action === 'disable' ? '876000h' : 'none' });
         if (error) throw error;
         await log(body.action === 'disable' ? 'desactivation' : 'reactivation', { note: body.note ?? null });
+        break;
+      }
+      case 'temp_password': {
+        // Mot de passe oublié d'un compte par téléphone : le couple l'a demandé sur WhatsApp depuis son numéro.
+        // Le mot de passe n'est montré qu'une fois, à l'administrateur, et n'est pas noté dans le journal.
+        if (!m.user_id) return NextResponse.json({ error: 'Ce couple n’a pas de compte de connexion.' }, { status: 400 });
+        tempPassword = `Mariage-${String(randomInt(0, 1_000_000)).padStart(6, '0')}`;
+        const { error } = await db.auth.admin.updateUserById(m.user_id, { password: tempPassword });
+        if (error) throw error;
+        await log('mot_de_passe', { note: body.note ?? null });
         break;
       }
       case 'referral_paid': {
@@ -123,5 +138,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     console.error(`Administration (${body.action}) :`, e);
     return NextResponse.json({ error: (e as { message?: string })?.message || 'L’action a échoué.' }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(tempPassword ? { ok: true, password: tempPassword } : { ok: true });
 }

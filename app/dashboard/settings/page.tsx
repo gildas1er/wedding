@@ -10,6 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import { reportsFor } from '../../../lib/print-reports';
 import DeleteAccountModal from '../../../components/dashboard/DeleteAccountModal';
+import AccountLogin from '../../../components/dashboard/AccountLogin';
 import { isSpaceArchivedError } from '../../../lib/lifecycle';
 import { usePathname } from 'next/navigation';
 import { forgetMarriage, getSessionUser, loadMarriage } from '../../../lib/current-marriage';
@@ -193,6 +194,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+                <AccountLogin onToast={showToast} />
               </div>
             )}
 

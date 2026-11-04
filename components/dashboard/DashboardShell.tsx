@@ -15,7 +15,7 @@ import SouvenirModal from './SouvenirModal';
 import DeleteAccountModal from './DeleteAccountModal';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { FREE_GUEST_LIMIT, TIERS, countPersons, formatXof, isPremium, tierById, upgradePrice } from '../../lib/plan';
-import { SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
+import { FINAL_REMINDER_DAYS, SOON_DAYS, SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
 import { guideHref } from '../../lib/guide';
 import { REFERRAL_STORAGE_KEY } from '../../lib/promo';
 import { LAUNCH_OFFER, isFirstPurchase } from '../../lib/launch-offer';
@@ -252,8 +252,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           localStorage.removeItem(REFERRAL_STORAGE_KEY);
         }
       } catch { /* navigation privée */ }
-      // Mode souvenir : le pop-up s'affiche une fois par visite
-      if (lifecycle.phase === 'souvenir') {
+      // Mode souvenir : le pop-up s'affiche une fois par visite, et à chaque ouverture les 3 derniers jours
+      const lastDays = (lifecycle.daysBeforeDeletion ?? 99) <= FINAL_REMINDER_DAYS;
+      if (lifecycle.phase === 'souvenir' && lastDays) setSouvenirModal(true);
+      else if (lifecycle.phase === 'souvenir') {
         let seen = false;
         try { seen = sessionStorage.getItem(`ws-souvenir-${data.id}`) === '1'; sessionStorage.setItem(`ws-souvenir-${data.id}`, '1'); } catch { /* navigation privée */ }
         if (!seen) setSouvenirModal(true);
@@ -382,6 +384,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <Link href="/dashboard/souvenir" className="font-semibold underline underline-offset-2">Télécharger mes données</Link>
           </div>
         )}
+        {/* Mode souvenir : date de suppression en haut de chaque page (orange à 14 jours, rouge à 3 jours) */}
+        {couple && souvenir && couple.lifecycle.deleteAt && (() => {
+          const days = couple.lifecycle.daysBeforeDeletion ?? 99;
+          const tone = days <= FINAL_REMINDER_DAYS ? 'border-rose-200 bg-rose-50 text-rose-900' : days <= SOON_DAYS ? 'border-orange-200 bg-orange-50 text-orange-900' : 'border-amber-200 bg-amber-50 text-amber-900';
+          return (
+            <div className={`border-b px-4 py-2.5 text-center text-sm print:hidden ${tone}`}>
+              {days <= SOON_DAYS
+                ? <>Plus que <strong>{days} jour{days > 1 ? 's' : ''}</strong> : votre espace et votre compte seront supprimés le <strong>{formatLongDate(couple.lifecycle.deleteAt)}</strong>.{' '}</>
+                : <>Mode souvenir : votre espace sera supprimé le <strong>{formatLongDate(couple.lifecycle.deleteAt)}</strong>. Téléchargez vos souvenirs avant cette date.{' '}</>}
+              <Link href="/dashboard/souvenir" className="font-semibold underline underline-offset-2">{days <= SOON_DAYS ? 'Tout télécharger ou prolonger' : 'Mes souvenirs'}</Link>
+            </div>
+          );
+        })()}
         {pageAllowed ? children : <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>}
       </div>
     </div>

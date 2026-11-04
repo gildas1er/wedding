@@ -8,6 +8,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
+import PasswordCriteria from '../../components/auth/PasswordCriteria';
+import PhoneField from '../../components/auth/PhoneField';
+import { passwordChecks } from '../../lib/password';
+import { DEFAULT_COUNTRY, formatPhone, parsePhone } from '../../lib/phone-auth';
+import type { CountryCode } from 'libphonenumber-js';
 import { LaunchCard, useLaunchOffer } from '../../components/promo/LaunchOffer';
 import { LEGAL } from '../../lib/legal';
 import { REFERRAL_DISCOUNT_XOF, REFERRAL_STORAGE_KEY, normalizeCode } from '../../lib/promo';
@@ -31,6 +36,10 @@ export default function RegisterPage() {
   const [partnerName, setPartnerName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // Inscription avec un e-mail (comme avant) ou avec un numéro de téléphone (e-mail facultatif)
+  const [method, setMethod] = useState<'email' | 'phone'>('email');
+  const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
+  const [loginPhone, setLoginPhone] = useState("");
   const [weddingDate, setWeddingDate] = useState("");
   const [role, setRole] = useState("");
   // Anti-robot (Turnstile) : jeton à usage unique, renouvelé après chaque envoi
@@ -98,27 +107,21 @@ export default function RegisterPage() {
     return errors[msg] || "Une erreur inattendue est survenue. Veuillez réessayer.";
   };
 
-  const [validation, setValidation] = useState({
-    length: false, upper: false, lower: false, number: false, special: false,
-  });
-
-  useEffect(() => {
-    setValidation({
-      length: password.length >= 8,
-      upper: /[A-Z]/.test(password),
-      lower: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    });
-  }, [password]);
+  const validation = passwordChecks(password);
+  // Onglet téléphone : numéro complet et valide pour le pays choisi
+  const parsedPhone = parsePhone(loginPhone, country);
+  const loginPhoneError = loginPhone.replace(/\D/g, '').length >= 6 && !parsedPhone
+    ? (country === 'CI' ? 'Numéro ivoirien : 10 chiffres' : 'Numéro invalide pour ce pays')
+    : '';
 
   const allValid = 
     Object.values(validation).every(Boolean) && 
     termsAccepted && fullName && partnerName && 
-    email && !emailError && 
-    phone.length === 10 && !phoneError &&
     weddingDate && !dateError && 
-    role;
+    role &&
+    (method === 'email'
+      ? email && !emailError && phone.length === 10 && !phoneError
+      : parsedPhone && !emailError);
 
   // --- LOGIQUE DE SOUMISSION ADAPTÉE ---
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,6 +131,11 @@ export default function RegisterPage() {
     
     setIsLoading(true);
     setMessage({ type: '', content: '' });
+
+    if (method === 'phone') {
+      await registerWithPhone();
+      return;
+    }
 
     try {
       // 1. Création du compte Auth
@@ -209,15 +217,42 @@ export default function RegisterPage() {
     }
   };
 
-  const Criterion = ({ met, label, example }: { met: boolean; label: string; example: string }) => (
-    <div className="flex items-center gap-1.5">
-      <span className="flex w-3.5 shrink-0 justify-center">
-        {met ? <Check className="w-3 h-3 text-emerald-500" /> : <div className="w-1 h-1 rounded-full bg-slate-300" />}
-      </span>
-      <span className={`text-[10px] font-medium ${met ? 'text-emerald-600' : 'text-slate-400'}`}>{label}</span>
-      <span className={`ml-auto shrink-0 rounded-md border px-1.5 py-px font-mono text-[10px] ${met ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-slate-50 text-slate-500'}`}>{example}</span>
-    </div>
-  );
+  // Inscription par téléphone : le serveur crée le compte (déjà confirmé), puis la session s'ouvre
+  // avec le jeton à usage unique qu'il renvoie. Pas de code, pas d'e-mail à confirmer.
+  const registerWithPhone = async () => {
+    try {
+      const res = await fetch('/api/auth/register-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          country, phone: loginPhone, password, fullName, partnerName, email: email.trim(),
+          weddingDate, role, termsAccepted, marketingOptIn,
+          referralCode: referral?.code ?? null, captchaToken,
+        }),
+      }).catch(() => null);
+      const out = res ? await res.json().catch(() => ({})) : {};
+      if (!res || !res.ok) {
+        setMessage({ type: 'error', content: out.error || translateError('Network HTTP error') });
+        return;
+      }
+      posthog.capture('registration_completed', { method: 'phone' });
+      const { error } = out.tokenHash
+        ? await supabase.auth.verifyOtp({ token_hash: out.tokenHash, type: 'magiclink' })
+        : { error: new Error('no token') };
+      if (error) {
+        // Compte créé mais session non ouverte : on passe par la connexion, numéro pré-rempli
+        router.push(`/login?inscription=tel&tel=${encodeURIComponent(parsedPhone ?? '')}`);
+        return;
+      }
+      setMessage({ type: 'success', content: 'Compte créé avec succès ! Préparation de votre espace...' });
+      setTimeout(() => router.push('/dashboard'), 1500);
+    } finally {
+      setIsLoading(false);
+      setCaptchaReset((n) => n + 1);
+    }
+  };
+
+  const labelClass = "block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1";
 
   return (
     <div className="min-h-screen bg-ivory flex flex-col lg:flex-row">
@@ -271,7 +306,28 @@ export default function RegisterPage() {
             </motion.div>
           )}
 
+          <div role="tablist" aria-label="Façon de créer le compte" className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+            {([['email', 'Avec mon e-mail', Mail], ['phone', 'Avec mon téléphone', Phone]] as const).map(([id, label, Icon]) => (
+              <button key={id} type="button" role="tab" aria-selected={method === id}
+                onClick={() => { setMethod(id); setMessage({ type: '', content: '' }); }}
+                className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-xs font-black transition-all sm:text-sm ${method === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Icon className="h-4 w-4 shrink-0" /> {label}
+              </button>
+            ))}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
+            {method === 'phone' && (
+              <div>
+                <label htmlFor="register-phone" className={`${labelClass} flex justify-between gap-2`}>
+                  Téléphone {loginPhoneError
+                    ? <span className="text-[9px] text-red-500 normal-case">{loginPhoneError}</span>
+                    : <span className="text-[9px] text-slate-400 normal-case tracking-normal">sert à vous connecter</span>}
+                </label>
+                <PhoneField id="register-phone" country={country} onCountry={setCountry} value={loginPhone} onValue={setLoginPhone} error={loginPhoneError} />
+              </div>
+            )}
+
             <div>
               <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Prénom du Marié</label>
               <div className="relative">
@@ -288,17 +344,20 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 gap-4 ${method === 'email' ? 'md:grid-cols-2' : ''}`}>
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1 flex justify-between">
-                  Email {emailError && <span className="text-[9px] text-red-500 normal-case">{emailError}</span>}
+                  Email {emailError
+                    ? <span className="text-[9px] text-red-500 normal-case">{emailError}</span>
+                    : method === 'phone' && <span className="text-[9px] text-slate-400 normal-case tracking-normal">facultatif</span>}
                 </label>
                 <div className="relative">
                   <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${emailError ? 'text-red-400' : 'text-slate-400'}`} />
-                  <input type="email" value={email} onChange={(e) => validateEmail(e.target.value)} placeholder="votre@email.com" required className={`w-full bg-white border ${emailError ? 'border-red-200 focus:ring-red-500/10 focus:border-red-500' : 'border-slate-200 focus:ring-rose-500/20 focus:border-rose-500'} py-4 pl-12 pr-4 rounded-2xl outline-none transition-all font-medium text-slate-900 shadow-sm`} />
+                  <input type="email" value={email} onChange={(e) => validateEmail(e.target.value)} placeholder="votre@email.com" required={method === 'email'} className={`w-full bg-white border ${emailError ? 'border-red-200 focus:ring-red-500/10 focus:border-red-500' : 'border-slate-200 focus:ring-rose-500/20 focus:border-rose-500'} py-4 pl-12 pr-4 rounded-2xl outline-none transition-all font-medium text-slate-900 shadow-sm`} />
                 </div>
+                {method === 'phone' && <p className="mt-1.5 ml-1 text-[11px] text-slate-400">Conseillé : pour recevoir les rappels avant la suppression de votre espace.</p>}
               </div>
-              <div>
+              {method === 'email' && <div>
                 <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1 flex justify-between">
                   Téléphone {phoneError && <span className="text-[9px] text-red-500 normal-case">{phoneError}</span>}
                 </label>
@@ -306,7 +365,7 @@ export default function RegisterPage() {
                   <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${phoneError ? 'text-red-400' : 'text-slate-400'}`} />
                   <input type="tel" value={phone} onChange={(e) => validatePhone(e.target.value)} placeholder="07 00 00 00 00" required className={`w-full bg-white border ${phoneError ? 'border-red-200 focus:ring-red-500/10 focus:border-red-500' : 'border-slate-200 focus:ring-rose-500/20 focus:border-rose-500'} py-4 pl-12 pr-4 rounded-2xl outline-none transition-all font-medium text-slate-900 shadow-sm`} />
                 </div>
-              </div>
+              </div>}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -341,13 +400,7 @@ export default function RegisterPage() {
                 <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="w-full bg-white border border-slate-200 py-4 pl-12 pr-12 rounded-2xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all font-medium text-slate-900 shadow-sm" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
               </div>
-              <div className="mt-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col gap-1.5">
-                <Criterion met={validation.length} label="8+ caractères" example="ex. Mariage2026!" />
-                <Criterion met={validation.upper} label="1 Majuscule" example="ex. M" />
-                <Criterion met={validation.lower} label="1 Minuscule" example="ex. a" />
-                <Criterion met={validation.number} label="1 Chiffre" example="ex. 2026" />
-                <Criterion met={validation.special} label="1 Spécial" example="ex. ! @ # ?" />
-              </div>
+              <PasswordCriteria password={password} className="mt-4" />
             </div>
 
             <div className="pt-2">
@@ -367,6 +420,11 @@ export default function RegisterPage() {
             <button disabled={isLoading || !allValid} className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all flex items-center justify-center gap-2 mt-4 ${allValid ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`}>
               {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Créer mon compte <ArrowRight className="w-4 h-4" /></>}
             </button>
+            {method === 'phone' && parsedPhone && (
+              <p className="text-center text-xs text-slate-500">
+                Vous vous connecterez avec le <strong className="whitespace-nowrap text-slate-700">{formatPhone(parsedPhone)}</strong> et ce mot de passe : notez-le bien.
+              </p>
+            )}
           </form>
         </motion.div>
       </div>

@@ -13,7 +13,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { PREMIUM_CONTACT, formatXof } from '../../../lib/plan';
 import {
-  EXTENSION_MONTHS, EXTENSION_PRICE_XOF, extensionWhatsappLink, formatLongDate, spaceLifecycle,
+  EXTENSION_MONTHS, EXTENSION_PRICE_XOF, SOON_DAYS, extensionWhatsappLink, formatLongDate, spaceLifecycle,
 } from '../../../lib/lifecycle';
 import DeleteAccountModal from '../../../components/dashboard/DeleteAccountModal';
 import { safeCsvRows } from '../../../lib/csv-safe';
@@ -170,7 +170,7 @@ export default function SouvenirPage() {
               value={`le ${formatLongDate(life.deleteAt)}`}
               hint={souvenir && life.daysBeforeDeletion !== null ? `dans ${life.daysBeforeDeletion} jour${life.daysBeforeDeletion > 1 ? 's' : ''}` : undefined}
               dark={souvenir}
-              alert={souvenir && (life.daysBeforeDeletion ?? 99) <= 30}
+              alert={souvenir && (life.daysBeforeDeletion ?? 99) <= SOON_DAYS}
             />
           </section>
         )}
@@ -212,7 +212,7 @@ export default function SouvenirPage() {
           <section aria-labelledby="ext-title" className="mb-8 rounded-[1.5rem] border border-amber-300 bg-amber-50/60 p-5 sm:p-6">
             <h2 id="ext-title" className="flex items-center gap-2 font-display text-2xl"><Heart className="h-5 w-5 text-amber-700" /> Prolonger mon espace</h2>
             <p className="mt-2 max-w-2xl text-sm text-slate-700">
-              Votre espace redevient complet pendant {EXTENSION_MONTHS} mois et ne sera pas supprimé avant la fin de la prolongation. Contactez-nous : nous vous indiquons comment régler, puis nous activons la prolongation.
+              La suppression de votre espace est repoussée de {EXTENSION_MONTHS} mois, et il redevient complet jusqu&apos;à cette nouvelle date. Contactez-nous : nous vous indiquons comment régler, puis nous activons la prolongation.
             </p>
             <p className="mt-3 font-display text-3xl">{formatXof(EXTENSION_PRICE_XOF)} <span className="text-base text-slate-500">· {EXTENSION_MONTHS} mois</span></p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">

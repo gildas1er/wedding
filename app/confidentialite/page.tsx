@@ -61,7 +61,7 @@ export default function ConfidentialitePage() {
 
       <Section title="6. Durée de conservation">
         <p>Les données de votre mariage sont modifiables jusqu&apos;à {ACTIVE_MONTHS_AFTER_WEDDING} mois après la date du mariage, puis conservées en lecture seule (mode souvenir) pour que vous puissiez les télécharger.</p>
-        <p>Elles sont <strong>supprimées automatiquement {DELETE_MONTHS_AFTER_WEDDING} mois après la date du mariage</strong> (ou à la fin d&apos;une prolongation payante), avec les fichiers associés et votre compte de connexion. Vous pouvez aussi supprimer votre compte vous-même, à tout moment, depuis votre espace. Les données de paiement sont conservées le temps exigé par les obligations comptables.</p>
+        <p>Elles sont <strong>supprimées automatiquement {DELETE_MONTHS_AFTER_WEDDING} mois après la date du mariage</strong> (ou à la fin d&apos;une prolongation payante), avec les fichiers associés et votre compte de connexion. Un e-mail vous prévient au passage en mode souvenir, puis quelques jours avant la suppression. Vous pouvez aussi supprimer votre compte vous-même, à tout moment, depuis votre espace. Les données de paiement sont conservées le temps exigé par les obligations comptables.</p>
       </Section>
 
       <Section title="7. Sécurité">

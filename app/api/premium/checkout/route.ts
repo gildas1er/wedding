@@ -5,6 +5,7 @@ import { createCheckout, paymentsConfigured, serviceSupabase } from '../../../..
 import { isPremium, ONLINE_PAYMENT_ENABLED, PREMIUM_PRICE_XOF } from '../../../../lib/plan';
 import { getSiteUrl } from '../../../../lib/og';
 import { crossSiteRefusal, isSameOrigin } from '../../../../lib/same-origin';
+import { contactEmail } from '../../../../lib/phone-auth';
 
 // Crée un paiement GeniusPay pour le mariage du couple connecté et renvoie l'adresse de la page de paiement
 export async function POST(request: Request) {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     const payment = await createCheckout({
       marriageId: marriage.id,
       userId: user.id,
-      email: user.email,
+      email: contactEmail(user),
       name: [marriage.partner_1_name, marriage.partner_2_name].filter(Boolean).join(' & ') || undefined,
       phone: (user.user_metadata?.phone as string | undefined) ?? null,
       successUrl: `${site}/dashboard/premium?retour=1`,

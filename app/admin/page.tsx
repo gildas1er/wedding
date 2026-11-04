@@ -26,9 +26,11 @@ type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'journa
 const ACTION_LABELS: Record<string, string> = {
   palier: 'Palier activé', gratuit: 'Retour au gratuit', prolongation: 'Prolongation', paiement: 'Paiement enregistré',
   desactivation: 'Compte désactivé', reactivation: 'Compte réactivé', suppression: 'Couple supprimé',
+  mot_de_passe: 'Mot de passe provisoire créé',
   recompense: 'Récompense de parrainage versée', code_promo: 'Code promo enregistré', code_active: 'Code promo activé',
   code_desactive: 'Code promo désactivé', code_supprime: 'Code promo supprimé',
-  purge: 'Suppression automatique (12 mois)',
+  purge: 'Suppression automatique (3 mois)',
+  rappels: 'E-mails de fin d’espace',
   fiche_creee: 'Fiche mariage créée', compte_supprime: 'Compte sans mariage supprimé', profil_efface: 'Ancien profil effacé',
 };
 
@@ -371,7 +373,7 @@ function AdminContent() {
                 {data.actions.map((a) => (
                   <li key={a.id} className="py-3">
                     <p className="flex flex-wrap items-center gap-x-2 text-sm"><span className="font-semibold text-ink">{ACTION_LABELS[a.action] ?? a.action}</span><span className="text-slate-500">· {a.couple ?? '—'}</span></p>
-                    <p className="text-xs text-slate-500">{fmtDate(a.created_at, true)} · {a.admin_email}{a.details?.amount ? ` · ${formatXof(Number(a.details.amount))}` : ''}{a.details?.tier ? ` · ${String(a.details.tier)}` : ''}{a.details?.code ? ` · code ${String(a.details.code)}` : ''}{a.details?.launch ? ' · offre de lancement' : ''}{a.details?.parrain ? ` · ${String(a.details.parrain)}` : ''}{a.action === 'purge' ? ` · ${Number(a.details?.deleted_count ?? 0)} espace(s) supprimé(s)${Number(a.details?.failed_count ?? 0) ? ` · ${Number(a.details?.failed_count)} échec(s)` : ''}${a.details?.remaining ? ' · suite la nuit prochaine' : ''}` : ''}{a.details?.note ? ` · ${String(a.details.note)}` : ''}</p>
+                    <p className="text-xs text-slate-500">{fmtDate(a.created_at, true)} · {a.admin_email}{a.details?.amount ? ` · ${formatXof(Number(a.details.amount))}` : ''}{a.details?.tier ? ` · ${String(a.details.tier)}` : ''}{a.details?.code ? ` · code ${String(a.details.code)}` : ''}{a.details?.launch ? ' · offre de lancement' : ''}{a.details?.parrain ? ` · ${String(a.details.parrain)}` : ''}{a.action === 'purge' ? ` · ${Number(a.details?.deleted_count ?? 0)} espace(s) supprimé(s)${Number(a.details?.failed_count ?? 0) ? ` · ${Number(a.details?.failed_count)} échec(s)` : ''}${a.details?.remaining ? ' · suite la nuit prochaine' : ''}` : ''}{a.action === 'rappels' ? ` · ${Array.isArray(a.details?.sent) ? a.details.sent.length : 0} e-mail(s) envoyé(s)${Array.isArray(a.details?.failed) && a.details.failed.length ? ` · ${a.details.failed.length} échec(s)` : ''}${Number(a.details?.waiting ?? 0) ? ` · ${Number(a.details?.waiting)} en attente${a.details?.configured === false ? ' (e-mails non configurés)' : ''}` : ''}` : ''}{a.details?.note ? ` · ${String(a.details.note)}` : ''}</p>
                   </li>
                 ))}
               </ul>

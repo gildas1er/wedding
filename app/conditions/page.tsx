@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, Section } from '../../components/LegalPage';
 import { LEGAL } from '../../lib/legal';
-import { ACTIVE_MONTHS_AFTER_WEDDING, DELETE_MONTHS_AFTER_WEDDING, EXTENSION_MONTHS, EXTENSION_PRICE_XOF } from '../../lib/lifecycle';
+import { ACTIVE_MONTHS_AFTER_WEDDING, DELETE_MONTHS_AFTER_WEDDING, EXTENSION_MONTHS, EXTENSION_PRICE_XOF, FINAL_REMINDER_DAYS } from '../../lib/lifecycle';
 import { FREE_GUEST_LIMIT, ONLINE_PAYMENT_ENABLED, PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS, formatXof } from '../../lib/plan';
 
 export const metadata: Metadata = {
@@ -87,8 +87,8 @@ export default function ConditionsPage() {
         <ul>
           <li><strong>Jusqu&apos;à {ACTIVE_MONTHS_AFTER_WEDDING} mois après le mariage :</strong> votre espace reste complet (réponses, photos, livre d&apos;or, modifications).</li>
           <li><strong>Mode souvenir :</strong> ensuite, l&apos;espace passe en lecture seule. Vous pouvez consulter et télécharger vos données, mais plus les modifier ; les invités ne peuvent plus répondre ni envoyer de photos ou de messages.</li>
-          <li><strong>Suppression automatique :</strong> {DELETE_MONTHS_AFTER_WEDDING} mois après la date du mariage, l&apos;espace, ses données, ses fichiers et le compte de connexion sont supprimés définitivement. La date de suppression est affichée dans votre espace.</li>
-          <li><strong>Prolongation :</strong> {formatXof(EXTENSION_PRICE_XOF)} pour {EXTENSION_MONTHS} mois, sur demande au {PREMIUM_CONTACT.display}. L&apos;espace redevient complet et n&apos;est pas supprimé avant la fin de la prolongation.</li>
+          <li><strong>Suppression automatique :</strong> {DELETE_MONTHS_AFTER_WEDDING} mois après la date du mariage, l&apos;espace, ses données, ses fichiers et le compte de connexion sont supprimés définitivement. La date de suppression est affichée dans votre espace. Vous êtes prévenus par e-mail, à l&apos;adresse de votre compte, au passage en mode souvenir puis {FINAL_REMINDER_DAYS} jours avant la suppression.</li>
+          <li><strong>Prolongation :</strong> {formatXof(EXTENSION_PRICE_XOF)} pour {EXTENSION_MONTHS} mois, sur demande au {PREMIUM_CONTACT.display}. La suppression est repoussée de {EXTENSION_MONTHS} mois et l&apos;espace redevient complet jusqu&apos;à cette nouvelle date.</li>
           <li><strong>Suppression à votre demande :</strong> vous pouvez supprimer définitivement votre compte à tout moment depuis votre espace (Paramètres ou Mes souvenirs). Cette suppression est immédiate et ne peut pas être annulée.</li>
           <li>Une fois le mariage passé, sa date ne peut plus être modifiée.</li>
         </ul>

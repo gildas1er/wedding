@@ -52,6 +52,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 31 | `20261023_31_quota_invitations_envoyees.sql` | Version gratuite : 30 personnes invitées au total, une invitation envoyée garde sa place même si l'invité est supprimé ; date d'envoi de l'invitation (`invitation_sent_at`) |
 | 32 | `20261102_32_billet_controle_entree.sql` | Billet d'entrée et contrôle à l'entrée (formules payantes) : code de billet et heure d'arrivée par fiche, clé de l'équipe d'accueil, fonctions `get_guest_ticket`, `my_checkin_key`, `checkin_open`, `checkin_ticket`, `checkin_force`, `checkin_search` ; 20 refus au plus par IP en 10 minutes |
 | 33 | `20261103_33_billet_disponibilite.sql` | Choix du couple « billet dès la confirmation » ou « la veille » de la première cérémonie de l'invité (`ticket_release`, « dès la confirmation » pour les couples existants) ; date d'envoi du billet par WhatsApp (`ticket_sent_at`) ; `get_guest_ticket` ne donne que la date de disponibilité avant l'heure |
+| 34 | `20261103_34_suppression_trois_mois.sql` | Suppression à J+3 mois : dates d'envoi des e-mails (`souvenir_email_at`, `final_reminder_at`), transition de 30 jours pour les espaces existants (`delete_after`), colonnes protégées contre une modification par le couple. **À lancer juste avant de déployer** |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -66,6 +67,8 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | `ADMIN_EMAILS` | Adresses autorisées sur `/admin`, séparées par des virgules | Oui pour l'administration |
 | `CRON_SECRET` | Protège la suppression automatique nocturne | Oui pour le mode souvenir |
 | `GENIUSPAY_*` | Paiement en ligne (désactivé pour l'instant) | Non |
+| `BREVO_API_KEY`, `EMAIL_SENDER`, `EMAIL_SENDER_NAME` | E-mails de fin d'espace (mode souvenir, dernier rappel) par l'API de Brevo. `EMAIL_SENDER` : adresse validée dans Brevo ; nom « WeddingStudio » par défaut | Oui : **sans elles, aucun espace n'est supprimé** |
+| `TURNSTILE_SECRET_KEY` | Clé secrète Cloudflare Turnstile (la même que dans Supabase → Attack Protection). Vérifie l'anti-robot de l'inscription par téléphone, faite par le serveur et non par Supabase | Conseillé : sans elle, seule la limite de 5 inscriptions par heure et par adresse IP protège |
 
 > Ne jamais préfixer une clé secrète par `NEXT_PUBLIC_` : elle serait visible dans le navigateur.
 
@@ -103,6 +106,14 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 ### 2.2 Compte, connexion et légal
 
 - **Inscription** : cases CGU et confidentialité à cocher, accord facultatif pour les messages promotionnels, et preuve du consentement enregistrée (version des documents et date).
+- **Inscription par téléphone (4 novembre 2026)** : onglet « Avec mon téléphone » à côté de « Avec mon e-mail » (inchangé). Tous les pays (`components/auth/PhoneField.tsx`, Côte d'Ivoire par défaut, numéro vérifié selon le pays avec `libphonenumber-js`), mêmes champs que l'inscription par e-mail, e-mail facultatif, mêmes règles de mot de passe avec exemples (`components/auth/PasswordCriteria.tsx`). Pas de code ni de lien à confirmer : le numéro n'est pas vérifié.
+  - Le compte est créé par le serveur (`app/api/auth/register-phone/route.ts`), déjà confirmé, puis la session s'ouvre avec un jeton à usage unique (aucun e-mail envoyé). Anti-robot vérifié par le serveur (`TURNSTILE_SECRET_KEY`) et 5 inscriptions par heure et par IP, 200 par heure en tout.
+  - Supabase identifie le compte par une adresse fabriquée à partir du numéro (`2250708123456@telephone.weddingstudio.app`, qui ne reçoit jamais rien) ; l'e-mail facultatif est gardé dans `user_metadata.contact_email` et sert aux rappels avant suppression (`lib/phone-auth.ts`, `contactEmail`). Aucun réglage Supabase, aucune migration.
+  - Connexion : onglet Téléphone (numéro et mot de passe), dernier onglet retenu sur l'appareil.
+  - Mot de passe oublié : le couple écrit à WeddingStudio sur WhatsApp depuis son numéro ; l'administrateur crée un mot de passe provisoire dans la fiche du couple (« Mot de passe oublié », affiché une seule fois, bouton d'envoi WhatsApp, noté dans le journal sans le mot de passe).
+  - Paramètres → Général, bloc « Connexion » : façon de se connecter, changement du mot de passe, e-mail facultatif pour les comptes par téléphone (`components/dashboard/AccountLogin.tsx`).
+  - Compte par téléphone sans e-mail : le journal des rappels indique « à prévenir sur WhatsApp » avec le numéro.
+  - Plus tard : vérification du numéro par WhatsApp (API Meta, option B) ; connexion par numéro pour les comptes créés avec un e-mail.
 - **Connexion** : e-mail et mot de passe, ou Google.
   - Facebook est prévu : le bouton affiche un message clair tant qu'il n'est pas activé dans Supabase.
 - **Mot de passe oublié** (`/mot-de-passe-oublie`, `/nouveau-mot-de-passe`, `/auth/confirm`) :
@@ -183,11 +194,13 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 - **Album photos par mariage** : envoi par le lien du couple (`/photos?id=…`). La page **Album photos** du couple permet de voir les photos en grand et de **tout télécharger en .zip**.
 - **Livre d'or** rattaché à chaque mariage.
-- **Mode souvenir** :
+- **Mode souvenir** (règle du 3 novembre 2026, `lib/lifecycle.ts`) :
   - jusqu'à **J+1 mois** : espace complet ;
-  - **ensuite** : lecture seule, avec un pop-up et un menu verrouillé, la page « Mes souvenirs » (dates clés, téléchargements CSV, impressions, prolongation, suppression), et les réponses, l'envoi de photos et le livre d'or fermés côté invités ;
-  - à **J+12 mois** : suppression automatique la nuit.
-  - Prolongation : **5 000 F pour 6 mois**.
+  - **de J+1 à J+3 mois** : lecture seule, avec un pop-up et un menu verrouillé, la page « Mes souvenirs » (dates clés, téléchargements CSV, impressions, prolongation, suppression), et les réponses, l'envoi de photos et le livre d'or fermés côté invités. Bandeau en haut de chaque page avec la date de suppression : ambre, puis orange à 14 jours, rouge à 3 jours ; les 3 derniers jours, le pop-up s'ouvre à chaque visite ;
+  - **e-mails** (`lib/lifecycle-emails.ts`, envoyés par la tâche de nuit, Brevo) : « Vos souvenirs de mariage vous attendent » au passage en mode souvenir, puis « Dernier rappel » 3 jours avant la suppression. 250 e-mails au plus par nuit (plan gratuit de Brevo : 300 par jour), le reste part les nuits suivantes. Un e-mail qui échoue est retenté la nuit suivante. Bilan dans le journal de l'administration (« E-mails de fin d'espace ») ;
+  - à **J+3 mois** : suppression automatique la nuit, **seulement si le dernier rappel est parti** depuis au moins 3 jours (sinon elle attend) ;
+  - **transition** : les espaces dont la suppression tombait dans moins de 30 jours (ou était déjà passée) à la migration 34 gardent 30 jours, avec les mêmes e-mails ;
+  - prolongation : **5 000 F pour 1 mois**. La suppression est repoussée d'un mois à partir de la date prévue, l'espace redevient complet jusque-là, et le dernier rappel est renvoyé avant la nouvelle date.
 - **Suppression définitive** à la demande, depuis le pop-up, « Mes souvenirs » ou les Paramètres, en tapant « SUPPRIMER ». Elle efface les données, les fichiers et le compte de connexion.
 
 ### 2.9 Offre et paiement
@@ -254,6 +267,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 
 ## 3. Fonctionnalités modifiées
 
+- **Suppression à J+3 mois au lieu de J+12 mois (3 novembre 2026, migration 34)** : mode souvenir de 2 mois, e-mails au passage en mode souvenir et 3 jours avant la suppression, bandeau et pop-up renforcés, transition de 30 jours pour les espaces existants, prolongation ramenée à 1 mois (5 000 F) et calculée à partir de la date de suppression prévue (`app/api/admin/couples/[id]/route.ts`). Conditions, politique de confidentialité (version du 3 novembre 2026) et guide mis à jour. Détail en section 2.8.
 - **Carte du menu « Votre liste d'invités » (19 octobre 2026)** : remplace « Recevez tous vos proches, dès 50 000 F » pour les couples en version gratuite (`GuestAllowanceCard` dans `components/dashboard/DashboardShell.tsx`). Barre « n / 30 invités offerts » (fiches pour les anciens comptes) et message selon la liste : 0 invité « 30 invités offerts pour bien démarrer » (bouton vers la page Invités), en cours « Votre liste prend forme », à partir de 80 % « Plus que n places offertes », à 30 « Votre liste est complète : invitez tout le monde » (boutons vers la fenêtre des formules). Rappel « -30 % jusqu'au 20 déc. » seulement à partir de 80 %, pendant l'offre. Mise à jour à chaque changement de page et dès qu'un invité est ajouté ou retiré (événement `ws-guests-changed` envoyé par la page Invités). Aucun prix affiché dans la carte.
 - **Palier payé rempli : proposer le palier suivant (19 octobre 2026)** : moments 1 et 3 de la maquette « Palier suivant ». Menu : la carte « Palier Intime » devient une jauge « n / 100 invités » (`TierGaugeCard` dans `components/dashboard/DashboardShell.tsx`) ; sous 80 % « Votre liste avance bien » sans prix ; dès 80 % « Plus que n places » et « Famille : +50 places pour 25 000 F » (bouton « Voir le palier Famille ») ; complet « Votre palier est complet · Vos invités restent en place » (bouton « Agrandir ma liste ») ; Royal : formule sur mesure. Fenêtre des paliers (`components/dashboard/PricingModal.tsx`) pour un couple qui a déjà un palier : « Bonne nouvelle : votre liste s'agrandit » (ou « Agrandissez votre liste » avant la limite), rassurance « Vos n invités, votre plan de table et vos faire-part restent en place », seulement les paliers supérieurs avec « +n places » et « 500 F par invité de plus », bouton « Passer à Famille sur WhatsApp » et « Plus tard ». Pas d'offre de lancement sur ces montées de palier. Restent à faire : moment 2 (bandeau de la page Invités) et 4 (import de contacts).
 - **Fiche mariage toujours créée (19 octobre 2026, migration 30)** : en production, le déclencheur de création à l'inscription était absent ; les comptes créés avec la confirmation des e-mails ou avec Google restaient sans fiche. Une seule fonction de création (`create_marriage_for_user` : prénoms, date, consentement, parrainage), le déclencheur remis en place, et un filet de sécurité : `lib/current-marriage.ts` appelle `ensure_my_marriage()` quand un couple connecté n'a pas de fiche (création immédiate, pour lui seul, sans doublon, jamais pour un compte administrateur). La migration crée aussi la fiche des comptes existants qui n'en ont pas (sauf administrateurs). La migration 19 avait cessé d'enregistrer le consentement aux conditions : c'est rétabli.
@@ -341,9 +355,8 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 ### Priorité haute
 - **Connexion Facebook** : créer l'application Meta et l'activer dans Supabase. Le code est prêt.
 - **Carte « Cette semaine »** sur le tableau de bord, une fois le parcours terminé : 3 priorités et un conseil selon la date du mariage (idée de la maquette B de l'écran de bienvenue).
-- **E-mail de rappel avant la suppression automatique**, par exemple à J+11 mois : aujourd'hui, le couple n'est prévenu que dans l'application.
 - **Données de paiement** : décider de les conserver sans informations personnelles, ou adapter la politique de confidentialité.
-- **Nom de domaine** pour le site et l'envoi d'e-mails.
+- **Nom de domaine** pour le site et l'envoi d'e-mails : à authentifier dans Brevo. En attendant, les e-mails de fin d'espace partent de l'adresse Gmail et risquent d'arriver dans les spams.
 
 ### Priorité moyenne
 - **Relance des invités sans réponse** (prévue pour la prochaine version) : relance « assistée » depuis le WhatsApp du couple, la plateforme n'envoyant pas de messages elle-même. Elle repère les invités à relancer (invitation envoyée depuis 7 jours, sans réponse, 2 relances au plus) ; le tableau de bord affiche une carte « X invités n'ont pas encore répondu » ; un message de relance modifiable est proposé dans le Studio ; le couple relance un par un avec un toucher par invité. Il faudra une migration pour la date d'envoi, le nombre de relances et la date de la dernière relance. À décider : les délais, une date limite de réponse, et si la fonction est gratuite ou réservée aux formules payantes. Plus tard, en option payante : envoi 100 % automatique par l'API WhatsApp Business (compte Meta vérifié, messages validés, coût par message).

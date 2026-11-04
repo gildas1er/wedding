@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import posthog from 'posthog-js';
+import { contactEmail } from '../../lib/phone-auth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -33,7 +34,7 @@ if (posthogConfigured) {
     if (identifiedUserId) posthog.reset();
 
     posthog.identify(user.id, {
-      email: user.email,
+      email: contactEmail(user) ?? undefined,
       name: typeof user.user_metadata.full_name === 'string' ? user.user_metadata.full_name : undefined,
       role: typeof user.user_metadata.role === 'string' ? user.user_metadata.role : undefined,
     });

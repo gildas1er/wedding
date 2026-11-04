@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readAll, requireAdmin } from '../../../../lib/admin-server';
 import { guestQuota, countPersons } from '../../../../lib/plan';
 import { spaceLifecycle } from '../../../../lib/lifecycle';
+import { contactEmail, loginPhone } from '../../../../lib/phone-auth';
 import { REFERRAL_DISCOUNT_XOF, REFERRAL_REWARD_XOF, type PromoCode } from '../../../../lib/promo';
 
 export const dynamic = 'force-dynamic';
@@ -92,8 +93,9 @@ export async function GET() {
         ref: m.id.slice(0, 8),
         userId: m.user_id,
         couple: [m.partner_1_name, m.partner_2_name].filter(Boolean).join(' & ') || 'Sans nom',
-        email: u?.email ?? null,
+        email: contactEmail(u),
         phone: u?.user_metadata?.phone || u?.phone || null,
+        loginPhone: loginPhone(u),
         provider: u?.app_metadata?.provider ?? null,
         createdAt: m.created_at ?? u?.created_at ?? null,
         lastSignIn: u?.last_sign_in_at ?? null,
@@ -141,8 +143,9 @@ export async function GET() {
     const married = new Set(marriages.map((m) => m.user_id).filter(Boolean));
     const accounts = usersComplete ? [...users.entries()].filter(([uid]) => !married.has(uid)).map(([uid, u]) => ({
       id: uid,
-      email: u.email ?? null,
+      email: contactEmail(u),
       phone: u.user_metadata?.phone || u.phone || null,
+      loginPhone: loginPhone(u),
       provider: u.app_metadata?.provider ?? null,
       admin: u.app_metadata?.admin === true,
       names: [u.user_metadata?.partner_name_1 || u.user_metadata?.full_name, u.user_metadata?.partner_name_2].filter(Boolean).join(' & ') || null,

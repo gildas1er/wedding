@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Download, Heart, MessageCircle, Trash2, X } from 'lucide-react';
 import { formatXof } from '../../lib/plan';
-import { EXTENSION_MONTHS, EXTENSION_PRICE_XOF, extensionWhatsappLink, formatLongDate } from '../../lib/lifecycle';
+import { EXTENSION_MONTHS, EXTENSION_PRICE_XOF, SOON_DAYS, extensionWhatsappLink, formatLongDate } from '../../lib/lifecycle';
 
 export default function SouvenirModal({ couple, marriageId, deleteAt, daysBeforeDeletion, onClose, onDelete }: {
   couple: string;
@@ -16,7 +16,7 @@ export default function SouvenirModal({ couple, marriageId, deleteAt, daysBefore
   onClose: () => void;
   onDelete: () => void;
 }) {
-  const soon = daysBeforeDeletion !== null && daysBeforeDeletion <= 30;
+  const soon = daysBeforeDeletion !== null && daysBeforeDeletion <= SOON_DAYS;
   return (
     <div className="fixed inset-0 z-[110] flex items-end justify-center bg-ink/60 backdrop-blur-sm sm:items-center sm:p-4">
       <motion.div

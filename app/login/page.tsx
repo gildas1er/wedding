@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, ArrowRight, Chrome, Mail, Lock, Eye, EyeOff, Facebook, ShieldCheck, Check, AlertCircle } from 'lucide-react';
+import { Heart, ArrowRight, Chrome, Mail, Lock, Eye, EyeOff, Facebook, ShieldCheck, Check, AlertCircle, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase'; 
 import { useRouter } from 'next/navigation';
@@ -10,6 +10,12 @@ import { safeNextPath } from '../../lib/safe-redirect';
 import Captcha, { CAPTCHA_ERROR_FR, captchaEnabled, isCaptchaError } from '../../components/auth/Captcha';
 import { PROVIDER_LABELS, fetchEnabledProviders, type SocialProvider } from '../../lib/auth-providers';
 import posthog from 'posthog-js';
+import PhoneField from '../../components/auth/PhoneField';
+import { DEFAULT_COUNTRY, parsePhone, phoneLoginEmail } from '../../lib/phone-auth';
+import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
+
+// Dernier onglet utilisé (e-mail ou téléphone), retenu sur cet appareil
+const METHOD_KEY = 'ws-login-method';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +25,16 @@ export default function LoginPage() {
   // États pour les champs
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Connexion avec l'e-mail ou avec le numéro de téléphone (comptes créés par téléphone)
+  const [method, setMethod] = useState<'email' | 'phone'>('email');
+  const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
+  const [phone, setPhone] = useState("");
+  const parsedPhone = parsePhone(phone, country);
+  const pickMethod = (m: 'email' | 'phone') => {
+    setMethod(m);
+    setMessage({ type: '', content: '' });
+    try { localStorage.setItem(METHOD_KEY, m); } catch { /* navigation privée */ }
+  };
   // Anti-robot (Turnstile) : jeton à usage unique, renouvelé après chaque essai
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
@@ -34,11 +50,21 @@ export default function LoginPage() {
   useEffect(() => { fetchEnabledProviders().then(setProviders); }, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    try { if (localStorage.getItem(METHOD_KEY) === 'phone') Promise.resolve().then(() => setMethod('phone')); } catch { /* navigation privée */ }
     if (params.get('inscription') === 'ok') {
       const address = (params.get('email') ?? '').trim();
       Promise.resolve().then(() => {
         setRegisteredEmail(address);
+        setMethod('email');
         if (address) setEmail(address);
+      });
+    } else if (params.get('inscription') === 'tel') {
+      // Compte créé par téléphone mais session non ouverte : numéro pré-rempli
+      const p = parsePhoneNumberFromString(params.get('tel') ?? '');
+      Promise.resolve().then(() => {
+        setMethod('phone');
+        if (p?.country) { setCountry(p.country); setPhone(p.nationalNumber); }
+        setMessage({ type: 'success', content: 'Votre compte est créé. Connectez-vous avec votre numéro et votre mot de passe.' });
       });
     } else if (params.get('compte') === 'supprime') {
       Promise.resolve().then(() => setMessage({ type: 'success', content: 'Votre compte a été supprimé définitivement. Merci d’avoir organisé votre mariage avec WeddingStudio.' }));
@@ -47,12 +73,12 @@ export default function LoginPage() {
     }
   }, []);
 
-  const allValid = email.trim() !== '' && password !== '';
+  const allValid = (method === 'email' ? email.trim() !== '' : Boolean(parsedPhone)) && password !== '';
 
   // --- CONNEXION EMAIL/PASSWORD ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!allValid) return;
     if (captchaEnabled && !captchaToken) { setMessage({ type: 'error', content: 'Vérification anti-robot en cours : réessayez dans un instant.' }); return; }
     
     setIsLoading(true);
@@ -62,7 +88,7 @@ export default function LoginPage() {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: method === 'phone' && parsedPhone ? phoneLoginEmail(parsedPhone) : email,
         password,
         options: { captchaToken: captchaToken ?? undefined },
       });
@@ -70,7 +96,7 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
-        posthog.capture('login_completed', { method: 'password' });
+        posthog.capture('login_completed', { method: method === 'phone' ? 'phone' : 'password' });
         setMessage({ type: 'success', content: 'Connexion réussie ! Redirection...' });
         // Revient sur la page demandée avant la connexion (ex. /dashboard/budget)
         const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
@@ -79,7 +105,7 @@ export default function LoginPage() {
         }, 1500);
       }
     } catch (error: any) {
-      let errorMsg = "Email ou mot de passe incorrect.";
+      let errorMsg = method === 'phone' ? "Numéro ou mot de passe incorrect." : "Email ou mot de passe incorrect.";
       if (error.message === "Email not confirmed") {
         errorMsg = "Veuillez confirmer votre email avant de vous connecter.";
       } else if (isCaptchaError(error)) {
@@ -198,22 +224,38 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200"></div>
             </div>
-            <span className="relative px-4 bg-ivory text-[10px] font-black uppercase tracking-widest">Ou avec votre email</span>
+            <span className="relative px-4 bg-ivory text-[10px] font-black uppercase tracking-widest">Ou avec votre mot de passe</span>
+          </div>
+
+          <div role="tablist" aria-label="Se connecter avec" className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+            {([['email', 'E-mail', Mail], ['phone', 'Téléphone', Phone]] as const).map(([id, label, Icon]) => (
+              <button key={id} type="button" role="tab" aria-selected={method === id} onClick={() => pickMethod(id)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-black transition-all ${method === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Icon className="h-4 w-4 shrink-0" /> {label}
+              </button>
+            ))}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nom@exemple.com" required className="w-full bg-white border border-slate-200 py-4 pl-12 pr-4 rounded-2xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all font-medium text-slate-900 shadow-sm" />
+            {method === 'email' ? (
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nom@exemple.com" required className="w-full bg-white border border-slate-200 py-4 pl-12 pr-4 rounded-2xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all font-medium text-slate-900 shadow-sm" />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label htmlFor="login-phone" className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Numéro de téléphone</label>
+                <PhoneField id="login-phone" country={country} onCountry={setCountry} value={phone} onValue={setPhone} />
+              </div>
+            )}
 
             <div>
               <div className="flex justify-between mb-2 ml-1">
                 <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500">Mot de passe</label>
-                <Link href={`/mot-de-passe-oublie${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`} className="text-[11px] font-black uppercase tracking-widest text-rose-500 hover:underline underline-offset-4">Oublié ?</Link>
+                <Link href={method === 'phone' ? `/mot-de-passe-oublie?tel=${encodeURIComponent(parsedPhone ?? '')}` : `/mot-de-passe-oublie${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`} className="text-[11px] font-black uppercase tracking-widest text-rose-500 hover:underline underline-offset-4">Oublié ?</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
