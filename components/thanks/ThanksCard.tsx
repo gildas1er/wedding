@@ -1,42 +1,21 @@
 "use client";
 
 // Carte de remerciements affichée à l'invité (/merci/[id]) et en aperçu dans l'espace du couple.
-// Deux modèles : « La Lettre » (photo du couple, mot, cachet de cire) et « Le Souvenir »
-// (photo de l'invité dans l'album, son message du livre d'or).
+// Quatre modèles : « La Lettre » (photo du couple, mot, cachet de cire), « Le Souvenir » (photo de
+// l'invité dans l'album, son message du livre d'or), « Le Générique de fin » et « Le Statut »
+// (format statut WhatsApp, dans ThanksStoryCards.tsx).
 import React from 'react';
 import { coupleInitials } from '../../lib/invitation-templates';
-import { DEFAULT_PALETTE, isHexColor } from '../../lib/palettes';
-import { NAME_FONTS, resolveNameFont } from '../../lib/name-fonts';
 import { formatWeddingDay, type ThanksCardData } from '../../lib/thanks';
+import { CREAM, INK, PAPER, SOFT, THANKS_SCRIPT, cap, signatureFont, thanksColors } from './style';
+import { Generique, Statut } from './ThanksStoryCards';
+import Photo from './Photo';
 
-const PAPER = '#fbf6ee';
-const CREAM = '#f4ead9';
-const INK = '#3a2e26';
-const SOFT = '#9b8b78';
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-export const THANKS_SCRIPT = NAME_FONTS.find((f) => f.id === 'pinyon_script')!.family!;
-
-export function thanksColors(card: Pick<ThanksCardData, 'primary'>) {
-  return { wine: isHexColor(card.primary) ? card.primary : DEFAULT_PALETTE.primary };
-}
-
-// Prénoms des mariés dans leur police manuscrite (studio), sinon Pinyon Script
-export const signatureFont = (namesFont: string | null) => resolveNameFont(namesFont).family ?? THANKS_SCRIPT;
-
-function Photo({ src, label, className = '', style }: { src: string | null; label: string; className?: string; style?: React.CSSProperties }) {
-  if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={label} className={`h-full w-full object-cover ${className}`} style={style} />;
-  }
-  return (
-    <div aria-hidden className={`grid h-full w-full place-items-center ${className}`} style={{ background: 'linear-gradient(160deg, #e6cfb0, #b88a66 60%, #6b4a38)', ...style }}>
-      <span style={{ fontFamily: THANKS_SCRIPT, fontSize: '3.2rem', color: 'rgba(255,255,255,.85)' }}>♥</span>
-    </div>
-  );
-}
-
-export default function ThanksCard({ card }: { card: ThanksCardData }) {
-  return card.template === 'souvenir' ? <Souvenir card={card} /> : <Lettre card={card} />;
+export default function ThanksCard({ card, autoPlay = true }: { card: ThanksCardData; autoPlay?: boolean }) {
+  if (card.template === 'souvenir') return <Souvenir card={card} />;
+  if (card.template === 'generique') return <Generique card={card} />;
+  if (card.template === 'statut') return <Statut card={card} autoPlay={autoPlay} />;
+  return <Lettre card={card} />;
 }
 
 function Lettre({ card }: { card: ThanksCardData }) {

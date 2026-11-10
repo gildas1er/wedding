@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { serviceSupabase } from '../../../lib/premium-server';
 import { spaceLifecycle } from '../../../lib/lifecycle';
 import {
-  DEFAULT_THANKS_MESSAGE, bestMatch, ceremoniesSentence, guestCame, resolveThanksTemplate, thanksOpen, type ThanksCardData,
+  DEFAULT_THANKS_MESSAGE, bestMatch, ceremoniesSentence, guestCame, plannedCeremonies, readTableRoles, resolveThanksTemplate,
+  thanksOpen, usesGuestMemories, type ThanksCardData,
 } from '../../../lib/thanks';
 
 export const dynamic = 'force-dynamic';
@@ -35,9 +36,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ available: false, weddingDate, partner1: m.partner_1_name ?? '', partner2: m.partner_2_name ?? '' }, { headers: noStore });
   }
 
-  // Base sans la migration 35 : modèle et mot par défaut
+  // Base sans la migration 35 : modèle et mot par défaut (« * » : la colonne table_roles vient de la 36)
   const [{ data: settings }, { data: card }, { data: table }] = await Promise.all([
-    db.from('thanks_settings').select('template, message').eq('marriage_id', marriageId).maybeSingle(),
+    db.from('thanks_settings').select('*').eq('marriage_id', marriageId).maybeSingle(),
     db.from('thanks_cards').select('photo_file, quote_id, note, opened_at').eq('invite_id', inviteId).maybeSingle(),
     g.table_id ? db.from('tables').select('name').eq('id', g.table_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
 
   // Photo de l'album : celle choisie par le couple, sinon celle envoyée sous le nom de l'invité
   let photoUrl: string | null = null;
-  if (template === 'souvenir') {
+  if (usesGuestMemories(template)) {
     const { data: photos } = await db.from('photos_metadata').select('file_name, guest_name').eq('marriage_id', marriageId).order('created_at', { ascending: false }).limit(1000);
     const list = photos ?? [];
     const chosen = card?.photo_file ? list.find((p) => p.file_name === card.photo_file) : bestMatch(g.name ?? '', list, (p) => p.guest_name);
@@ -58,11 +59,30 @@ export async function GET(request: Request) {
 
   // Message du livre d'or : celui choisi, sinon celui signé du nom de l'invité
   let quote: ThanksCardData['quote'] = null;
-  if (template === 'souvenir') {
+  if (usesGuestMemories(template)) {
     const { data: book } = await db.from('guestbook').select('id, author_name, message').eq('marriage_id', marriageId).order('created_at', { ascending: false }).limit(1000);
     const list = (book ?? []).filter((b) => b.message?.trim());
     const chosen = card?.quote_id ? list.find((b) => String(b.id) === card.quote_id) : bestMatch(g.name ?? '', list, (b) => b.author_name);
     if (chosen) quote = { text: chosen.message.trim().slice(0, 240), author: chosen.author_name ?? '' };
+  }
+
+  // Générique : les vrais chiffres du mariage, le rôle de la table et quelques voisins de table
+  let stats: ThanksCardData['stats'] = null;
+  let tableMates: string[] = [];
+  if (template === 'generique') {
+    const [{ data: all }, { count: photos }, { count: messages }] = await Promise.all([
+      db.from('invite').select('id, name, status, checked_in_at, guests_count, table_id').eq('marriage_id', marriageId),
+      db.from('photos_metadata').select('id', { count: 'exact', head: true }).eq('marriage_id', marriageId),
+      db.from('guestbook').select('id', { count: 'exact', head: true }).eq('marriage_id', marriageId),
+    ]);
+    const came = (all ?? []).filter(guestCame);
+    stats = {
+      guests: came.reduce((sum, x) => sum + Math.max(1, Number(x.guests_count) || 1), 0),
+      ceremonies: plannedCeremonies(m),
+      photos: photos ?? 0,
+      messages: messages ?? 0,
+    };
+    tableMates = g.table_id ? came.filter((x) => x.table_id === g.table_id && x.id !== g.id).map((x) => x.name).filter(Boolean).slice(0, 3) : [];
   }
 
   if (card && !card.opened_at) {
@@ -90,6 +110,9 @@ export async function GET(request: Request) {
     referralCode: m.referral_code ?? null,
     paid,
     guestbookOpen: spaceLifecycle(m, new Date()).phase === 'active',
+    stats,
+    tableRole: g.table_id ? readTableRoles(settings?.table_roles)[g.table_id] ?? null : null,
+    tableMates,
   };
   return NextResponse.json({ available: true, card: data }, { headers: noStore });
 }

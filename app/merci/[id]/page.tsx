@@ -10,8 +10,8 @@ import { Download, FileText, Heart, Loader2 } from 'lucide-react';
 import posthog from 'posthog-js';
 import ThanksCard from '../../../components/thanks/ThanksCard';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
-import { formatWeddingDay, thanksFilename, type ThanksCardData } from '../../../lib/thanks';
-import { canvasToBlob, canvasToPdf, saveFile } from '../../../lib/ticket';
+import { formatWeddingDay, isPrintable, thanksFilename, type ThanksCardData } from '../../../lib/thanks';
+import { canvasToBlob, canvasToPdf, saveFiles } from '../../../lib/ticket';
 
 type State =
   | { kind: 'loading' }
@@ -52,15 +52,20 @@ function Merci() {
   const save = async (card: ThanksCardData, ext: 'png' | 'pdf') => {
     setSaving(ext);
     try {
-      const { drawThanksCard } = await import('../../../lib/thanks-draw');
+      const { drawThanksImages } = await import('../../../lib/thanks-draw');
       const exportCard = async (c: ThanksCardData) => {
-        const canvas = await drawThanksCard(c);
-        return ext === 'pdf' ? canvasToPdf(canvas, 10) : canvasToBlob(canvas, 'image/png');
+        const canvases = await drawThanksImages(c);
+        if (ext === 'pdf') return [new File([await canvasToPdf(canvases[0], 10)], thanksFilename(c.guestName, 'pdf'), { type: 'application/pdf' })];
+        return Promise.all(canvases.map(async (cv, i) => new File(
+          [await canvasToBlob(cv, 'image/jpeg', 0.92)],
+          thanksFilename(canvases.length > 1 ? `${c.guestName}-${i + 1}` : c.guestName, 'jpg'),
+          { type: 'image/jpeg' },
+        )));
       };
       // Photo refusée par le navigateur pour l'export (autorisation du stockage) : carte sans photo
-      const blob = await exportCard(card).catch(() => exportCard({ ...card, photoUrl: null, coverUrl: null }));
-      await saveFile(blob, thanksFilename(card.guestName, ext), ext === 'png');
-      posthog.capture('thanks_card_saved', { format: ext });
+      const files = await exportCard(card).catch(() => exportCard({ ...card, photoUrl: null, coverUrl: null }));
+      await saveFiles(files);
+      posthog.capture('thanks_card_saved', { format: ext, template: card.template });
     } catch (e) {
       console.error('Carte de remerciements :', e);
     } finally {
@@ -106,9 +111,11 @@ function Merci() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} className="mx-auto mt-8 grid max-w-[380px] gap-2">
         <button type="button" onClick={() => save(card, 'png')} disabled={saving !== null}
           className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl bg-[#3a2e26] text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
-          {saving === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Garder ma carte en photo
+          {saving === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {card.template === 'statut' ? 'Publier sur mon statut' : card.template === 'generique' ? 'Garder mon générique en photo' : 'Garder ma carte en photo'}
         </button>
-        {card.paid && (
+        {card.template === 'statut' && <p className="text-center text-xs text-[#7d7268]">Les trois écrans s’enregistrent en images, prêtes pour votre statut WhatsApp.</p>}
+        {card.paid && isPrintable(card.template) && (
           <button type="button" onClick={() => save(card, 'pdf')} disabled={saving !== null}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl border border-[#d8cbb8] bg-[#fbf6ee] text-sm font-bold text-[#3a2e26] hover:border-[#3a2e26] disabled:opacity-60">
             {saving === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} PDF à imprimer (10 × 15 cm)

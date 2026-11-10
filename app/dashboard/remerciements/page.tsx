@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  Check, ChevronDown, Copy, Crown, Gift, HeartHandshake, Image as ImageIcon, Loader2, MessageCircle, MessageSquareQuote, Users,
+  Check, ChevronDown, Copy, Crown, Download, Gift, HeartHandshake, Image as ImageIcon, Loader2, MessageCircle, MessageSquareQuote, Users,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getSessionUser, loadMarriage } from '../../../lib/current-marriage';
@@ -14,10 +14,11 @@ import { formatXof } from '../../../lib/plan';
 import { REFERRAL_DISCOUNT_XOF, REFERRAL_REWARD_XOF, referralLink } from '../../../lib/promo';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
 import ThanksCard from '../../../components/thanks/ThanksCard';
+import { canvasToBlob, saveFiles } from '../../../lib/ticket';
 import {
-  DEFAULT_THANKS_MESSAGE, THANKS_EXAMPLES, THANKS_MESSAGE_MAX, THANKS_NOTE_MAX, THANKS_TEMPLATES,
-  bestMatch, ceremoniesSentence, formatWeddingDay, guestCame, resolveThanksTemplate, thanksOpen, thanksUrl,
-  type ThanksCardData, type ThanksTemplate,
+  DEFAULT_THANKS_MESSAGE, TABLE_ROLE_EXAMPLES, TABLE_ROLE_MAX, THANKS_EXAMPLES, THANKS_MESSAGE_MAX, THANKS_NOTE_MAX, THANKS_TEMPLATES,
+  bestMatch, ceremoniesSentence, formatWeddingDay, guestCame, plannedCeremonies, readTableRoles, resolveThanksTemplate,
+  thanksFilename, thanksOpen, thanksUrl, usesGuestMemories, type ThanksCardData, type ThanksTemplate,
 } from '../../../lib/thanks';
 
 type Guest = {
@@ -44,7 +45,9 @@ export default function RemerciementsPage() {
   const [book, setBook] = useState<BookEntry[]>([]);
   const [template, setTemplate] = useState<ThanksTemplate>('lettre');
   const [message, setMessage] = useState(DEFAULT_THANKS_MESSAGE);
-  const [savedSettings, setSavedSettings] = useState({ template: 'lettre', message: DEFAULT_THANKS_MESSAGE });
+  const [roles, setRoles] = useState<Record<string, string>>({});
+  const [savedSettings, setSavedSettings] = useState({ template: 'lettre', message: DEFAULT_THANKS_MESSAGE, roles: '{}' });
+  const [everyoneBusy, setEveryoneBusy] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export default function RemerciementsPage() {
       const [g, t, s, c, b, album] = await Promise.all([
         supabase.from('invite').select('*').eq('marriage_id', data.id),
         supabase.from('tables').select('id, name').eq('marriage_id', data.id),
-        supabase.from('thanks_settings').select('template, message').eq('marriage_id', data.id).maybeSingle(),
+        supabase.from('thanks_settings').select('*').eq('marriage_id', data.id).maybeSingle(),
         supabase.from('thanks_cards').select('invite_id, photo_file, quote_id, note, sent_at, opened_at').eq('marriage_id', data.id),
         supabase.from('guestbook').select('id, author_name, message').eq('marriage_id', data.id).order('created_at', { ascending: false }),
         fetch('/api/album').then((r) => (r.ok ? r.json() : { photos: [] })).catch(() => ({ photos: [] })),
@@ -72,9 +75,11 @@ export default function RemerciementsPage() {
       setMissing(Boolean(s.error || c.error));
       const tpl = resolveThanksTemplate(s.data?.template);
       const msg = s.data?.message?.trim() || DEFAULT_THANKS_MESSAGE;
+      const savedRoles = readTableRoles(s.data?.table_roles);
       setTemplate(tpl);
       setMessage(msg);
-      setSavedSettings({ template: tpl, message: msg });
+      setRoles(savedRoles);
+      setSavedSettings({ template: tpl, message: msg, roles: JSON.stringify(savedRoles) });
       setCards(new Map(((c.data ?? []) as CardRow[]).map((r) => [r.invite_id, r])));
       setBook(((b.data ?? []) as BookEntry[]).filter((e) => e.message?.trim()).map((e) => ({ ...e, id: String(e.id) })));
       setPhotos((album.photos ?? []) as Photo[]);
@@ -86,7 +91,13 @@ export default function RemerciementsPage() {
   const open = thanksOpen(weddingDate);
   const paid = marriage?.plan === 'premium' || Boolean(marriage?.tier);
   const couple = [marriage?.partner_1_name, marriage?.partner_2_name].filter(Boolean).join(' & ');
-  const settingsChanged = template !== savedSettings.template || message.trim() !== savedSettings.message;
+  const cleanRoles = useMemo(() => readTableRoles(roles), [roles]);
+  const settingsChanged = template !== savedSettings.template || message.trim() !== savedSettings.message || JSON.stringify(cleanRoles) !== savedSettings.roles;
+  // Tables où sont assis des invités venus (pour les rôles du générique)
+  const usedTables = useMemo(() => {
+    const ids = new Set(guests.map((g) => g.table_id).filter((id): id is string => Boolean(id)));
+    return [...tables.entries()].filter(([id]) => ids.has(id)).sort((a, b) => a[1].localeCompare(b[1], 'fr', { numeric: true }));
+  }, [guests, tables]);
 
   // Photo et message rapprochés de l'invité (ceux choisis par le couple, sinon par le nom)
   const photoFor = useCallback((g: Guest) => {
@@ -99,7 +110,8 @@ export default function RemerciementsPage() {
   }, [cards, book]);
 
   const cardFor = useCallback((g: Guest): ThanksCardData => {
-    const q = template === 'souvenir' ? quoteFor(g) : null;
+    const memories = usesGuestMemories(template);
+    const q = memories ? quoteFor(g) : null;
     return {
       template,
       marriageId: marriageId ?? '',
@@ -113,7 +125,7 @@ export default function RemerciementsPage() {
       message: message.trim() || DEFAULT_THANKS_MESSAGE,
       note: paid ? cards.get(g.id)?.note?.trim() || null : null,
       coverUrl: marriage?.bg_image_url ?? null,
-      photoUrl: template === 'souvenir' ? photoFor(g)?.url ?? null : null,
+      photoUrl: memories ? photoFor(g)?.url ?? null : null,
       quote: q?.message ? { text: q.message.trim().slice(0, 240), author: q.author_name ?? '' } : null,
       primary: marriage?.primary_color ?? null,
       accent: marriage?.accent_color ?? null,
@@ -121,8 +133,11 @@ export default function RemerciementsPage() {
       referralCode: marriage?.referral_code ?? null,
       paid,
       guestbookOpen: false,
+      stats: { guests: persons(guests), ceremonies: plannedCeremonies(marriage), photos: photos.length, messages: book.length },
+      tableRole: g.table_id ? cleanRoles[g.table_id] ?? null : null,
+      tableMates: g.table_id ? guests.filter((x) => x.table_id === g.table_id && x.id !== g.id).map((x) => x.name).slice(0, 3) : [],
     };
-  }, [template, marriageId, marriage, weddingDate, tables, message, paid, cards, photoFor, quoteFor]);
+  }, [template, marriageId, marriage, weddingDate, tables, message, paid, cards, photoFor, quoteFor, guests, photos.length, book.length, cleanRoles]);
 
   const previewGuest = guests.find((g) => g.id === previewId) ?? guests[0] ?? null;
   const sample: Guest = { id: 'exemple', name: 'Tante Adjoua', phone: null, status: 'confirmé', guests_count: 1, table_id: null, attending_dot: true, attending_civil: null, attending_church: null, attending_reception: true };
@@ -131,11 +146,13 @@ export default function RemerciementsPage() {
   const saveSettings = async () => {
     if (!marriageId) return;
     setSavingSettings(true);
-    const value = { marriage_id: marriageId, template, message: message.trim().slice(0, THANKS_MESSAGE_MAX) || null, updated_at: new Date().toISOString() };
+    const value: Record<string, unknown> = { marriage_id: marriageId, template, message: message.trim().slice(0, THANKS_MESSAGE_MAX) || null, updated_at: new Date().toISOString() };
+    // Rôles des tables : seulement s'il y en a (colonne ajoutée par la migration 36)
+    if (Object.keys(cleanRoles).length || savedSettings.roles !== '{}') value.table_roles = cleanRoles;
     const { error } = await supabase.from('thanks_settings').upsert(value, { onConflict: 'marriage_id' });
     setSavingSettings(false);
     if (error) { notify('Votre carte n’a pas pu être enregistrée. Vérifiez votre connexion puis réessayez.', 'error'); return false; }
-    setSavedSettings({ template, message: message.trim() || DEFAULT_THANKS_MESSAGE });
+    setSavedSettings({ template, message: message.trim() || DEFAULT_THANKS_MESSAGE, roles: JSON.stringify(cleanRoles) });
     return true;
   };
 
@@ -170,6 +187,24 @@ export default function RemerciementsPage() {
     setCopied(g.id);
     setTimeout(() => setCopied(null), 2000);
     if (!cards.get(g.id)?.sent_at) await saveCard(g, { sent_at: new Date().toISOString() });
+  };
+
+  // Statut du couple « Merci à tous » : les trois écrans du modèle Le Statut, sans nom d'invité
+  const shareEveryone = async () => {
+    setEveryoneBusy(true);
+    try {
+      const { drawStatus } = await import('../../../lib/thanks-draw');
+      const base = cardFor(sample);
+      const card: ThanksCardData = { ...base, template: 'statut', guestName: 'à tous', ceremonies: null, note: null, photoUrl: null, quote: null };
+      const canvases = await drawStatus(card).catch(() => drawStatus({ ...card, coverUrl: null }));
+      const files = await Promise.all(canvases.map(async (c, i) => new File([await canvasToBlob(c, 'image/jpeg', 0.92)], thanksFilename(`a-tous-${i + 1}`, 'jpg'), { type: 'image/jpeg' })));
+      await saveFiles(files);
+    } catch (e) {
+      console.error('Statut « Merci à tous » :', e);
+      notify('Les images n’ont pas pu être créées. Réessayez.', 'error');
+    } finally {
+      setEveryoneBusy(false);
+    }
   };
 
   const stats = useMemo(() => {
@@ -231,8 +266,30 @@ export default function RemerciementsPage() {
                   </button>
                 ))}
               </div>
-              {template === 'souvenir' && (
+              {usesGuestMemories(template) && (
                 <p className="mt-3 text-xs text-slate-500">Les photos et les messages sont retrouvés grâce au nom que l’invité a écrit. Vous pouvez les changer pour chaque invité ci-dessous. Sans photo à son nom, votre photo de couverture la remplace.</p>
+              )}
+              {template === 'statut' && (
+                <p className="mt-2 text-xs text-slate-500">L’invité reçoit les trois écrans en images, prêts à publier sur son statut WhatsApp.</p>
+              )}
+              {template === 'generique' && (
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <h3 className="font-display text-lg text-ink">Le rôle de chaque table</h3>
+                  <p className="mt-1 text-sm text-slate-500">Facultatif. Il s’affiche sous le nom de l’invité : « Dans le rôle de… ».</p>
+                  {usedTables.length ? (
+                    <div className="mt-3 space-y-2">
+                      {usedTables.map(([id, name]) => (
+                        <div key={id} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                          <label htmlFor={`role-${id}`} className="w-32 shrink-0 truncate text-sm font-semibold text-ink">Table {name.replace(/^table\s+/i, '')}</label>
+                          <input id={`role-${id}`} list="table-role-examples" value={roles[id] ?? ''} maxLength={TABLE_ROLE_MAX}
+                            onChange={(e) => setRoles((prev) => ({ ...prev, [id]: e.target.value }))} placeholder="Par exemple : Les ambianceurs"
+                            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-rose-400" />
+                        </div>
+                      ))}
+                      <datalist id="table-role-examples">{TABLE_ROLE_EXAMPLES.map((r) => <option key={r} value={r} />)}</datalist>
+                    </div>
+                  ) : <p className="mt-2 text-sm text-slate-500">Placez vos invités à table dans le plan de table pour leur donner un rôle.</p>}
+                </div>
               )}
             </section>
 
@@ -312,6 +369,16 @@ export default function RemerciementsPage() {
               )}
             </section>
 
+            {/* Statut du couple */}
+            <section className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="font-display text-xl text-ink">Votre statut « Merci à tous »</h2>
+              <p className="mt-1 text-sm text-slate-500">Trois images à publier sur votre propre statut WhatsApp : votre photo, votre merci à tous vos invités et un souvenir de la journée.</p>
+              <button type="button" onClick={shareEveryone} disabled={everyoneBusy}
+                className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
+                {everyoneBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Créer mes images
+              </button>
+            </section>
+
             {/* Parrainage */}
             {referral && (
               <section className="rounded-[1.5rem] border border-amber-200 bg-white p-5 shadow-sm sm:p-6">
@@ -373,7 +440,7 @@ function GuestEditor({ guest, template, paid, disabled, photos, book, card, curr
 
   return (
     <div className="mt-3 space-y-4 rounded-2xl bg-ivory p-4">
-      {template === 'souvenir' && (
+      {usesGuestMemories(template) && (
         <>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Sa photo</p>

@@ -358,5 +358,20 @@ export async function saveFile(blob: Blob, filename: string, preferShare = false
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+// Plusieurs images d'un coup (les écrans d'un statut) : une seule feuille de partage sur téléphone,
+// sinon un téléchargement par fichier
+export async function saveFiles(files: File[]) {
+  if (files.length === 1) return saveFile(files[0], files[0].name, true);
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files })) {
+    try {
+      await navigator.share({ files });
+      return;
+    } catch (e) {
+      if ((e as DOMException)?.name === 'AbortError') return;
+    }
+  }
+  for (const f of files) await saveFile(f, f.name);
+}
+
 export const ticketFilename = (t: GuestTicket, ext: 'png' | 'pdf') =>
   `billet-${t.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'invite'}.${ext}`;

@@ -53,6 +53,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 32 | `20261102_32_billet_controle_entree.sql` | Billet d'entrée et contrôle à l'entrée (formules payantes) : code de billet et heure d'arrivée par fiche, clé de l'équipe d'accueil, fonctions `get_guest_ticket`, `my_checkin_key`, `checkin_open`, `checkin_ticket`, `checkin_force`, `checkin_search` ; 20 refus au plus par IP en 10 minutes |
 | 33 | `20261103_33_billet_disponibilite.sql` | Choix du couple « billet dès la confirmation » ou « la veille » de la première cérémonie de l'invité (`ticket_release`, « dès la confirmation » pour les couples existants) ; date d'envoi du billet par WhatsApp (`ticket_sent_at`) ; `get_guest_ticket` ne donne que la date de disponibilité avant l'heure |
 | 34 | `20261103_34_suppression_trois_mois.sql` | Suppression à J+3 mois : dates d'envoi des e-mails (`souvenir_email_at`, `final_reminder_at`), transition de 30 jours pour les espaces existants (`delete_after`), colonnes protégées contre une modification par le couple. **À lancer juste avant de déployer** |
+| 36 | `20261110_36_remerciements_generique_statut.sql` | Modèles « Générique de fin » et « Statut » autorisés, colonne `table_roles` (rôle de chaque table dans le générique). À lancer après la 35 |
 | 35 | `20261110_35_cartes_remerciements.sql` | Cartes de remerciements : tables `thanks_settings` (modèle et mot du couple) et `thanks_cards` (photo, message du livre d'or, mot personnel, dates d'envoi et d'ouverture), lisibles et modifiables par le couple seulement, même en mode souvenir |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
@@ -201,7 +202,9 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - Aperçu en direct au nom de l'invité ouvert ; carte « Faites plaisir à un couple ami » avec le code de parrainage.
 - **Page de l'invité** `/merci/<mariage>?g=<invité>` (`app/merci/[id]/page.tsx`) : visible à partir du jour du mariage, « Garder ma carte en photo », « PDF à imprimer (10 × 15 cm) » pour les formules payantes, lien vers le livre d'or tant qu'il est ouvert, puis la présentation de WeddingStudio avec le code de parrainage du couple (`AfterWeddingPromo`). L'image (1 080 × 1 620 px) est dessinée par `lib/thanks-draw.ts` et porte « Carte créée avec WeddingStudio ».
 - **Serveur** `app/api/merci/route.ts` (clé service) : vérifie le mariage, l'invité et la date, sert la photo de l'album par une adresse signée d'un jour et note la première ouverture.
-- Plus tard : « Le Générique de fin » et « Le Statut » (vidéo et format statut WhatsApp).
+- **Le Générique de fin** (migration 36, `components/thanks/ThanksStoryCards.tsx`) : écran 9:16 sombre et doré, « Fin de la saison 1 », « Avec la participation exceptionnelle de [invité] », « Dans le rôle de [rôle de sa table] » (rôles choisis par le couple, avec des exemples), « Aux côtés de » (3 invités venus de sa table), le mot, les vrais chiffres (invités venus, cérémonies, photos ou messages) et « Merci ». Les lignes apparaissent une à une. Image 1 080 × 1 920.
+- **Le Statut** : trois écrans qui défilent comme un statut WhatsApp (photo du couple, « Merci [invité] » et le mot, sa photo de l'album avec son message du livre d'or). L'invité les enregistre en trois images d'un coup (« Publier sur mon statut »). Le couple a aussi son statut « Merci à tous » dans la page Remerciements.
+- Pas de vidéo : le générique et le statut sont des images (une vidéo demanderait un enregistrement dans le navigateur, peu fiable sur iPhone).
 
 ### 2.8 Photos et souvenirs
 

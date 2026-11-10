@@ -5,9 +5,24 @@ import { ceremonyFlags } from './ceremonies';
 export const THANKS_TEMPLATES = [
   { id: 'lettre', label: 'La Lettre', description: 'Une carte papier crème : votre photo, le prénom de l’invité écrit à la main, votre mot et votre cachet de cire.' },
   { id: 'souvenir', label: 'Le Souvenir', description: 'Chaque invité retrouve sa photo de l’album et le message qu’il vous a laissé dans le livre d’or.' },
+  { id: 'generique', label: 'Le Générique de fin', description: 'Votre mariage se termine comme un film : le générique défile, le nom de l’invité en vedette, avec les vrais chiffres de la fête.' },
+  { id: 'statut', label: 'Le Statut', description: 'Trois écrans plein format à publier sur le statut WhatsApp : votre photo, le merci à son nom, un souvenir de la journée.' },
 ] as const;
 export type ThanksTemplate = (typeof THANKS_TEMPLATES)[number]['id'];
-export const resolveThanksTemplate = (v: unknown): ThanksTemplate => (v === 'souvenir' ? 'souvenir' : 'lettre');
+export const resolveThanksTemplate = (v: unknown): ThanksTemplate =>
+  THANKS_TEMPLATES.some((t) => t.id === v) ? (v as ThanksTemplate) : 'lettre';
+
+// Modèles qui montrent la photo et le message de l'invité (album, livre d'or)
+export const usesGuestMemories = (t: ThanksTemplate) => t === 'souvenir' || t === 'statut';
+// Modèles imprimables en PDF (formules payantes) ; les deux autres sont au format statut (9:16)
+export const isPrintable = (t: ThanksTemplate) => t === 'lettre' || t === 'souvenir';
+
+// Rôles proposés pour les tables du générique (le couple peut écrire le sien)
+export const TABLE_ROLE_EXAMPLES = [
+  'Les ambianceurs', 'Les sages', 'Les rois de la piste', 'Les inséparables', 'Les témoins de la première heure',
+  'La famille d’abord', 'Les gourmands', 'Les photographes officiels', 'Les cœurs tendres', 'La team mariée', 'La team marié',
+];
+export const TABLE_ROLE_MAX = 40;
 
 export const THANKS_MESSAGE_MAX = 600;
 export const THANKS_NOTE_MAX = 300;
@@ -44,7 +59,23 @@ export type ThanksCardData = {
   referralCode: string | null;
   paid: boolean;                   // formule payante : PDF à imprimer
   guestbookOpen: boolean;          // livre d'or encore ouvert (avant le mode souvenir)
+  // Générique de fin
+  stats: { guests: number; ceremonies: number; photos: number; messages: number } | null;
+  tableRole: string | null;        // « Les ambianceurs »
+  tableMates: string[];            // quelques invités venus de la même table
 };
+
+// Rôles des tables lus dans thanks_settings.table_roles (valeurs vides ou trop longues ignorées)
+export function readTableRoles(v: unknown): Record<string, string> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  return Object.fromEntries(
+    Object.entries(v as Record<string, unknown>)
+      .filter(([, r]) => typeof r === 'string' && r.trim())
+      .map(([k, r]) => [k, (r as string).trim().slice(0, TABLE_ROLE_MAX)]),
+  );
+}
+
+export const plannedCeremonies = (m: CeremonyMarriage) => Object.values(ceremonyFlags(m)).filter(Boolean).length;
 
 export const thanksUrl = (origin: string, marriageId: string, inviteId: string) => `${origin}/merci/${marriageId}?g=${inviteId}`;
 
@@ -111,5 +142,5 @@ export function bestMatch<T>(guestName: string, items: T[], nameOf: (item: T) =>
 export const formatWeddingDay = (iso: string | null) =>
   iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
-export const thanksFilename = (guestName: string, ext: 'png' | 'pdf') =>
+export const thanksFilename = (guestName: string, ext: 'png' | 'jpg' | 'pdf') =>
   `merci-${guestName.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'invite'}.${ext}`;
