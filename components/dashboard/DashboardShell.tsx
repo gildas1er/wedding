@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Wallet, LogOut, Settings, LayoutGrid,
-  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, LifeBuoy, CircleQuestionMark, ScanLine, type LucideIcon,
+  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, LifeBuoy, CircleQuestionMark, ScanLine, HeartHandshake, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
@@ -41,6 +41,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/dashboard/budget', label: 'Budget', icon: Wallet },
       { href: '/dashboard/planning', label: 'Jour J', icon: CalendarClock },
       { href: '/dashboard/accueil', label: 'Accueil des invités', icon: ScanLine },
+      { href: '/dashboard/remerciements', label: 'Remerciements', icon: HeartHandshake },
     ],
   },
   {
@@ -57,7 +58,8 @@ type Couple = {
 
 const SOUVENIR_ITEM: NavItem = { href: '/dashboard/souvenir', label: 'Mes souvenirs', icon: Heart };
 const ALBUM_ITEM: NavItem = { href: '/dashboard/album', label: 'Album photos', icon: Images };
-const SOUVENIR_ITEMS = [SOUVENIR_ITEM, ALBUM_ITEM];
+const THANKS_ITEM: NavItem = { href: '/dashboard/remerciements', label: 'Remerciements', icon: HeartHandshake };
+const SOUVENIR_ITEMS = [SOUVENIR_ITEM, ALBUM_ITEM, THANKS_ITEM];
 const isAllowedInSouvenir = (pathname: string) => SOUVENIR_ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 function isActive(pathname: string, href: string) {
@@ -120,7 +122,7 @@ function SidebarContent({ pathname, couple, used, onUpgrade, onLogout, onNavigat
   const souvenir = couple?.lifecycle.phase === 'souvenir';
   // Mode souvenir : « Mes souvenirs » et l'album en tête, le reste verrouillé
   const sections = souvenir
-    ? [{ title: 'Souvenirs', items: SOUVENIR_ITEMS }, ...NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => it.href !== ALBUM_ITEM.href) }))]
+    ? [{ title: 'Souvenirs', items: SOUVENIR_ITEMS }, ...NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => it.href !== ALBUM_ITEM.href && it.href !== THANKS_ITEM.href) }))]
     : NAV_SECTIONS;
   return (
     <>

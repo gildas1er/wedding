@@ -53,6 +53,7 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
 | 32 | `20261102_32_billet_controle_entree.sql` | Billet d'entrée et contrôle à l'entrée (formules payantes) : code de billet et heure d'arrivée par fiche, clé de l'équipe d'accueil, fonctions `get_guest_ticket`, `my_checkin_key`, `checkin_open`, `checkin_ticket`, `checkin_force`, `checkin_search` ; 20 refus au plus par IP en 10 minutes |
 | 33 | `20261103_33_billet_disponibilite.sql` | Choix du couple « billet dès la confirmation » ou « la veille » de la première cérémonie de l'invité (`ticket_release`, « dès la confirmation » pour les couples existants) ; date d'envoi du billet par WhatsApp (`ticket_sent_at`) ; `get_guest_ticket` ne donne que la date de disponibilité avant l'heure |
 | 34 | `20261103_34_suppression_trois_mois.sql` | Suppression à J+3 mois : dates d'envoi des e-mails (`souvenir_email_at`, `final_reminder_at`), transition de 30 jours pour les espaces existants (`delete_after`), colonnes protégées contre une modification par le couple. **À lancer juste avant de déployer** |
+| 35 | `20261110_35_cartes_remerciements.sql` | Cartes de remerciements : tables `thanks_settings` (modèle et mot du couple) et `thanks_cards` (photo, message du livre d'or, mot personnel, dates d'envoi et d'ouverture), lisibles et modifiables par le couple seulement, même en mode souvenir |
 
 > **Urgent :** la migration 17 corrige une faille qui permettait à un couple de se mettre lui-même en Premium (voir section 5).
 
@@ -189,6 +190,18 @@ Ces actions sont nécessaires pour que tout ce qui est décrit ci-dessous foncti
   - Un billet scanné avec l'appareil photo ordinaire ouvre aussi `/accueil` : sur le téléphone de l'équipe, l'entrée est enregistrée ; sur un autre téléphone, la page dit seulement de présenter le billet.
   - La caméra n'est autorisée que sur cette page (`Permissions-Policy` dans `next.config.ts`).
 - **Page « Accueil des invités » du tableau de bord** (`/dashboard/accueil`) : **« Envoyer les billets »**, la liste des invités confirmés avec un message WhatsApp prêt (« Votre billet d'entrée est prêt », avec leur lien personnel), un toucher par invité, « n / m envoyés », bouton grisé jusqu'à la date de disponibilité en mode « la veille ». Utile aussi aux couples qui ont envoyé leurs invitations avant l'arrivée des billets : leurs invités confirmés ont un billet, mais ne le savent pas. Lien de l'équipe d'accueil (copie, WhatsApp, QR code, renouvellement qui coupe l'ancien lien), chiffres (confirmés, billets créés, arrivés) et liste des arrivées, actualisée toutes les 30 secondes. En version gratuite : présentation de la fonction et bouton vers les formules.
+
+### 2.7 bis Cartes de remerciements (10 novembre 2026, migration 35)
+
+- **Page « Remerciements »** (`app/dashboard/remerciements/page.tsx`), dans le menu, et aussi en mode souvenir (envoyer un merci ne modifie pas l'espace). Ouverte à toutes les formules.
+  - « Votre mariage en chiffres » : invités venus, photos de l'album, mots du livre d'or, cartes ouvertes.
+  - 1. Le modèle : **La Lettre** (photo de couverture, « Merci [prénom], » à la main, mot, cérémonies de l'invité, cachet de cire aux initiales, signature dans la police des prénoms) ou **Le Souvenir** (photo de l'invité dans l'album en polaroïd, son message du livre d'or, sa table).
+  - 2. Le mot commun, avec 5 textes d'exemple (`lib/thanks.ts`).
+  - 3. L'envoi sur WhatsApp, invité par invité (invités confirmés ou entrés à l'accueil), ou « Copier » sans numéro. Pour chaque invité : choix de la photo et du message (rapprochés automatiquement par le nom, `nameScore`), mot personnel (formules payantes).
+  - Aperçu en direct au nom de l'invité ouvert ; carte « Faites plaisir à un couple ami » avec le code de parrainage.
+- **Page de l'invité** `/merci/<mariage>?g=<invité>` (`app/merci/[id]/page.tsx`) : visible à partir du jour du mariage, « Garder ma carte en photo », « PDF à imprimer (10 × 15 cm) » pour les formules payantes, lien vers le livre d'or tant qu'il est ouvert, puis la présentation de WeddingStudio avec le code de parrainage du couple (`AfterWeddingPromo`). L'image (1 080 × 1 620 px) est dessinée par `lib/thanks-draw.ts` et porte « Carte créée avec WeddingStudio ».
+- **Serveur** `app/api/merci/route.ts` (clé service) : vérifie le mariage, l'invité et la date, sert la photo de l'album par une adresse signée d'un jour et note la première ouverture.
+- Plus tard : « Le Générique de fin » et « Le Statut » (vidéo et format statut WhatsApp).
 
 ### 2.8 Photos et souvenirs
 

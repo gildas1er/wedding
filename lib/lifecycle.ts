@@ -73,4 +73,4 @@ export function extensionWhatsappLink(couple: string, marriageId?: string | null
 }
 
 // Pages de l'espace encore ouvertes en mode souvenir
-export const SOUVENIR_ALLOWED_PATHS = ['/dashboard/souvenir', '/dashboard/album', '/dashboard/invite/print', '/dashboard/planning/print'];
+export const SOUVENIR_ALLOWED_PATHS = ['/dashboard/souvenir', '/dashboard/album', '/dashboard/remerciements', '/dashboard/invite/print', '/dashboard/planning/print'];

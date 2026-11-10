@@ -71,7 +71,7 @@ export const todayAbidjan = () => new Date().toISOString().slice(0, 10);
 export const formatDayFr = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 /* ── Couleurs ── */
-function mix(a: string, b: string, t: number) {
+export function mix(a: string, b: string, t: number) {
   const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
   const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
   return `#${pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
@@ -98,12 +98,12 @@ function ticketLines(m: TicketMarriage, t: GuestTicket): TicketLine[] {
 }
 
 /* ── Dessin ── */
-function cssFont(variable: string, fallback: string) {
+export function cssFont(variable: string, fallback: string) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
   return v || fallback;
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -114,7 +114,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 // Taille de police la plus grande (≤ size) pour que le texte tienne dans maxWidth
-function fitFont(ctx: CanvasRenderingContext2D, text: string, font: (px: number) => string, size: number, maxWidth: number, min = 24) {
+export function fitFont(ctx: CanvasRenderingContext2D, text: string, font: (px: number) => string, size: number, maxWidth: number, min = 24) {
   let px = size;
   ctx.font = font(px);
   while (px > min && ctx.measureText(text).width > maxWidth) {
@@ -125,7 +125,7 @@ function fitFont(ctx: CanvasRenderingContext2D, text: string, font: (px: number)
 }
 
 // Coupe un texte trop long en lignes (au plus maxLines, la dernière finit par « … »)
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number) {
+export function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number) {
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = '';
@@ -143,7 +143,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
   return kept;
 }
 
-function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
+export function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
   // letterSpacing n'existe pas partout (Safari ancien) : on espace les lettres à la main
   const chars = [...text];
   const width = chars.reduce((s, c) => s + ctx.measureText(c).width, 0) + spacing * (chars.length - 1);
@@ -303,11 +303,12 @@ export async function drawTicket(m: TicketMarriage, t: GuestTicket, qrUrl: strin
 export const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
   new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Image impossible à créer'))), type, quality));
 
-// PDF d'une page 9 × 16 cm contenant l'image du billet (JPEG), sans bibliothèque
-export async function canvasToPdf(canvas: HTMLCanvasElement): Promise<Blob> {
+// PDF d'une page contenant l'image (JPEG), sans bibliothèque. Largeur en centimètres
+// (9 cm pour le billet), hauteur dans les proportions de l'image (16 cm pour le billet).
+export async function canvasToPdf(canvas: HTMLCanvasElement, widthCm = 9): Promise<Blob> {
   const jpeg = new Uint8Array(await (await canvasToBlob(canvas, 'image/jpeg', 0.92)).arrayBuffer());
-  const pageW = 255.12; // 9 cm
-  const pageH = 453.54; // 16 cm
+  const pageW = Math.round((widthCm / 2.54) * 72 * 100) / 100;
+  const pageH = Math.round(pageW * (canvas.height / canvas.width) * 100) / 100;
   const content = `q ${pageW} 0 0 ${pageH} 0 0 cm /Im0 Do Q`;
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
