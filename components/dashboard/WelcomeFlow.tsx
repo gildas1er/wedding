@@ -29,7 +29,7 @@ export type WelcomeMarriage = {
 type StepId = 'hook' | 'identity' | 'models' | 'preview' | 'send' | 'done';
 
 // Ordre d'affichage des modèles : les plus spectaculaires d'abord
-const TEMPLATE_ORDER: InvitationTemplate[] = ['enveloppe', 'avant_premiere', 'story', 'classique'];
+const TEMPLATE_ORDER: InvitationTemplate[] = ['enveloppe', 'avant_premiere', 'pagne', 'kita', 'story', 'classique'];
 const SAMPLE_NAMES = ['Maman', 'Tonton Konan', 'Aya Traoré'];
 const DECK_NAMES = ['Tantie Adjoua', 'Tonton Konan', 'Aya Traoré', 'Maman', 'Ibrahim Koné', 'Mme Yao Affoué', 'Cousin Serge', 'Fatou Diabaté'];
 const DEFAULT_GUEST = 'Tantie Adjoua';

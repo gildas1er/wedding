@@ -18,6 +18,9 @@ import PracticalInfoSection from '../../../components/rsvp/PracticalInfoSection'
 import EnvelopeIntro from '../../../components/rsvp/EnvelopeIntro';
 import PremiereIntro, { type PremiereAnswer } from '../../../components/rsvp/PremiereIntro';
 import StoryIntro from '../../../components/rsvp/StoryIntro';
+import AfricanIntro from '../../../components/rsvp/AfricanIntro';
+import DressCodeSection from '../../../components/rsvp/DressCodeSection';
+import { familiesPhrase, isAfricanTemplate } from '../../../lib/african-invitation';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
 import GuestTicketCard from '../../../components/rsvp/GuestTicketCard';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
@@ -382,6 +385,17 @@ function RSVPContent() {
             onDone={() => finishIntro()}
           />
         )}
+        {showIntro && isAfricanTemplate(template) && (
+          <AfricanIntro
+            key={introKey}
+            style={template}
+            m={m}
+            flags={flags}
+            guestName={shownGuestName || undefined}
+            onOpen={startMusicFromIntro}
+            onDone={() => finishIntro()}
+          />
+        )}
         {showIntro && template === 'enveloppe' && (
           <EnvelopeIntro
             key={introKey}
@@ -445,6 +459,9 @@ function RSVPContent() {
                 <p className="eyebrow">{m.invitation_text}</p>
                 <div className="gold-rule w-10" />
              </div>
+             {(() => { const f = familiesPhrase(m.family_1, m.family_2); return f ? (
+               <p className="mb-4 text-[13px] uppercase tracking-[0.14em] text-slate-500">{f.lead} <span className="font-semibold text-ink">{f.names}</span> {f.verb}</p>
+             ) : null; })()}
              <h1 className="text-5xl font-normal text-ink leading-[1.05] break-words">
                <span className="block" style={nameFontStyle(m.names_font)}>
                  {m.partner_1_name}
@@ -508,6 +525,9 @@ function RSVPContent() {
               />
             )}
           </motion.div>
+
+          {/* TENUE ET PAGNE DE LA CÉRÉMONIE (migration 37) */}
+          <DressCodeSection m={m} guestName={shownGuestName || undefined} />
 
           {/* INFOS PRATIQUES (dress code, contact, hébergement…) */}
           <PracticalInfoSection infos={sanitizeInfos(m.practical_info)} />

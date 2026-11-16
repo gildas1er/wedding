@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, Save, Palette, Image as ImageIcon, Loader2, Clock, MapPin, Calendar,
   Check, Landmark, PartyPopper, Link as LinkIcon, Cross, AlertCircle, ExternalLink,
-  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, Handshake, Ticket, Lock, type LucideIcon,
+  MessageCircle, Smartphone, RotateCcw, Music, Info, LayoutTemplate, Play, Handshake, Ticket, Lock, Shirt, type LucideIcon,
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +12,11 @@ import CoverPhotoEditor, { DEFAULT_COVER_POSITION } from '../../../components/st
 import PalettePicker from '../../../components/studio/PalettePicker';
 import MusicPicker from '../../../components/studio/MusicPicker';
 import PracticalInfoEditor from '../../../components/studio/PracticalInfoEditor';
+import FamilyDressEditor from '../../../components/studio/FamilyDressEditor';
+import {
+  BOGOLAN_PATTERN, EMPTY_PAGNE, KITA_BACKGROUND, isAfricanTemplate, preparePagneForSave, readDressColors, readPagne, resolveDressCode, waxPattern,
+  type CeremonyPagne, type DressCode,
+} from '../../../lib/african-invitation';
 import { prepareInfosForSave, sanitizeInfos, type PracticalInfo } from '../../../lib/practical-info';
 import { DEFAULT_PALETTE, resolveAccent } from '../../../lib/palettes';
 import { toISODate, toHHMM } from '../../../lib/event-datetime';
@@ -58,6 +63,11 @@ type Config = {
   music_url: string; // '' = mélodie d'origine, 'none' = sans musique
   practical_info: PracticalInfo[];
   ticket_release: TicketRelease;
+  family_1: string;
+  family_2: string;
+  dress_code: DressCode | '';
+  dress_colors: string[];
+  ceremony_pagne: CeremonyPagne;
 };
 
 const EMPTY_CONFIG: Config = {
@@ -80,6 +90,11 @@ const EMPTY_CONFIG: Config = {
   music_url: '',
   practical_info: [],
   ticket_release: 'confirmation',
+  family_1: '',
+  family_2: '',
+  dress_code: '',
+  dress_colors: [],
+  ceremony_pagne: EMPTY_PAGNE,
 };
 
 // Colonnes ajoutées par les migrations 3 et 4 (enregistrées à part pour ne pas bloquer le reste)
@@ -93,6 +108,7 @@ const TEMPLATE_KEYS = ['invitation_template'] as const;
 const NAMES_FONT_KEYS = ['names_font'] as const;
 const TICKET_KEYS = ['ticket_release'] as const;
 const DOT_KEYS = ['show_dot', 'dot_date', 'dot_hour', 'dot_location', 'dot_maps_url'] as const;
+const AFRICAN_KEYS = ['family_1', 'family_2', 'dress_code', 'dress_colors', 'ceremony_pagne'] as const;
 const MAX_MUSIC_MB = 10;
 
 const MAX_UPLOAD_MB = 15;
@@ -118,6 +134,8 @@ export default function InvitationStudio() {
   const [dotAvailable, setDotAvailable] = useState(true);
   const [namesFontAvailable, setNamesFontAvailable] = useState(true);
   const [ticketAvailable, setTicketAvailable] = useState(true);
+  const [africanAvailable, setAfricanAvailable] = useState(true);
+  const [pagneStage, setPagneStage] = useState<string | null>(null);
   const [previewTab, setPreviewTab] = useState<'rsvp' | 'whatsapp'>('rsvp');
 
   const [config, setConfig] = useState<Config>(EMPTY_CONFIG);
@@ -148,6 +166,7 @@ export default function InvitationStudio() {
         setDotAvailable('show_dot' in data);
         setNamesFontAvailable('names_font' in data);
         setTicketAvailable('ticket_release' in data);
+        setAfricanAvailable('family_1' in data);
 
         // Conversion des anciennes saisies en texte libre vers les formats des sélecteurs
         const year = data.wedding_date ? new Date(data.wedding_date).getFullYear() : undefined;
@@ -195,6 +214,11 @@ export default function InvitationStudio() {
           music_url: data.music_url || '',
           practical_info: sanitizeInfos(data.practical_info),
           ticket_release: resolveTicketRelease(data.ticket_release),
+          family_1: data.family_1 || '',
+          family_2: data.family_2 || '',
+          dress_code: resolveDressCode(data.dress_code) ?? '',
+          dress_colors: readDressColors(data.dress_colors),
+          ceremony_pagne: { ...readPagne(data.ceremony_pagne) },
         };
         setLegacyValues(legacy);
         setConfig(loaded);
@@ -248,6 +272,12 @@ export default function InvitationStudio() {
     const preparedInfos = prepareInfosForSave(config.practical_info);
     if (preparedInfos.error) {
       flash({ type: 'error', text: preparedInfos.error }, 5000);
+      return;
+    }
+
+    const preparedPagne = preparePagneForSave(config.ceremony_pagne);
+    if (preparedPagne.error) {
+      flash({ type: 'error', text: preparedPagne.error }, 5000);
       return;
     }
 
@@ -311,14 +341,25 @@ export default function InvitationStudio() {
         },
       },
       {
+        keys: AFRICAN_KEYS, label: 'la migration 37 (familles, tenue et pagne)', onMissing: () => setAfricanAvailable(false),
+        values: {
+          family_1: config.family_1.trim() || null,
+          family_2: config.family_2.trim() || null,
+          dress_code: config.dress_code || null,
+          dress_colors: config.dress_code === 'couleurs' ? readDressColors(config.dress_colors) : [],
+          ceremony_pagne: preparedPagne.value,
+        },
+      },
+      {
         keys: NAMES_FONT_KEYS, label: 'la migration 16 (police des prénoms)', onMissing: () => setNamesFontAvailable(false),
         values: { names_font: config.names_font === DEFAULT_NAME_FONT ? null : config.names_font },
       },
       {
         // « L'Avant-première » demande en plus la migration 27 (liste des modèles autorisés)
         keys: TEMPLATE_KEYS,
-        label: config.invitation_template === 'avant_premiere' ? "la migration 27 (modèle L'Avant-première)" : "la migration 11 (modèle d'invitation)",
-        onMissing: () => { if (config.invitation_template !== 'avant_premiere') setTemplateAvailable(false); },
+        label: config.invitation_template === 'avant_premiere' ? "la migration 27 (modèle L'Avant-première)"
+          : isAfricanTemplate(config.invitation_template) ? 'la migration 37 (modèles africains)' : "la migration 11 (modèle d'invitation)",
+        onMissing: () => { if (config.invitation_template !== 'avant_premiere' && !isAfricanTemplate(config.invitation_template)) setTemplateAvailable(false); },
         values: { invitation_template: config.invitation_template },
       },
       {
@@ -426,6 +467,40 @@ export default function InvitationStudio() {
       flash({ type: 'error', text: error.message || "Erreur lors de l'envoi de la photo." }, 6000);
     } finally {
       setUploadStage(null);
+    }
+  };
+
+  // Photo du pagne de la cérémonie : allégée puis envoyée avec les photos de l'invitation
+  const handlePagneFile = async (file: File) => {
+    if (!marriage) return;
+    if (!file.type.startsWith('image/')) {
+      flash({ type: 'error', text: 'Ce fichier n’est pas une photo. Choisissez une image JPG ou PNG.' }, 5000);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      flash({ type: 'error', text: `Photo trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum : ${MAX_UPLOAD_MB} Mo.` }, 5000);
+      return;
+    }
+    try {
+      setPagneStage('Optimisation…');
+      let optimized: Blob;
+      try {
+        optimized = await imageCompression(file, { maxSizeMB: 0.3, maxWidthOrHeight: 1200, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.82 });
+      } catch {
+        throw new Error('Format non lu par ce navigateur (photo HEIC ?). Essayez avec une photo JPG ou PNG.');
+      }
+      setPagneStage('Envoi…');
+      // Même dossier que la photo de couverture : seul autorisé par les règles du stockage (migration 25)
+      const filePath = `backgrounds/${marriage.id}-pagne-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('invitations').upload(filePath, optimized, { contentType: 'image/jpeg', cacheControl: '31536000' });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('invitations').getPublicUrl(filePath);
+      setConfig((prev) => ({ ...prev, ceremony_pagne: { ...prev.ceremony_pagne, photo_url: publicUrl } }));
+      flash({ type: 'success', text: 'Photo du pagne prête : pensez à publier.' });
+    } catch (error) {
+      flash({ type: 'error', text: (error instanceof Error && error.message) || "Erreur lors de l'envoi de la photo." }, 6000);
+    } finally {
+      setPagneStage(null);
     }
   };
 
@@ -611,6 +686,18 @@ export default function InvitationStudio() {
             </div>
           </Card>
 
+          <Card icon={Shirt} title="Familles et tenue" subtitle="Les familles qui invitent, la tenue demandée et le pagne de la cérémonie. Très utile pour la dot.">
+            <FamilyDressEditor
+              value={{ family_1: config.family_1, family_2: config.family_2, dress_code: config.dress_code, dress_colors: config.dress_colors, ceremony_pagne: config.ceremony_pagne }}
+              onChange={(patch) => { setConfig((prev) => ({ ...prev, ...patch })); setPreviewTab('rsvp'); }}
+              partner1={marriage?.partner_1_name}
+              partner2={marriage?.partner_2_name}
+              photoBusy={pagneStage}
+              onPickPhoto={handlePagneFile}
+            />
+            {!africanAvailable && <p className="text-xs text-amber-700">Ces informations seront enregistrées après la migration « 20261116_37_invitations_africaines.sql ».</p>}
+          </Card>
+
           {/* Message WhatsApp */}
           <Card icon={Info} title="Infos pratiques" subtitle="Dress code, contact, hébergement… affichés sous le programme de l'invitation.">
             {!infosAvailable && (
@@ -776,7 +863,22 @@ export default function InvitationStudio() {
 function TemplateThumb({ id, color, accent }: { id: InvitationTemplate; color: string; accent: string }) {
   return (
     <span aria-hidden className="grid h-[4.5rem] w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-50 ring-1 ring-slate-200">
-      {id === 'avant_premiere' ? (
+      {id === 'pagne' ? (
+        <span className="relative h-full w-full" style={{ backgroundImage: waxPattern(color, accent), backgroundSize: '24px 24px' }}>
+          <span className="absolute inset-x-1.5 bottom-1.5 h-6 rounded-md bg-[#fbf3e4]" />
+        </span>
+      ) : id === 'kita' ? (
+        <span className="relative h-full w-full bg-[#120d0b]">
+          <span className="absolute inset-x-0 top-0 h-[45%]" style={{ background: KITA_BACKGROUND, backgroundSize: '40px 36px' }} />
+          <span className="absolute left-1/2 top-[45%] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e9b81f] bg-[#120d0b]" />
+          <span className="absolute inset-x-3 bottom-3 h-1.5 rounded bg-[#e9b81f]" />
+        </span>
+      ) : id === 'bogolan' ? (
+        <span className="relative h-full w-full" style={{ backgroundImage: BOGOLAN_PATTERN, backgroundSize: '22px 22px' }}>
+          <span className="absolute inset-2 rounded-md bg-[#efe4cf]" />
+          <span className="absolute inset-x-4 top-1/2 h-1.5 -translate-y-1/2 rounded bg-[#4a2a17]" />
+        </span>
+      ) : id === 'avant_premiere' ? (
         <svg viewBox="0 0 56 72" className="h-full w-full">
           <rect x="8" y="4" width="40" height="64" rx="5" fill="#0b0b0c" />
           <rect x="8" y="4" width="40" height="34" rx="5" fill={color} opacity=".85" />
