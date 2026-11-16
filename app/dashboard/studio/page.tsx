@@ -14,7 +14,7 @@ import MusicPicker from '../../../components/studio/MusicPicker';
 import PracticalInfoEditor from '../../../components/studio/PracticalInfoEditor';
 import FamilyDressEditor from '../../../components/studio/FamilyDressEditor';
 import {
-  BOGOLAN_PATTERN, EMPTY_PAGNE, KITA_BACKGROUND, isAfricanTemplate, preparePagneForSave, readDressColors, readPagne, resolveDressCode, waxPattern,
+  BOGOLAN_PATTERN, EMPTY_PAGNE, KITA_PATTERN, VILLAGE_GROUND, isAfricanTemplate, preparePagneForSave, readDressColors, readPagne, resolveDressCode, waxPattern,
   type CeremonyPagne, type DressCode,
 } from '../../../lib/african-invitation';
 import { prepareInfosForSave, sanitizeInfos, type PracticalInfo } from '../../../lib/practical-info';
@@ -868,10 +868,16 @@ function TemplateThumb({ id, color, accent }: { id: InvitationTemplate; color: s
           <span className="absolute inset-x-1.5 bottom-1.5 h-6 rounded-md bg-[#fbf3e4]" />
         </span>
       ) : id === 'kita' ? (
-        <span className="relative h-full w-full bg-[#120d0b]">
-          <span className="absolute inset-x-0 top-0 h-[45%]" style={{ background: KITA_BACKGROUND, backgroundSize: '40px 36px' }} />
-          <span className="absolute left-1/2 top-[45%] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e9b81f] bg-[#120d0b]" />
-          <span className="absolute inset-x-3 bottom-3 h-1.5 rounded bg-[#e9b81f]" />
+        <span className="relative h-full w-full" style={{ backgroundImage: KITA_PATTERN, backgroundSize: '50px 32px' }}>
+          <span className="absolute left-1/2 top-[30%] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#5a2d12] bg-[#fff7ec]" />
+          <span className="absolute inset-x-1.5 bottom-1.5 h-6 rounded-md border-2 border-[#5a2d12] bg-[#fff7ec]" />
+        </span>
+      ) : id === 'village' ? (
+        <span className="relative h-full w-full" style={{ background: 'linear-gradient(#f39a3d, #f9dfa2 45%)' }}>
+          <span className="absolute left-1/2 top-[18%] h-5 w-5 -translate-x-1/2 rounded-full bg-[#fff1c9]" />
+          <svg viewBox="0 0 56 20" className="absolute inset-x-0 top-[30%] w-full"><rect x="8" y="10" width="14" height="10" fill="#c27a3e" /><path d="M5 11 L15 2 L25 11Z" fill="#d9a441" /><rect x="30" y="12" width="11" height="8" fill="#b36a32" /><path d="M28 13 L35.5 6 L43 13Z" fill="#cf9a3a" /></svg>
+          <span className="absolute inset-x-0 bottom-0 top-[58%]" style={{ backgroundImage: VILLAGE_GROUND, backgroundSize: '30px 22px' }} />
+          <span className="absolute inset-x-1.5 bottom-1.5 h-5 rounded-md border border-[#7a3c16] bg-[#f6e7cf]" />
         </span>
       ) : id === 'bogolan' ? (
         <span className="relative h-full w-full" style={{ backgroundImage: BOGOLAN_PATTERN, backgroundSize: '22px 22px' }}>

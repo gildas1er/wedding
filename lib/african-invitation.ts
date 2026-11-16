@@ -1,9 +1,9 @@
-// Invitations au style africain (migration 37) : Le Pagne, Le Kita, Le Bogolan.
+// Invitations au style africain (migration 37) : Le Pagne, Le Kita, Le Bogolan, Le Village.
 // Les familles qui invitent, la tenue demandée et le pagne de la cérémonie servent aussi aux autres modèles.
 import { parsePhone } from './phone-auth';
 import { formatDateFr, formatHourFr } from './event-datetime';
 
-export const AFRICAN_TEMPLATES = ['pagne', 'kita', 'bogolan'] as const;
+export const AFRICAN_TEMPLATES = ['pagne', 'kita', 'bogolan', 'village'] as const;
 export type AfricanTemplate = (typeof AFRICAN_TEMPLATES)[number];
 export const isAfricanTemplate = (t: unknown): t is AfricanTemplate => AFRICAN_TEMPLATES.includes(t as AfricanTemplate);
 
@@ -116,11 +116,24 @@ export function waxPattern(primary: string, accent: string) {
     + `<g fill='${cream}' opacity='.55'><circle cx='36' cy='3' r='2'/><circle cx='36' cy='69' r='2'/><circle cx='3' cy='36' r='2'/><circle cx='69' cy='36' r='2'/></g>`);
 }
 
-// Le Kita : bandes tissées or, vert, rouge et noir
-export const KITA_BACKGROUND = [
-  'repeating-linear-gradient(0deg, transparent 0 30px, rgba(0,0,0,.55) 30px 36px, transparent 36px 66px, rgba(178,38,30,.85) 66px 72px)',
-  'repeating-linear-gradient(90deg, #e9b81f 0 20px, #16733a 20px 26px, #e9b81f 26px 44px, #b2261e 44px 50px, #141010 50px 56px, #e9b81f 56px 74px, #16733a 74px 80px)',
-].join(', ');
+// Le Kita : bandes tissées orange, ocre et blanc séparées par un fil brun
+export const KITA_PATTERN = svg(150, 96, `<rect width='150' height='96' fill='#5a2d12'/>`
+  + `<rect x='4' y='4' width='26' height='88' fill='#e8622c'/>`
+  + `<g fill='#5a2d12'><path d='M17 14l6 8-6 8-6-8z'/><path d='M17 38l6 8-6 8-6-8z'/><path d='M17 62l6 8-6 8-6-8z'/></g>`
+  + `<rect x='34' y='4' width='26' height='88' fill='#fff'/>`
+  + `<g stroke='#5a2d12' stroke-width='4'><path d='M34 22L52 4M34 44L60 18M34 66L60 40M34 88L60 62M48 92L60 80'/></g>`
+  + `<rect x='64' y='4' width='26' height='88' fill='#f0a83a'/>`
+  + `<g fill='#5a2d12'><path d='M77 12l9 12h-18z'/><path d='M77 30l9 12h-18z'/><path d='M77 48l9 12h-18z'/><path d='M77 66l9 12h-18z'/></g>`
+  + `<rect x='94' y='4' width='26' height='88' fill='#e8622c'/>`
+  + `<path d='M107 4 C122 28 92 52 107 74 S110 92 107 92' fill='none' stroke='#f0a83a' stroke-width='5'/>`
+  + `<rect x='124' y='4' width='22' height='88' fill='#fff'/>`);
+
+// Le Village : mur en terre (banco) peint de motifs blancs
+export const VILLAGE_GROUND = svg(80, 60, `<rect width='80' height='60' fill='#b8662f'/>`
+  + `<g fill='#f6e7cf' opacity='.75'><circle cx='10' cy='10' r='2.4'/><circle cx='20' cy='10' r='2.4'/><circle cx='30' cy='10' r='2.4'/></g>`
+  + `<path d='M44 6 l8 10 l8 -10 l8 10' fill='none' stroke='#f6e7cf' stroke-width='2.4' opacity='.7'/>`
+  + `<path d='M8 40 h20 M18 30 v20' stroke='#3b1d0c' stroke-width='3' opacity='.45'/>`
+  + `<circle cx='58' cy='42' r='8' fill='none' stroke='#f6e7cf' stroke-width='2.2' opacity='.6'/>`);
 
 // Le Bogolan : terre sombre et motifs peints écru
 export const BOGOLAN_PATTERN = svg(56, 56, `<rect width='56' height='56' fill='#4a2a17'/>`

@@ -1,6 +1,6 @@
 -- =====================================================================
--- MIGRATION 37 — Invitations au style africain (Le Pagne, Le Kita, Le Bogolan)
---   1. Trois modèles de plus autorisés : « pagne », « kita », « bogolan ».
+-- MIGRATION 37 — Invitations au style africain (Le Pagne, Le Kita, Le Bogolan, Le Village)
+--   1. Quatre modèles de plus autorisés : « pagne », « kita », « bogolan », « village ».
 --   2. Les familles qui invitent (« Les familles Kouassi & Yao ont la joie de vous convier… »).
 --   3. La tenue : pagne de la cérémonie, tenue traditionnelle ou couleurs imposées.
 --   4. Le pagne de la cérémonie : photo, nom, prix, personne à contacter sur WhatsApp.
@@ -12,7 +12,7 @@
 alter table public.marriages drop constraint if exists marriages_invitation_template_check;
 alter table public.marriages add constraint marriages_invitation_template_check
   check (invitation_template in ('classique', 'enveloppe', 'wax', 'story', 'compte_a_rebours', 'jardin', 'nuit_doree', 'avant_premiere',
-                                 'pagne', 'kita', 'bogolan'));
+                                 'pagne', 'kita', 'bogolan', 'village'));
 
 -- 2 à 4. Familles, tenue et pagne
 alter table public.marriages add column if not exists family_1 text;

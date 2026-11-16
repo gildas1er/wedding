@@ -5,8 +5,9 @@ export const INVITATION_TEMPLATES = [
   { id: 'enveloppe', label: 'L’Enveloppe', description: 'Vos invités ouvrent une enveloppe scellée à vos initiales : la carte en sort, la musique démarre.' },
   { id: 'story', label: 'La Story', description: 'L’invitation en plein écran, écran par écran, comme une story : photo, date, programme, réponse.' },
   { id: 'pagne', label: 'Le Pagne', description: 'Un pagne wax à vos couleurs, noué à vos initiales : vos invités le touchent, il s’ouvre et l’invitation des familles apparaît.' },
-  { id: 'kita', label: 'Le Kita', description: 'Le tissu tissé royal, l’or sur fond nuit et le symbole adinkra des cœurs liés. Le plus solennel, idéal pour la dot.' },
+  { id: 'kita', label: 'Le Kita', description: 'Le tissu tissé royal en bandes orange, ocre et blanc, avec le symbole adinkra des cœurs liés. Lumineux et solennel, idéal pour la dot.' },
   { id: 'bogolan', label: 'Le Bogolan', description: 'Tons de terre et motifs peints autour d’une carte écru. Élégant et sobre, même pour une dot en petit comité.' },
+  { id: 'village', label: 'Le Village', description: 'Le soleil se lève derrière les cases et le baobab, la carte est posée sur un mur en terre peint. Le charme du mariage au village.' },
   { id: 'avant_premiere', label: 'L’Avant-première', description: 'Votre mariage présenté comme la série de l’année : générique à vos initiales, profil au nom de l’invité, affiche, cérémonies en épisodes.' },
 ] as const;
 

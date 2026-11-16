@@ -359,6 +359,24 @@
   }
 }
 
+/* Page d'invitation : animations légères (déplacement et transparence uniquement) */
+.ws-rise { animation: ws-rise .7s cubic-bezier(.22,1,.36,1) both; }
+.ws-pop { animation: ws-pop .5s both; }
+.ws-glow { animation: ws-glow 1.6s .9s both; }
+.ws-draw { stroke-dasharray: 180; animation: ws-draw 1.2s .7s both; }
+.ws-slide { animation: ws-slide 1s .6s both; }
+.ws-spin-in { animation: ws-spin-in .7s both; }
+.ws-turn { animation: ws-turn 60s linear infinite; }
+.ws-petal { position: absolute; top: -14px; width: 9px; height: 12px; border-radius: 9px 0 9px 0; opacity: .75; animation: ws-fall 9s linear infinite; }
+@keyframes ws-rise { from { opacity: 0; transform: translateY(16px); } }
+@keyframes ws-pop { from { opacity: 0; filter: blur(3px); } }
+@keyframes ws-glow { 0% { opacity: 0; filter: blur(4px); } 60% { opacity: 1; filter: blur(0); text-shadow: 0 0 14px currentColor; } 100% { text-shadow: none; } }
+@keyframes ws-draw { from { stroke-dashoffset: 180; } to { stroke-dashoffset: 0; } }
+@keyframes ws-slide { from { background-position: -200px 0; opacity: 0; } }
+@keyframes ws-spin-in { from { opacity: 0; rotate: -180deg; scale: .4; } }
+@keyframes ws-turn { to { transform: rotate(360deg); } }
+@keyframes ws-fall { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(40px, 40vh) rotate(320deg); opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

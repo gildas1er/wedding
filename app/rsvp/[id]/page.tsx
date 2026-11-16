@@ -9,8 +9,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../../lib/supabase';
-import { formatDateFr, formatHourFr } from '../../../lib/event-datetime';
-import { ceremonyFlags, mapsUrl } from '../../../lib/ceremonies';
+import { formatDateFr } from '../../../lib/event-datetime';
+import { ceremonyFlags } from '../../../lib/ceremonies';
 import { rsvpThemeStyle, resolveAccent } from '../../../lib/palettes';
 import { resolveMusic } from '../../../lib/music';
 import { sanitizeInfos } from '../../../lib/practical-info';
@@ -20,11 +20,11 @@ import PremiereIntro, { type PremiereAnswer } from '../../../components/rsvp/Pre
 import StoryIntro from '../../../components/rsvp/StoryIntro';
 import AfricanIntro from '../../../components/rsvp/AfricanIntro';
 import DressCodeSection from '../../../components/rsvp/DressCodeSection';
-import { familiesPhrase, isAfricanTemplate } from '../../../lib/african-invitation';
+import InvitationHeader, { Petals } from '../../../components/rsvp/InvitationHeader';
+import { isAfricanTemplate } from '../../../lib/african-invitation';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
 import GuestTicketCard from '../../../components/rsvp/GuestTicketCard';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
-import { nameFontStyle } from '../../../lib/name-fonts';
 import posthog from 'posthog-js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -430,101 +430,21 @@ function RSVPContent() {
             alt="Wedding" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/40" />
+          {!isAfricanTemplate(template) && !showIntro && <Petals color={resolveAccent(m.primary_color, m.accent_color)} />}
         </div>
 
-        {/* CARTE DATE */}
-        <div className="px-6 -mt-20 relative z-10">
-          <motion.div 
-            initial={{ y: 30, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="bg-white rounded-[1.75rem] shadow-xl p-6 mb-8 border-b-4 text-center hover:shadow-2xl transition-all"
-            style={{ borderBottomColor: m.primary_color }}
-          >
-            <p className="eyebrow mb-2">Enregistrez la date</p>
-            <h3 className="font-display text-2xl text-ink first-letter:uppercase">
-              {m.wedding_date ? new Date(m.wedding_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Date à venir'}
-            </h3>
-          </motion.div>
-
-          {/* NOMS DES MARIÉS */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center mb-10"
-          >
-             <div className="flex items-center justify-center gap-3 mb-3">
-                <div className="gold-rule w-10" />
-                <p className="eyebrow">{m.invitation_text}</p>
-                <div className="gold-rule w-10" />
-             </div>
-             {(() => { const f = familiesPhrase(m.family_1, m.family_2); return f ? (
-               <p className="mb-4 text-[13px] uppercase tracking-[0.14em] text-slate-500">{f.lead} <span className="font-semibold text-ink">{f.names}</span> {f.verb}</p>
-             ) : null; })()}
-             <h1 className="text-5xl font-normal text-ink leading-[1.05] break-words">
-               <span className="block" style={nameFontStyle(m.names_font)}>
-                 {m.partner_1_name}
-                 <span className="block my-1 text-4xl font-light italic text-amber-500" style={m.names_font && m.names_font !== 'classique' ? { fontStyle: 'normal', fontSize: '0.8em' } : undefined}>&amp;</span>
-                 {m.partner_2_name}
-               </span>
-             </h1>
-             {shownGuestName && (
-               <p className="mt-5 font-display text-lg italic text-slate-600">{shownGuestName}, cette invitation est pour vous.</p>
-             )}
-          </motion.div>
-
-          {/* PROGRAMME */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, staggerChildren: 0.1 }}
-            className="space-y-4 mb-10"
-          >
-            {flags.dot && (
-              <ProgramItem 
-                  icon={Handshake} 
-                  title="La Cérémonie de Dot" 
-                  time={[m.dot_date && formatDateFr(m.dot_date, { withYear: false }), formatHourFr(m.dot_hour)].filter(Boolean).join(' · ')} 
-                  loc={m.dot_location} 
-                  color="emerald"
-                  maps={mapsUrl(m.dot_maps_url, m.dot_location)}
-              />
-            )}
-
-            {flags.civil && (
-              <ProgramItem 
-                  icon={Landmark} 
-                  title="La Cérémonie Civile" 
-                  time={[m.mairie_date && formatDateFr(m.mairie_date, { withYear: false }), formatHourFr(m.mairie_hour)].filter(Boolean).join(' · ')} 
-                  loc={m.mairie_location} 
-                  color="rose"
-                  maps={mapsUrl(m.mairie_maps_url, m.mairie_location)}
-              />
-            )}
-
-            {flags.religious && (
-              <ProgramItem 
-                  icon={Cross} 
-                  title="La Cérémonie Religieuse" 
-                  time={[m.religious_date && formatDateFr(m.religious_date, { withYear: false }), formatHourFr(m.religious_hour)].filter(Boolean).join(' · ')} 
-                  loc={m.religious_location} 
-                  color="amber"
-                  maps={mapsUrl(m.religious_maps_url, m.religious_location)}
-              />
-            )}
-
-            {flags.reception && (
-              <ProgramItem 
-                  icon={GlassWater} 
-                  title="Le Cocktail & Dîner" 
-                  time={[m.reception_date && formatDateFr(m.reception_date, { withYear: false }), formatHourFr(m.reception_hour)].filter(Boolean).join(' · ')} 
-                  loc={m.reception_location} 
-                  color="neutral"
-                  maps={mapsUrl(m.reception_maps_url, m.reception_location)}
-              />
-            )}
-          </motion.div>
+        <div className="px-6 relative z-10">
+          {/* DATES, PRÉNOMS ET PROGRAMME (rejoués quand l'écran d'ouverture se ferme) */}
+          <InvitationHeader
+            key={showIntro ? 'intro' : 'page'}
+            m={m}
+            flags={flags}
+            template={template}
+            primary={m.primary_color || '#9e3a55'}
+            accent={resolveAccent(m.primary_color, m.accent_color)}
+            guestName={shownGuestName || undefined}
+            invitationText={m.invitation_text}
+          />
 
           {/* TENUE ET PAGNE DE LA CÉRÉMONIE (migration 37) */}
           <DressCodeSection m={m} guestName={shownGuestName || undefined} />
@@ -784,44 +704,3 @@ function EventCheckbox({ icon: Icon, title, checked, onChange }: { icon: any, ti
   );
 }
 
-// Composant Interne pour les items du programme
-function ProgramItem({ icon: Icon, title, time, loc, color, maps }: any) {
-    const colors: any = {
-        rose: "text-rose-500 bg-rose-50",
-        blue: "text-blue-600 bg-blue-50",
-        neutral: "text-slate-700 bg-slate-100",
-        amber: "text-amber-600 bg-amber-50",
-        emerald: "text-emerald-700 bg-emerald-50"
-    };
-
-    return (
-        <motion.div 
-            whileHover={{ y: -2 }}
-            className="flex items-center justify-between gap-3 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm group transition-all duration-300 hover:border-slate-200 hover:shadow-md"
-        >
-            <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                <div className={`grid h-11 w-11 place-items-center rounded-full shrink-0 ${colors[color]}`}>
-                    <Icon size={19} strokeWidth={1.6} />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-amber-700">{time || 'Horaire à venir'}</p>
-                    <h4 className="mt-0.5 font-display text-[17px] text-ink leading-tight text-balance break-words">{title}</h4>
-                    {loc && <p className="mt-0.5 text-xs leading-snug text-slate-500 line-clamp-2 break-words">{loc}</p>}
-                </div>
-            </div>
-            
-            {maps && (
-                <a 
-                  href={maps} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  aria-label={`Plan : ${title}`}
-                  className="flex min-h-[44px] w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 shadow-sm transition-all duration-300 hover:bg-slate-950 hover:text-white active:scale-95"
-                >
-                    <MapPin size={15} className="shrink-0" />
-                    <span className="text-[9px] font-black uppercase tracking-wider">Plan</span>
-                </a>
-            )}
-        </motion.div>
-    );
-}
