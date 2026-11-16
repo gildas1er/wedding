@@ -4,6 +4,8 @@ import type { PracticalInfo } from '../../lib/practical-info';
 import { toInternationalDigits } from '../../lib/phone';
 import { isHttpUrl } from '../../lib/ceremonies';
 import { INFO_ICONS } from '../practical-info-icons';
+import type { AfricanTheme } from '../../lib/african-invitation';
+import { AfricanCard, AfricanWall } from './AfricanFrame';
 
 const LINK_LABELS: Partial<Record<PracticalInfo['kind'], string>> = {
   gifts: 'Voir la liste',
@@ -12,13 +14,15 @@ const LINK_LABELS: Partial<Record<PracticalInfo['kind'], string>> = {
 };
 
 // Rubriques pratiques affichées aux invités (les données sont déjà nettoyées par sanitizeInfos)
-export default function PracticalInfoSection({ infos }: { infos: PracticalInfo[] }) {
+export default function PracticalInfoSection({ infos, theme }: { infos: PracticalInfo[]; theme?: AfricanTheme | null }) {
   if (!infos.length) return null;
-  return (
-    <section className="mb-10">
+  const t = theme ?? null;
+  const outline = t ? { borderColor: t.line, color: t.ink, background: t.paper } : undefined;
+  const content = (
+    <>
       <div className="mb-4 flex items-center justify-center gap-3">
         <div className="gold-rule w-10" />
-        <p className="eyebrow">Infos pratiques</p>
+        <p className="eyebrow" style={t ? { color: t.accent } : undefined}>Infos pratiques</p>
         <div className="gold-rule w-10" />
       </div>
       <div className="space-y-3">
@@ -27,9 +31,9 @@ export default function PracticalInfoSection({ infos }: { infos: PracticalInfo[]
           const digits = info.kind === 'contact' ? toInternationalDigits(info.phone) : null;
           const linkLabel = LINK_LABELS[info.kind] ?? 'Ouvrir le lien';
           return (
-            <div key={info.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div key={info.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm" style={t ? { background: t.paper, borderColor: t.line } : undefined}>
               <div className="flex items-start gap-4">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-500">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-500" style={t ? { background: t.check, color: t.accent } : undefined}>
                   <Icon size={19} strokeWidth={1.6} />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -49,10 +53,10 @@ export default function PracticalInfoSection({ infos }: { infos: PracticalInfo[]
                       {info.name && <p className="text-sm font-semibold text-ink">{info.name}</p>}
                       {digits && (
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <a href={`tel:+${digits}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">
+                          <a href={`tel:+${digits}`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink" style={outline}>
                             <Phone className="h-3.5 w-3.5" /> Appeler
                           </a>
-                          <a href={`https://api.whatsapp.com/send?phone=${digits}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90" style={{ color: 'var(--wed-on-primary)' }}>
+                          <a href={`https://api.whatsapp.com/send?phone=${digits}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90" style={t ? { background: t.strong, color: t.onStrong } : { color: 'var(--wed-on-primary)' }}>
                             <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
                           </a>
                         </div>
@@ -61,7 +65,7 @@ export default function PracticalInfoSection({ infos }: { infos: PracticalInfo[]
                   )}
 
                   {isHttpUrl(info.url) && info.kind !== 'contact' && (
-                    <a href={info.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">
+                    <a href={info.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink" style={outline}>
                       <ExternalLink className="h-3.5 w-3.5" /> {linkLabel}
                     </a>
                   )}
@@ -71,6 +75,8 @@ export default function PracticalInfoSection({ infos }: { infos: PracticalInfo[]
           );
         })}
       </div>
-    </section>
+    </>
   );
+  if (t) return <section className="mb-10"><AfricanWall theme={t}><AfricanCard theme={t} pad="p-4 sm:p-5">{content}</AfricanCard></AfricanWall></section>;
+  return <section className="mb-10">{content}</section>;
 }

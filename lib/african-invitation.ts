@@ -142,3 +142,35 @@ export const BOGOLAN_PATTERN = svg(56, 56, `<rect width='56' height='56' fill='#
   + `<path d='M10 40 h8 M14 36 v8 M38 40 h8 M42 36 v8' stroke='#c98a4b' stroke-width='3'/>`
   + `<path d='M0 52 H56' stroke='#eadbc0' stroke-width='2' stroke-dasharray='5 4'/>`);
 export const BOGOLAN_RULE = svg(20, 10, `<path d='M0 8 L5 2 L10 8 L15 2 L20 8' fill='none' stroke='#9c5a26' stroke-width='2'/>`);
+
+// Habillage de la suite de la page (réponse, tenue, infos pratiques, billet) pour les modèles africains
+export type AfricanTheme = {
+  wall: { backgroundImage: string; backgroundSize: string; backgroundColor: string };
+  card: string; paper: string; ink: string; soft: string; accent: string; line: string;
+  field: string; fieldAlt: string; strong: string; onStrong: string; check: string; dash: string;
+};
+export function africanTheme(t: unknown, primary: string, accent: string): AfricanTheme | null {
+  switch (t) {
+    case 'pagne': return {
+      wall: { backgroundImage: waxPattern(primary, accent), backgroundSize: '32px 32px', backgroundColor: primary },
+      card: '#fbf3e4', paper: '#fffaf2', ink: '#2a1c12', soft: '#6f5a46', accent: primary, line: '#ecd9bd',
+      field: '#fff7ea', fieldAlt: '#f1e2c8', strong: primary, onStrong: '#ffffff', check: '#fdf0dc', dash: accent,
+    };
+    case 'kita': return {
+      wall: { backgroundImage: KITA_PATTERN, backgroundSize: '75px 48px', backgroundColor: '#5a2d12' },
+      card: '#fff7ec', paper: '#ffffff', ink: '#3a1f0e', soft: '#8a5a3a', accent: '#c4501f', line: '#f0c79a',
+      field: '#ffffff', fieldAlt: '#fbe6cf', strong: '#5a2d12', onStrong: '#fff7ec', check: '#fff1e4', dash: '#e8622c',
+    };
+    case 'bogolan': return {
+      wall: { backgroundImage: BOGOLAN_PATTERN, backgroundSize: '28px 28px', backgroundColor: '#4a2a17' },
+      card: '#efe4cf', paper: '#faf4e8', ink: '#3b2214', soft: '#6e4a31', accent: '#9c5a26', line: '#d9c3a0',
+      field: '#f8f1e4', fieldAlt: '#e5d4b5', strong: '#4a2a17', onStrong: '#efe4cf', check: '#f6ead3', dash: '#9c5a26',
+    };
+    case 'village': return {
+      wall: { backgroundImage: VILLAGE_GROUND, backgroundSize: '80px 60px', backgroundColor: '#b8662f' },
+      card: '#f6e7cf', paper: '#fffaf2', ink: '#3b1d0c', soft: '#7a5a43', accent: '#a5541f', line: '#e3c9a4',
+      field: '#fbf3e6', fieldAlt: '#efdcbf', strong: '#7a3c16', onStrong: '#f6e7cf', check: '#fff4e4', dash: '#b8662f',
+    };
+    default: return null;
+  }
+}

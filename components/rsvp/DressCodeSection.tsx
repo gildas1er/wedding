@@ -6,10 +6,11 @@ import React from 'react';
 import { MessageCircle, Shirt } from 'lucide-react';
 import {
   DRESS_CODES, formatPrice, hasPagne, pagneOrderLink, readDressColors, readPagne, resolveDressCode,
-  type InvitationLike,
+  type AfricanTheme, type InvitationLike,
 } from '../../lib/african-invitation';
+import { AfricanCard, AfricanWall } from './AfricanFrame';
 
-export default function DressCodeSection({ m, guestName }: { m: InvitationLike; guestName?: string }) {
+export default function DressCodeSection({ m, guestName, theme }: { m: InvitationLike; guestName?: string; theme?: AfricanTheme | null }) {
   const code = resolveDressCode(m.dress_code);
   const colors = readDressColors(m.dress_colors);
   const pagne = readPagne(m.ceremony_pagne);
@@ -19,23 +20,23 @@ export default function DressCodeSection({ m, guestName }: { m: InvitationLike; 
   const order = pagneOrderLink(pagne, couple, guestName);
   const showPagne = hasPagne(pagne) && (code === 'pagne' || code === null);
 
-  return (
-    <section aria-labelledby="tenue-titre" className="mb-10 overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white">
+  const body = (
+    <>
       <div className="flex items-center gap-3 px-5 pt-5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700"><Shirt className="h-[18px] w-[18px]" strokeWidth={1.7} /></span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700" style={theme ? { background: theme.check, color: theme.accent } : undefined}><Shirt className="h-[18px] w-[18px]" strokeWidth={1.7} /></span>
         <div className="min-w-0">
-          <p className="eyebrow">La tenue</p>
-          <h2 id="tenue-titre" className="font-display text-xl text-ink">{code ? DRESS_CODES.find((d) => d.id === code)!.heading : 'Le pagne de la cérémonie'}</h2>
+          <p className="eyebrow" style={theme ? { color: theme.accent } : undefined}>La tenue</p>
+          <h2 id="tenue-titre" className="font-display text-xl text-ink" style={theme ? { color: theme.ink } : undefined}>{code ? DRESS_CODES.find((d) => d.id === code)!.heading : 'Le pagne de la cérémonie'}</h2>
         </div>
       </div>
 
       {code === 'couleurs' && colors.length > 0 && (
         <div className="flex flex-wrap items-center gap-2.5 px-5 pt-4">
           {colors.map((c) => <span key={c} title={c} className="h-9 w-9 rounded-full border-2 border-white shadow ring-1 ring-slate-200" style={{ background: c }} />)}
-          <span className="text-sm text-slate-500">Habillez-vous dans ces couleurs.</span>
+          <span className="text-sm text-slate-500" style={theme ? { color: theme.soft } : undefined}>Habillez-vous dans ces couleurs.</span>
         </div>
       )}
-      {code === 'traditionnel' && <p className="px-5 pt-3 text-sm text-slate-600">Les mariés vous invitent à venir en tenue traditionnelle.</p>}
+      {code === 'traditionnel' && <p className="px-5 pt-3 text-sm text-slate-600" style={theme ? { color: theme.soft } : undefined}>Les mariés vous invitent à venir en tenue traditionnelle.</p>}
 
       {showPagne && (
         <div className="mt-4 grid gap-3 px-5 pb-5">
@@ -58,6 +59,19 @@ export default function DressCodeSection({ m, guestName }: { m: InvitationLike; 
         </div>
       )}
       {!showPagne && <div className="pb-5" />}
+    </>
+  );
+
+  if (theme) {
+    return (
+      <section aria-labelledby="tenue-titre" className="mb-10">
+        <AfricanWall theme={theme}><AfricanCard theme={theme} pad="py-1">{body}</AfricanCard></AfricanWall>
+      </section>
+    );
+  }
+  return (
+    <section aria-labelledby="tenue-titre" className="mb-10 overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white">
+      {body}
     </section>
   );
 }

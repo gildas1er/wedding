@@ -7,9 +7,13 @@ import { motion } from 'framer-motion';
 import { CalendarClock, Download, FileText, Loader2, Ticket } from 'lucide-react';
 import posthog from 'posthog-js';
 import { supabase } from '../../app/lib/supabase';
+import type { AfricanTheme } from '../../lib/african-invitation';
 import { canvasToBlob, canvasToPdf, drawTicket, formatDayFr, saveFile, ticketFilename, ticketUrl, type GuestTicket, type TicketMarriage } from '../../lib/ticket';
 
-export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketMarriage; marriageId: string; guestId: string }) {
+export default function GuestTicketCard({ m, marriageId, guestId, theme }: { m: TicketMarriage; marriageId: string; guestId: string; theme?: AfricanTheme | null }) {
+  const t = theme ?? null;
+  const box = t ? { background: t.paper, borderColor: t.line } : undefined;
+  const badge = t ? { background: t.check, color: t.accent } : undefined;
   const [ticket, setTicket] = useState<GuestTicket | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -42,9 +46,10 @@ export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketM
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
         className="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-5 text-left shadow-sm"
+        style={box}
       >
         <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600"><CalendarClock className="h-5 w-5" strokeWidth={1.7} /></span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600" style={badge}><CalendarClock className="h-5 w-5" strokeWidth={1.7} /></span>
           <div className="min-w-0">
             <p className="font-display text-lg leading-tight text-ink">Votre billet d&apos;entrée arrive bientôt</p>
             <p className="mt-1 text-sm text-slate-500">
@@ -75,9 +80,10 @@ export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketM
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6 }}
       className="mt-6 rounded-[1.5rem] border border-slate-200 bg-white p-5 text-left shadow-sm"
+        style={box}
     >
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600"><Ticket className="h-5 w-5" strokeWidth={1.7} /></span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600" style={badge}><Ticket className="h-5 w-5" strokeWidth={1.7} /></span>
         <div className="min-w-0">
           <p className="font-display text-lg leading-tight text-ink">Votre billet d&apos;entrée</p>
           <p className="text-xs text-slate-500">Il est à votre nom et ne sert qu&apos;une fois : gardez-le pour vous.</p>
@@ -92,7 +98,7 @@ export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketM
           onClick={() => save('png')}
           disabled={busy !== null}
           className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-60"
-          style={{ backgroundColor: 'var(--wed-primary)', color: 'var(--wed-on-primary)' }}
+          style={t ? { backgroundColor: t.strong, color: t.onStrong } : { backgroundColor: 'var(--wed-primary)', color: 'var(--wed-on-primary)' }}
         >
           {busy === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Image
         </button>
@@ -101,6 +107,7 @@ export default function GuestTicketCard({ m, marriageId, guestId }: { m: TicketM
           onClick={() => save('pdf')}
           disabled={busy !== null}
           className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-ink hover:border-ink disabled:opacity-60"
+          style={t ? { background: t.paper, borderColor: t.line, color: t.ink } : undefined}
         >
           {busy === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} PDF
         </button>

@@ -21,7 +21,8 @@ import StoryIntro from '../../../components/rsvp/StoryIntro';
 import AfricanIntro from '../../../components/rsvp/AfricanIntro';
 import DressCodeSection from '../../../components/rsvp/DressCodeSection';
 import InvitationHeader, { Petals } from '../../../components/rsvp/InvitationHeader';
-import { isAfricanTemplate } from '../../../lib/african-invitation';
+import { africanTheme, isAfricanTemplate, type AfricanTheme } from '../../../lib/african-invitation';
+import { AfricanCard, AfricanFrieze } from '../../../components/rsvp/AfricanFrame';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
 import GuestTicketCard from '../../../components/rsvp/GuestTicketCard';
 import { coupleInitials, resolveTemplate } from '../../../lib/invitation-templates';
@@ -193,6 +194,8 @@ function RSVPContent() {
   const closed = m.space_phase === 'souvenir' && !isPreview;
   const introKey = `${template}-${replay}`;
   const showIntro = template !== 'classique' && openedIntro !== introKey;
+  // Modèles africains : la réponse, la tenue, les infos pratiques et le billet prennent les couleurs et les motifs du modèle
+  const afr = africanTheme(template, m.primary_color || '#9e3a55', resolveAccent(m.primary_color, m.accent_color));
 
   const finishIntro = (goToForm = false) => {
     setOpenedIntro(introKey);
@@ -447,10 +450,10 @@ function RSVPContent() {
           />
 
           {/* TENUE ET PAGNE DE LA CÉRÉMONIE (migration 37) */}
-          <DressCodeSection m={m} guestName={shownGuestName || undefined} />
+          <DressCodeSection m={m} guestName={shownGuestName || undefined} theme={afr} />
 
           {/* INFOS PRATIQUES (dress code, contact, hébergement…) */}
-          <PracticalInfoSection infos={sanitizeInfos(m.practical_info)} />
+          <PracticalInfoSection infos={sanitizeInfos(m.practical_info)} theme={afr} />
 
           {/* FORMULAIRE RSVP */}
           <motion.div 
@@ -458,8 +461,10 @@ function RSVPContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-ivory rounded-[1.75rem] p-6 sm:p-8 border border-slate-200/70 relative"
+            className={afr ? 'relative rounded-[1.75rem] p-3 shadow-lg' : 'bg-ivory rounded-[1.75rem] p-6 sm:p-8 border border-slate-200/70 relative'}
+            style={afr ? afr.wall : undefined}
           >
+            <Themed theme={afr}>
             {closed ? (
               <div className="text-center">
                 <p className="eyebrow mb-2">Merci</p>
@@ -477,13 +482,14 @@ function RSVPContent() {
               <>
               {guestId && !isPreview && savedStatus === 'confirmé' && (
                 <div className="mb-8 -mt-6">
-                  <GuestTicketCard m={m} marriageId={String(id)} guestId={guestId} />
+                  <GuestTicketCard m={m} marriageId={String(id)} guestId={guestId} theme={afr} />
                 </div>
               )}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="text-center mb-6">
-                  <p className="eyebrow mb-1">Réponse de</p>
-                  <h2 className="text-2xl font-normal text-slate-800">{shownGuestName || (isPreview ? "Prénom de l'invité" : "Cher invité")}</h2>
+                  <p className="eyebrow mb-1" style={afr ? { color: afr.accent } : undefined}>Réponse de</p>
+                  <h2 className="text-2xl font-normal text-slate-800" style={afr ? { color: afr.ink } : undefined}>{shownGuestName || (isPreview ? "Prénom de l'invité" : "Cher invité")}</h2>
+                  {afr && <AfricanFrieze color={afr.dash} />}
                 </div>
 
                 <div className="flex gap-3">
@@ -498,6 +504,7 @@ function RSVPContent() {
                         ? 'bg-ink text-white shadow-lg' 
                         : 'bg-white text-ink border border-slate-200 hover:border-ink'
                     }`}
+                    style={afr ? (form.status === 'confirmé' ? { background: afr.strong, color: afr.onStrong } : { background: afr.paper, color: afr.strong, borderColor: afr.line }) : undefined}
                   >
                     Je serai là
                   </button>
@@ -512,6 +519,7 @@ function RSVPContent() {
                         ? 'bg-rose-500 text-white shadow-lg' 
                         : 'bg-white text-slate-600 border border-slate-200 hover:border-rose-300'
                     }`}
+                    style={afr ? (form.status === 'décliné' ? { background: afr.ink, color: afr.card } : { background: afr.paper, color: afr.strong, borderColor: afr.line }) : undefined}
                   >
                     Je ne pourrai pas
                   </button>
@@ -524,14 +532,15 @@ function RSVPContent() {
                         animate={{ opacity: 1, height: 'auto', y: 0 }} 
                         exit={{ opacity: 0, height: 0, y: -10 }}
                         className="space-y-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden"
+                        style={afr ? { background: afr.field, borderColor: afr.line } : undefined}
                     >
                       {/* OPTION RAPIDE OU ÉVÉNEMENTS PERSONNALISÉS */}
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block" style={afr ? { color: afr.accent } : undefined}>
                           À quels moments serez-vous présent(e) ?
                         </label>
 
-                        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl" style={afr ? { background: afr.fieldAlt } : undefined}>
                           <button
                             type="button"
                             onClick={() => handleToggleAll(true)}
@@ -540,6 +549,7 @@ function RSVPContent() {
                                 ? 'bg-white text-slate-900 shadow-sm' 
                                 : 'text-slate-500 hover:text-slate-900'
                             }`}
+                            style={afr ? (allEventsSelected ? { background: afr.paper, color: afr.ink } : { color: afr.soft }) : undefined}
                           >
                             Tous les moments
                           </button>
@@ -551,6 +561,7 @@ function RSVPContent() {
                                 ? 'bg-white text-slate-900 shadow-sm' 
                                 : 'text-slate-500 hover:text-slate-900'
                             }`}
+                            style={afr ? (!allEventsSelected ? { background: afr.paper, color: afr.ink } : { color: afr.soft }) : undefined}
                           >
                             Sur-mesure
                           </button>
@@ -565,6 +576,7 @@ function RSVPContent() {
                               title="Dot"
                               checked={form.attending_dot}
                               onChange={() => handleToggleEvent('attending_dot')}
+                              theme={afr}
                             />
                           )}
 
@@ -575,6 +587,7 @@ function RSVPContent() {
                               title="Mairie"
                               checked={form.attending_civil}
                               onChange={() => handleToggleEvent('attending_civil')}
+                              theme={afr}
                             />
                           )}
 
@@ -585,6 +598,7 @@ function RSVPContent() {
                               title="Église"
                               checked={form.attending_church}
                               onChange={() => handleToggleEvent('attending_church')}
+                              theme={afr}
                             />
                           )}
 
@@ -595,17 +609,19 @@ function RSVPContent() {
                               title="Réception & Dîner"
                               checked={form.attending_reception}
                               onChange={() => handleToggleEvent('attending_reception')}
+                              theme={afr}
                             />
                           )}
                         </div>
                       </div>
 
-                      <div className="h-[1px] bg-slate-100 w-full" />
+                      <div className="h-[1px] bg-slate-100 w-full" style={afr ? { background: afr.line } : undefined} />
 
                       {/* NOTES */}
                       <textarea 
                         placeholder="Un petit mot pour nous ? (Allergies, musique...)" 
                         className="w-full p-4 bg-slate-50 rounded-2xl text-sm font-medium outline-none h-24 resize-none focus:ring-2 focus:ring-rose-200 transition-all"
+                        style={afr ? { background: afr.paper, border: `1.5px dotted ${afr.dash}`, color: afr.ink } : undefined}
                         value={form.notes}
                         onChange={e => setForm({...form, notes: e.target.value})}
                       />
@@ -624,7 +640,7 @@ function RSVPContent() {
                       type="submit" 
                       disabled={sending || (!guestId && !isPreview)}
                       className="w-full py-5 rounded-full text-white font-black uppercase tracking-[0.2em] text-[11px] shadow-xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                      style={{ backgroundColor: 'var(--wed-primary)', color: 'var(--wed-on-primary)' }}
+                      style={afr ? { backgroundColor: afr.strong, color: afr.onStrong } : { backgroundColor: 'var(--wed-primary)', color: 'var(--wed-on-primary)' }}
                     >
                       {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                       Valider ma réponse
@@ -645,18 +661,20 @@ function RSVPContent() {
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring" }}
                   className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto shadow-md"
+                  style={afr ? { background: afr.check, color: afr.strong } : undefined}
                 >
                     <CheckCircle2 className="w-10 h-10" />
                 </motion.div>
                 <div>
-                    <h3 className="text-2xl font-black text-slate-900">C'est noté !</h3>
+                    <h3 className="text-2xl font-black text-slate-900" style={afr ? { color: afr.ink } : undefined}>C'est noté !</h3>
                     <p className="text-slate-500 font-medium text-sm mt-1">Merci pour votre réponse, {shownGuestName}.</p>
                 </div>
                 {guestId && !isPreview && savedStatus === 'confirmé' && (
-                  <GuestTicketCard m={m} marriageId={String(id)} guestId={guestId} />
+                  <GuestTicketCard m={m} marriageId={String(id)} guestId={guestId} theme={afr} />
                 )}
               </motion.div>
             )}
+            </Themed>
           </motion.div>
 
           {/* Après le mariage : WeddingStudio pour le mariage des invités (offre des mariés, recommandation) */}
@@ -678,8 +696,13 @@ function RSVPContent() {
   );
 }
 
+// Carte crème des modèles africains autour du contenu (aucun changement pour les autres modèles)
+function Themed({ theme, children }: { theme: AfricanTheme | null; children: React.ReactNode }) {
+  return theme ? <AfricanCard theme={theme}>{children}</AfricanCard> : <>{children}</>;
+}
+
 // Composant pour les cases à cocher des événements
-function EventCheckbox({ icon: Icon, title, checked, onChange }: { icon: any, title: string, checked: boolean, onChange: () => void }) {
+function EventCheckbox({ icon: Icon, title, checked, onChange, theme }: { icon: any, title: string, checked: boolean, onChange: () => void, theme?: AfricanTheme | null }) {
   return (
     <motion.button
       whileTap={{ scale: 0.98 }}
@@ -690,17 +713,17 @@ function EventCheckbox({ icon: Icon, title, checked, onChange }: { icon: any, ti
           ? 'bg-rose-50/50 border-rose-400 text-slate-900 shadow-sm' 
           : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100/60'
       }`}
+      style={theme ? (checked ? { background: theme.check, borderColor: theme.dash, color: theme.ink } : { background: theme.paper, borderColor: theme.line, color: theme.soft }) : undefined}
     >
       <div className="flex items-center gap-3">
-        <Icon size={18} className={checked ? 'text-rose-500' : 'text-slate-400'} />
+        <Icon size={18} className={checked ? 'text-rose-500' : 'text-slate-400'} style={theme ? { color: checked ? theme.accent : theme.soft } : undefined} />
         <span className="font-bold text-xs">{title}</span>
       </div>
       <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
         checked ? 'bg-rose-500 text-white scale-110' : 'border-2 border-slate-200 bg-white'
-      }`}>
+      }`} style={theme ? (checked ? { background: theme.strong, color: theme.onStrong } : { borderColor: theme.line, background: theme.paper }) : undefined}>
         {checked && <Check size={14} strokeWidth={3} />}
       </div>
     </motion.button>
   );
 }
-
