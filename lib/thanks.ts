@@ -84,7 +84,9 @@ export const thanksOpen = (weddingDate: string | null | undefined, today = new D
   Boolean(weddingDate && weddingDate.slice(0, 10) <= today);
 
 // Invité venu : réponse « confirmé » ou entrée scannée à l'accueil
-export const guestCame = (g: { status?: string | null; checked_in_at?: string | null }) => g.status === 'confirmé' || Boolean(g.checked_in_at);
+// Invité qui recevra une carte : présence confirmée (avec ou sans accent) ou scanné à l'entrée de la salle
+export const guestCame = (g: { status?: string | null; checked_in_at?: string | null }) =>
+  ['confirmé', 'confirme'].includes((g.status ?? '').trim().toLowerCase()) || Boolean(g.checked_in_at);
 
 type CeremonyMarriage = Parameters<typeof ceremonyFlags>[0];
 type Attending = { attending_dot?: boolean | null; attending_civil?: boolean | null; attending_church?: boolean | null; attending_reception?: boolean | null };

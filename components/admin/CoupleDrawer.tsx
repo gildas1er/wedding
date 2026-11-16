@@ -19,6 +19,7 @@ export type AdminCouple = {
   phase: 'active' | 'souvenir'; deleteAt: string | null; plan: string; premium: boolean; tier: string | null;
   premiumUntil: string | null; keptUntil: string | null; limit: number | null; byPersons: boolean; used: number;
   fiches: number; persons: number; confirmed: number; declined: number; pending: number; paid: number; template: string;
+  arrivedFiches: number; arrivedPersons: number; expectedPersons: number;
   referralCode?: string | null; referredBy?: string | null; referredByName?: string | null; rewardPaidAt?: string | null;
   code?: AppliedCode | null;
 };
@@ -167,6 +168,17 @@ export default function CoupleDrawer({ couple: c, onClose, onAction }: {
               </div>
             )}
             <p className="mt-2 text-xs text-slate-500">{c.fiches} fiches · {c.persons} personnes · {c.confirmed} confirmées · {c.pending} en attente · {c.declined} déclinées</p>
+            <div className="mt-3 rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Venus le jour J</p>
+              {c.arrivedFiches > 0 ? (
+                <>
+                  <p className="mt-1 font-display text-2xl text-ink">{c.arrivedPersons}<span className="text-base text-slate-400"> personne{c.arrivedPersons > 1 ? 's' : ''}</span></p>
+                  <p className="text-xs text-slate-500">{c.arrivedFiches} fiche{c.arrivedFiches > 1 ? 's' : ''} scannée{c.arrivedFiches > 1 ? 's' : ''} à l’accueil · {c.expectedPersons} personne{c.expectedPersons > 1 ? 's' : ''} confirmée{c.expectedPersons > 1 ? 's' : ''}{c.expectedPersons > 0 ? ` · ${Math.round((c.arrivedPersons / c.expectedPersons) * 100)} % de présence` : ''}</p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-slate-500">{(() => { const d = daysTo(c.weddingDate) ?? 1; return d > 0 ? 'Le mariage n’a pas encore eu lieu.' : d === 0 ? 'Aucun invité scanné pour l’instant.' : 'Aucun invité scanné : l’accueil n’a pas été utilisé.'; })()}</p>
+              )}
+            </div>
           </section>
 
           {/* Formule */}

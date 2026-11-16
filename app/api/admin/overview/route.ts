@@ -21,7 +21,9 @@ type AuthUser = {
   user_metadata?: { phone?: string; full_name?: string; partner_name_1?: string; partner_name_2?: string; wedding_date?: string };
   app_metadata?: { provider?: string; admin?: boolean };
 };
-type Guest = { marriage_id: string; guests_count: number | null; status: string | null };
+type Guest = { marriage_id: string; guests_count: number | null; status: string | null; checked_in_at?: string | null };
+// Personnes d'une fiche (comme à l'accueil : une fiche compte au moins 1 personne)
+const people = (rows: Guest[]) => rows.reduce((s, g) => s + Math.max(1, Number(g.guests_count) || 1), 0);
 
 // Vue d'ensemble de la plateforme : couples, invités, formules, paiements, journal
 export async function GET() {
@@ -46,7 +48,7 @@ export async function GET() {
     const readProfiles = () => readAll<{ id: string }>((a, b) => db.from('profiles').select('id', { count: 'exact' }).order('id').range(a, b)).catch(() => null);
     const [marriages, guests, payments, users, promoResult, actionsResult, profiles] = await Promise.all([
       readAll<Marriage>((a, b) => db.from('marriages').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(a, b)),
-      readAll<Guest>((a, b) => db.from('invite').select('marriage_id, guests_count, status', { count: 'exact' }).order('id').range(a, b)),
+      readAll<Guest>((a, b) => db.from('invite').select('marriage_id, guests_count, status, checked_in_at', { count: 'exact' }).order('id').range(a, b)),
       readAll<Payment>((a, b) => db.from('payments').select('*', { count: 'exact' }).order('created_at', { ascending: false }).order('id').range(a, b)).catch(() => []),
       listUsers(),
       // Codes promo (migration 19) : utilisations payées, en attente, commissions
@@ -117,6 +119,10 @@ export async function GET() {
         confirmed: list.filter((g) => g.status === 'confirmé').length,
         declined: list.filter((g) => g.status === 'décliné').length,
         pending: list.filter((g) => !g.status || g.status === 'en_attente').length,
+        // Jour J : invités scannés à l'accueil de la salle, comparés aux personnes confirmées
+        arrivedFiches: list.filter((g) => g.checked_in_at).length,
+        arrivedPersons: people(list.filter((g) => g.checked_in_at)),
+        expectedPersons: people(list.filter((g) => g.status === 'confirmé')),
         paid: paidBy.get(m.id) ?? 0,
         template: m.invitation_template ?? 'classique',
         referralCode: m.referral_code ?? null,

@@ -8,7 +8,7 @@ import AlliancesMark from '../../components/brand/AlliancesMark';
 import { AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, ShieldAlert, LogOut,
-  Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket, UserX,
+  Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket, UserX, Trash2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TIERS, formatXof } from '../../lib/plan';
@@ -26,7 +26,7 @@ type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'journa
 const ACTION_LABELS: Record<string, string> = {
   palier: 'Palier activé', gratuit: 'Retour au gratuit', prolongation: 'Prolongation', paiement: 'Paiement enregistré',
   desactivation: 'Compte désactivé', reactivation: 'Compte réactivé', suppression: 'Couple supprimé',
-  mot_de_passe: 'Mot de passe provisoire créé',
+  mot_de_passe: 'Mot de passe provisoire créé', paiement_supprime: 'Paiement supprimé',
   recompense: 'Récompense de parrainage versée', code_promo: 'Code promo enregistré', code_active: 'Code promo activé',
   code_desactive: 'Code promo désactivé', code_supprime: 'Code promo supprimé',
   purge: 'Suppression automatique (3 mois)',
@@ -39,7 +39,7 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
-  const { notify } = useConfirm();
+  const { notify, confirm } = useConfirm();
   const [data, setData] = useState<Data | null>(null);
   const [status, setStatus] = useState<{ code: number; message: string; mfa?: 'mfa_setup' | 'mfa_required' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,6 +87,23 @@ function AdminContent() {
     return true;
   }, [load, notify]);
 
+  // Paiement enregistré par erreur ou en double : retiré de la liste et des totaux (le palier du couple ne change pas)
+  const deletePayment = useCallback(async (p: Payment, couple: string) => {
+    const ok = await confirm({
+      title: 'Supprimer ce paiement ?',
+      item: `${couple} · ${formatXof(Number(p.amount) || 0)} · ${fmtDate(p.completed_at ?? p.created_at)}`,
+      consequences: ['Il disparaît de la liste et du total encaissé', 'Le palier du couple ne change pas : repassez-le en gratuit à part si besoin', 'La suppression est notée dans le journal'],
+      confirmLabel: 'Supprimer le paiement',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/admin/payments/${p.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete' }) }).catch(() => null);
+    const json = await res?.json().catch(() => null);
+    if (!res?.ok) { notify(json?.error ?? 'La suppression a échoué.', 'error'); return; }
+    notify('Paiement supprimé');
+    await load();
+  }, [confirm, load, notify]);
+
   const savePromo = useCallback(async (body: Record<string, unknown>) => {
     const res = await fetch('/api/admin/promos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
     const json = await res?.json().catch(() => null);
@@ -112,6 +129,7 @@ function AdminContent() {
       premium: couples.filter((c) => c.premium).length,
       persons: couples.reduce((s, c) => s + c.persons, 0),
       confirmed: couples.reduce((s, c) => s + c.confirmed, 0),
+      arrived: couples.reduce((s, c) => s + (c.arrivedPersons ?? 0), 0),
       revenue: completed.reduce((s, p) => s + (Number(p.amount) || 0), 0),
       revenueMonth: completed.filter((p) => new Date(p.completed_at ?? p.created_at) >= month).reduce((s, p) => s + (Number(p.amount) || 0), 0),
       byTier: [
@@ -211,7 +229,7 @@ function AdminContent() {
               <Kpi icon={Heart} label="Couples inscrits" value={stats.total} sub={`+${stats.newWeek} cette semaine`} />
               <Kpi icon={Crown} label="Paliers payants" value={stats.premium} sub={`${stats.total ? Math.round((stats.premium / stats.total) * 100) : 0} % des couples`} tone="gold" />
               <Kpi icon={Banknote} label="Encaissé" value={formatXof(stats.revenue)} sub={`${formatXof(stats.revenueMonth)} ce mois-ci`} tone="green" />
-              <Kpi icon={Users} label="Invités gérés" value={stats.persons.toLocaleString('fr-FR')} sub={`${stats.confirmed.toLocaleString('fr-FR')} fiches confirmées`} />
+              <Kpi icon={Users} label="Invités gérés" value={stats.persons.toLocaleString('fr-FR')} sub={`${stats.confirmed.toLocaleString('fr-FR')} fiches confirmées · ${stats.arrived.toLocaleString('fr-FR')} venus le jour J`} />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
@@ -291,7 +309,7 @@ function AdminContent() {
             <div className="hidden overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 lg:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  <tr><th className="px-4 py-3">Couple</th><th className="px-4 py-3">Mariage</th><th className="px-4 py-3">Formule</th><th className="px-4 py-3">Invités</th><th className="px-4 py-3">Réponses</th><th className="px-4 py-3 text-right">Encaissé</th><th className="px-4 py-3">Connexion</th></tr>
+                  <tr><th className="px-4 py-3">Couple</th><th className="px-4 py-3">Mariage</th><th className="px-4 py-3">Formule</th><th className="px-4 py-3">Invités</th><th className="px-4 py-3">Réponses</th><th className="px-4 py-3">Jour J</th><th className="px-4 py-3 text-right">Encaissé</th><th className="px-4 py-3">Connexion</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((c) => (
@@ -304,6 +322,7 @@ function AdminContent() {
                       <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${c.premium ? 'bg-ink text-amber-300' : 'bg-slate-100 text-slate-600'}`}>{tierLabel(c)}</span></td>
                       <td className="px-4 py-3"><Gauge c={c} /></td>
                       <td className="px-4 py-3 text-xs text-slate-600"><span className="font-semibold text-emerald-700">{c.confirmed}</span> oui · {c.pending} attente · {c.declined} non</td>
+                      <td className="px-4 py-3 text-xs text-slate-600">{c.arrivedFiches > 0 ? <><span className="font-semibold text-ink">{c.arrivedPersons}</span> venus<span className="block text-slate-400">sur {c.expectedPersons} confirmés</span></> : '—'}</td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">{c.paid ? formatXof(c.paid) : '—'}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(c.lastSignIn)}</td>
                     </tr>
@@ -327,7 +346,7 @@ function AdminContent() {
                     </div>
                     <div className="mt-3"><Gauge c={c} /></div>
                     <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-slate-500">
-                      <span>Mariage {fmtDate(c.weddingDate)}</span><span>{c.confirmed} confirmés</span>{c.paid > 0 && <span className="font-semibold text-ink">{formatXof(c.paid)}</span>}
+                      <span>Mariage {fmtDate(c.weddingDate)}</span><span>{c.confirmed} confirmés</span>{c.arrivedFiches > 0 && <span className="font-semibold text-ink">{c.arrivedPersons} venus le jour J</span>}{c.paid > 0 && <span className="font-semibold text-ink">{formatXof(c.paid)}</span>}
                       {c.banned && <span className="font-bold text-rose-700">Désactivé</span>}{c.phase === 'souvenir' && <span className="text-amber-700">Souvenir</span>}
                     </p>
                   </button>
@@ -350,16 +369,20 @@ function AdminContent() {
           <Card title="Paiements encaissés" icon={Banknote} hint={`${formatXof(stats.revenue)} au total · ${formatXof(stats.revenueMonth)} ce mois-ci`}>
             {data?.payments.length ? (
               <ul className="divide-y divide-slate-100">
-                {data.payments.map((p) => (
+                {data.payments.map((p) => { const name = p.couple ?? couples.find((c) => c.id === p.marriage_id)?.couple ?? 'Couple supprimé'; return (
                   <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
                     <span className="w-28 shrink-0 text-xs text-slate-500">{fmtDate(p.completed_at ?? p.created_at, true)}</span>
                     <button type="button" onClick={() => couples.some((c) => c.id === p.marriage_id) && setOpenId(p.marriage_id)} className="min-w-0 flex-1 truncate text-left font-semibold text-ink hover:underline">
-                      {p.couple ?? couples.find((c) => c.id === p.marriage_id)?.couple ?? 'Couple supprimé'}
+                      {name}
                     </button>
                     <span className="text-xs text-slate-500">{p.note ?? (p.provider === 'manuel' ? 'Manuel' : p.provider)}</span>
                     <span className={`w-28 shrink-0 text-right font-semibold tabular-nums ${p.status === 'completed' ? 'text-emerald-700' : 'text-slate-400'}`}>{formatXof(Number(p.amount) || 0)}</span>
+                    <button type="button" onClick={() => deletePayment(p, name)} aria-label={`Supprimer le paiement de ${name}`} title="Supprimer ce paiement"
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-400">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </li>
-                ))}
+                ); })}
               </ul>
             ) : <p className="py-8 text-center text-slate-500">Aucun paiement enregistré. Ils apparaîtront ici quand vous activerez un palier avec un montant.</p>}
           </Card>
