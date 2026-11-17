@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, Suspense, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, Calendar, MapPin, GlassWater, 
@@ -21,6 +22,7 @@ import StoryIntro from '../../../components/rsvp/StoryIntro';
 import AfricanIntro from '../../../components/rsvp/AfricanIntro';
 import DressCodeSection from '../../../components/rsvp/DressCodeSection';
 import InvitationHeader, { Petals } from '../../../components/rsvp/InvitationHeader';
+import { buildDemoMarriage } from '../../../lib/demo-invitation';
 import { africanTheme, isAfricanTemplate, type AfricanTheme } from '../../../lib/african-invitation';
 import { AfricanCard, AfricanFrieze } from '../../../components/rsvp/AfricanFrame';
 import AfterWeddingPromo from '../../../components/rsvp/AfterWeddingPromo';
@@ -53,7 +55,9 @@ function RSVPContent() {
   // Un identifiant mal formé ne doit pas empêcher d'afficher l'invitation
   const guestId = cleanedGuestId && UUID_RE.test(cleanedGuestId) ? cleanedGuestId : null;
   // Aperçu affiché dans le studio : la configuration non publiée arrive par postMessage
-  const isPreview = searchParams.get('preview') === '1';
+  // Démo pour un prospect (/rsvp/demo?tpl=pagne&c=dot&n=…) : faux couple, rien n'est lu ni enregistré en base
+  const isDemo = params?.id === 'demo';
+  const isPreview = searchParams.get('preview') === '1' || isDemo;
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, unknown>>({});
   // Modèle « Enveloppe » : rejouable depuis le studio ; ouverte une fois par visite
   const [replay, setReplay] = useState(0);
@@ -92,6 +96,11 @@ function RSVPContent() {
   useEffect(() => {
     const fetchData = async () => {
       if (!id) { setLoading(false); return; }
+      if (isDemo) {
+        setMarriage(buildDemoMarriage(searchParams.get('tpl'), searchParams.get('c'), searchParams.get('n') ?? undefined));
+        setLoading(false);
+        return;
+      }
       try {
         // Infos publiques du mariage + fiche de l'invité, via une fonction sécurisée
         // (les invités n'ont plus d'accès direct aux tables)
@@ -136,7 +145,7 @@ function RSVPContent() {
       setLoading(false);
     };
     fetchData();
-  }, [id, guestId]);
+  }, [id, guestId, isDemo, searchParams]);
 
   // Déclencher la pluie de confettis lors d'une confirmation
   const triggerConfetti = () => {
@@ -413,13 +422,22 @@ function RSVPContent() {
         )}
       </AnimatePresence>
 
-      {isPreview && (
+      {isDemo && (
+        <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="flex w-full max-w-[430px] items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-2xl">
+            <p className="min-w-0 text-[12px] leading-snug"><strong className="block text-[13px]">Ceci est une démonstration</strong>Créez la vôtre en 5 minutes avec WeddingStudio.</p>
+            <Link href="/register" className="ml-auto shrink-0 rounded-xl bg-rose-500 px-3.5 py-2.5 text-[12px] font-extrabold text-white">Créer la mienne</Link>
+          </div>
+        </div>
+      )}
+
+      {isPreview && !isDemo && (
         <div className="fixed top-4 left-4 z-50 rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
           Aperçu · aucune réponse envoyée
         </div>
       )}
 
-      <div className="w-full max-w-[450px] bg-white shadow-2xl relative min-h-screen pb-12 overflow-x-hidden">
+      <div className={`w-full max-w-[450px] bg-white shadow-2xl relative min-h-screen overflow-x-hidden ${isDemo ? 'pb-32' : 'pb-12'}`}>
         
         {/* BANNIÈRE IMAGE AVEC ZOOM ANIME */}
         <div className="h-[40vh] relative overflow-hidden">

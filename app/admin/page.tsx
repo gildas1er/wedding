@@ -7,7 +7,7 @@ import Link from 'next/link';
 import AlliancesMark from '../../components/brand/AlliancesMark';
 import { AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Users, Banknote, ScrollText, RefreshCw, Search, ShieldAlert, LogOut,
+  LayoutDashboard, Users, Banknote, ScrollText, Send, RefreshCw, Search, ShieldAlert, LogOut,
   Crown, CalendarDays, AlertTriangle, TrendingUp, Heart, UserPlus, ChevronRight, Ticket, UserX, Trash2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -16,12 +16,13 @@ import { ConfirmProvider, useConfirm } from '../../components/ui/ConfirmDialog';
 import CoupleDrawer, { daysTo, fmtDate, tierLabel, type AdminCouple } from '../../components/admin/CoupleDrawer';
 import PromosPanel, { type AdminPromo, type AdminReferral } from '../../components/admin/PromosPanel';
 import AdminMfa from '../../components/admin/AdminMfa';
+import DemosPanel from '../../components/admin/DemosPanel';
 import AccountsPanel, { type AdminAccount } from '../../components/admin/AccountsPanel';
 
 type Payment = { id: string; created_at: string; completed_at: string | null; marriage_id: string; couple: string | null; amount: number; status: string; provider: string; note: string | null };
 type Action = { id: string; created_at: string; admin_email: string; couple: string | null; action: string; details: Record<string, unknown> | null };
 type Data = { generatedAt: string; couples: AdminCouple[]; payments: Payment[]; actions: Action[]; journalReady: boolean; promos?: AdminPromo[]; referrals?: AdminReferral[]; promosReady?: boolean; accounts?: AdminAccount[]; strayProfiles?: string[]; accountsReady?: boolean };
-type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'journal';
+type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'demos' | 'journal';
 
 const ACTION_LABELS: Record<string, string> = {
   palier: 'Palier activé', gratuit: 'Retour au gratuit', prolongation: 'Prolongation', paiement: 'Paiement enregistré',
@@ -189,6 +190,7 @@ function AdminContent() {
     { id: 'accounts', label: 'Sans mariage', icon: UserX, n: data ? (data.accounts?.length ?? 0) + (data.strayProfiles?.length ?? 0) : undefined },
     { id: 'promos', label: 'Promos & parrainage', icon: Ticket, n: data?.promos?.length },
     { id: 'payments', label: 'Paiements', icon: Banknote, n: data?.payments.length },
+    { id: 'demos', label: 'Démos', icon: Send },
     { id: 'journal', label: 'Journal', icon: ScrollText },
   ];
 
@@ -387,6 +389,8 @@ function AdminContent() {
             ) : <p className="py-8 text-center text-slate-500">Aucun paiement enregistré. Ils apparaîtront ici quand vous activerez un palier avec un montant.</p>}
           </Card>
         )}
+
+        {tab === 'demos' && <DemosPanel />}
 
         {tab === 'journal' && (
           <Card title="Journal des actions" icon={ScrollText} hint="Les 60 dernières actions de l’administration">
