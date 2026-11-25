@@ -53,7 +53,7 @@ function findTarget(name: string): HTMLElement | null {
   return all.find((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) ?? null;
 }
 
-export default function GuidedTour({ openDrawer, disabled }: { openDrawer: () => void; disabled?: boolean }) {
+export default function GuidedTour({ openDrawer, closeDrawer, disabled }: { openDrawer: () => void; closeDrawer: () => void; disabled?: boolean }) {
   const pathname = usePathname() ?? '/dashboard';
   const router = useRouter();
   const [marriageId, setMarriageId] = useState<string | null>(null);
@@ -126,12 +126,14 @@ export default function GuidedTour({ openDrawer, disabled }: { openDrawer: () =>
     if (step?.go && (pathname === step.go || pathname.startsWith(`${step.go}/`))) Promise.resolve().then(() => goTo(index + 1));
   }, [pathname, step, index, goTo]);
 
-  // Étape du menu sur téléphone : le tiroir s'ouvre pour montrer l'entrée
+  // Étape du menu sur téléphone : le tiroir s'ouvre pour montrer l'entrée ; sinon il reste fermé
+  // (la cible est dans la page, sous le tiroir)
   useEffect(() => {
+    if (step && !step.go) { closeDrawer(); return; }
     if (!step?.go || passive) return;
     const t = setTimeout(() => { if (!findTarget(step.target!) && window.innerWidth < 1024) openDrawer(); }, 300);
     return () => clearTimeout(t);
-  }, [step, passive, openDrawer]);
+  }, [step, passive, openDrawer, closeDrawer]);
 
   // Position de la cible (suivie pendant le défilement et les animations)
   const onPage = Boolean(step && (!step.page || pathname === step.page));

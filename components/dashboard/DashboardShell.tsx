@@ -302,6 +302,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const openPricing = () => { setDrawerOpen(false); setShowPricing(true); };
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  // Le tiroir se referme à chaque changement de page (lien du menu, bouton du guide…)
+  useEffect(() => { Promise.resolve().then(() => setDrawerOpen(false)); }, [pathname]);
   const days = daysUntil(couple?.date ?? null);
 
   return (
@@ -389,7 +392,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </AnimatePresence>
 
       {/* Guide pas à pas de la première connexion */}
-      {couple && <GuidedTour openDrawer={openDrawer} disabled={souvenir} />}
+      {couple && <GuidedTour openDrawer={openDrawer} closeDrawer={closeDrawer} disabled={souvenir} />}
 
       <div className="lg:pl-[17rem] min-w-0 print:pl-0">
         {/* Après le mariage : l'espace reste complet jusqu'à J+1 mois */}
