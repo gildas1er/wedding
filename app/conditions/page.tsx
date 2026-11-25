@@ -23,7 +23,7 @@ export default function ConditionsPage() {
           {LEGAL.siteName} est un service en ligne d&apos;organisation de mariage édité par <strong>{LEGAL.editorName}</strong>, {LEGAL.editorStatus}, {LEGAL.editorCity}.
           Contact : <strong>{LEGAL.contactEmail}</strong>.
         </p>
-        <p>Le site est hébergé par Vercel Inc. (États-Unis) ; les données sont stockées par Supabase Inc.{ONLINE_PAYMENT_ENABLED && ' Le paiement est assuré par GeniusPay.'}</p>
+        <p>Le site est hébergé par Vercel Inc. (États-Unis) ; les données sont stockées par Supabase Inc.{ONLINE_PAYMENT_ENABLED && ' Le paiement en ligne est assuré par SasPay.'}</p>
       </Section>
 
       <Section title="2. Le service">
@@ -69,8 +69,8 @@ export default function ConditionsPage() {
           <li><strong>Durée :</strong> l&apos;accès Premium est valable jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après la date de votre mariage indiquée dans votre espace. Les comptes Premium souscrits avant les paliers conservent des invités illimités.</li>
           {ONLINE_PAYMENT_ENABLED ? (
             <>
-              <li><strong>Paiement :</strong> Wave, Orange Money, MTN MoMo, Moov Money ou carte bancaire, via la page sécurisée de GeniusPay. Nous n&apos;avons jamais accès à vos données de carte ni à votre code de paiement mobile.</li>
-              <li><strong>Activation :</strong> immédiate, dès la confirmation du paiement par GeniusPay. En cas de souci, écrivez-nous avec la référence du paiement.</li>
+              <li><strong>Paiement :</strong> Wave, Orange Money, MTN MoMo, Moov Money ou carte bancaire, via la page sécurisée de SasPay. Nous n&apos;avons jamais accès à vos données de carte ni à votre code de paiement mobile.</li>
+              <li><strong>Activation :</strong> immédiate, dès la confirmation du paiement par SasPay. En cas de souci, écrivez-nous avec la référence du paiement.</li>
             </>
           ) : (
             <>

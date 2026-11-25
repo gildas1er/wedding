@@ -31,7 +31,7 @@ export default function ConfidentialitePage() {
           <li><strong>Votre compte :</strong> prénoms des mariés, e-mail, téléphone, date du mariage, rôle, préférences de l&apos;invitation.</li>
           <li><strong>Vos invités :</strong> nom, numéro WhatsApp, catégorie, nombre d&apos;accompagnants, réponse aux cérémonies, notes (par exemple une allergie), table attribuée.</li>
           <li><strong>Contenus :</strong> photos de couverture, photos et messages déposés par vos invités, musique envoyée.</li>
-          <li><strong>Paiement :</strong> référence, montant et statut de la transaction.{ONLINE_PAYMENT_ENABLED ? ' Les données de carte ou de paiement mobile sont traitées uniquement par GeniusPay.' : ' Nous ne demandons jamais votre code secret de paiement mobile.'}</li>
+          <li><strong>Paiement :</strong> référence, montant et statut de la transaction.{ONLINE_PAYMENT_ENABLED ? ' Les données de carte ou de paiement mobile sont traitées uniquement par SasPay.' : ' Nous ne demandons jamais votre code secret de paiement mobile.'}</li>
           <li><strong>Technique :</strong> cookies nécessaires à la connexion (aucun cookie publicitaire), préférences d&apos;affichage enregistrées dans votre navigateur.</li>
         </ul>
       </Section>
@@ -54,7 +54,7 @@ export default function ConfidentialitePage() {
         <ul>
           <li>Vous, et les personnes à qui vous donnez accès à votre compte.</li>
           <li>Chaque invité ne voit que sa propre invitation et les informations publiques du mariage (programme, lieux, infos pratiques).</li>
-          <li>Nos prestataires techniques, uniquement pour faire fonctionner le service : <strong>Supabase</strong> (base de données et stockage), <strong>Vercel</strong> (hébergement du site), {ONLINE_PAYMENT_ENABLED && <><strong>GeniusPay</strong> (paiement), </>}<strong>Wikimedia</strong> (lecture des musiques proposées).</li>
+          <li>Nos prestataires techniques, uniquement pour faire fonctionner le service : <strong>Supabase</strong> (base de données et stockage), <strong>Vercel</strong> (hébergement du site), {ONLINE_PAYMENT_ENABLED && <><strong>SasPay</strong> (paiement), </>}<strong>Wikimedia</strong> (lecture des musiques proposées).</li>
         </ul>
         <p>Ces prestataires peuvent héberger les données hors de Côte d&apos;Ivoire (Europe, États-Unis). Nous choisissons des prestataires qui offrent des garanties de sécurité et de confidentialité reconnues.</p>
       </Section>

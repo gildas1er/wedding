@@ -19,8 +19,9 @@ export const CUSTOM_TIER = { id: 'sur_mesure', label: 'Sur mesure', min: 301 } a
 export const PREMIUM_PRICE_XOF = TIERS[0].price;
 export const PREMIUM_ACCESS_MONTHS_AFTER_WEDDING = 1;
 
-// Paiement en ligne GeniusPay : désactivé pour l'instant, l'activation se fait par contact direct.
-// Passer à true (et configurer les variables GENIUSPAY_* sur Vercel) pour réactiver le paiement en ligne.
+// Textes publics (conditions, confidentialité, fenêtre des tarifs) : passer à true quand le paiement en ligne SasPay
+// est ouvert à tous (adresse réelle dans SASPAY_API_URL). Le bouton « Payer maintenant » dépend, lui, de la configuration
+// du serveur (voir app/api/premium/checkout) et reste réservé aux administrateurs en mode test.
 export const ONLINE_PAYMENT_ENABLED = false;
 
 // Contact pour activer le Premium (appel ou WhatsApp)

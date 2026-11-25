@@ -1,158 +1,200 @@
-// Paiement du Premium via GeniusPay — côté serveur uniquement (clés secrètes).
-// Documentation : https://geniuspay.ci/docs/api
+// Paiement des paliers via SasPay — côté serveur uniquement (clés secrètes).
+// Documentation : https://docs.saspay.me
+// Parcours : le serveur calcule le prix (palier, montée de palier, offre de lancement ou code), crée une page de
+// paiement SasPay (checkout session), puis active le palier quand SasPay confirme. Le statut et le montant sont
+// toujours revérifiés auprès de SasPay avant l'activation : une notification seule ne suffit jamais.
+// Variables Vercel : SASPAY_SECRET_KEY, SASPAY_API_URL, SASPAY_WEBHOOK_SECRET (+ SUPABASE_SERVICE_ROLE_KEY).
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_PRICE_XOF, TIERS, tierById } from './plan';
+import { PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, TIERS, tierById, upgradePrice, isPremium, type TierId } from './plan';
+import { bestReduction, isFirstPurchase, launchOfferActive } from './launch-offer';
+import { activeCode, type AppliedCode } from './promo';
 
-// Adresse de l'API (modifiable pour les tests ; par défaut, l'API officielle)
-const API_BASE = process.env.GENIUSPAY_API_BASE || 'https://geniuspay.ci/api/v1/merchant';
+const API_BASE = (process.env.SASPAY_API_URL || 'https://api.saspay.me/api/v1').replace(/\/+$/, '');
 
 export function paymentsConfigured() {
-  return Boolean(
-    process.env.GENIUSPAY_API_KEY && process.env.GENIUSPAY_API_SECRET &&
-    process.env.GENIUSPAY_WEBHOOK_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  return Boolean(process.env.SASPAY_SECRET_KEY && process.env.SASPAY_WEBHOOK_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
-// Client « service » : seul autorisé à enregistrer les paiements et à activer le Premium
+// Mode test : l'adresse de l'API (et non la clé) décide de l'environnement, d'après la documentation SasPay
+export const saspayEnvironment = () => (/sandbox/i.test(API_BASE) ? 'sandbox' : 'live');
+
+// Client « service » : seul autorisé à enregistrer les paiements et à activer un palier
 export function serviceSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
-function headers() {
-  return {
-    'X-API-Key': process.env.GENIUSPAY_API_KEY!,
-    'X-API-Secret': process.env.GENIUSPAY_API_SECRET!,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  };
-}
-
-export type GeniusPayment = {
-  reference: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded' | 'expired';
-  amount: number;
-  currency?: string;
-  environment?: string;
-  checkout_url?: string;
-  payment_url?: string;
-  metadata?: Record<string, string>;
-};
-
-export async function createCheckout(input: {
-  marriageId: string; userId: string; email?: string | null; name?: string; phone?: string | null;
-  successUrl: string; errorUrl: string;
-}): Promise<GeniusPayment> {
-  const res = await fetch(`${API_BASE}/payments`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      amount: PREMIUM_PRICE_XOF,
-      currency: 'XOF',
-      description: 'WeddingStudio Premium — invités illimités',
-      customer: { name: input.name, email: input.email ?? undefined, phone: input.phone ?? undefined, country: 'CI' },
-      success_url: input.successUrl,
-      error_url: input.errorUrl,
-      metadata: { marriage_id: input.marriageId, user_id: input.userId, product: 'premium' },
-    }),
+async function saspay<T>(path: string, init?: { method?: 'GET' | 'POST'; body?: unknown }): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: init?.method ?? 'GET',
+    headers: { Authorization: `Bearer ${process.env.SASPAY_SECRET_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: init?.body ? JSON.stringify(init.body) : undefined,
     cache: 'no-store',
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.success || !json.data?.reference) {
-    throw new Error(json?.error?.message || `GeniusPay a refusé la création du paiement (HTTP ${res.status})`);
+  if (!res.ok || json?.success === false) {
+    const msg = json?.error?.message ?? json?.message ?? `HTTP ${res.status}`;
+    throw new Error(`SasPay ${path} : ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
   }
-  return json.data as GeniusPayment;
+  // Réponses enveloppées ({ success, data }) ou directes
+  return (json?.data ?? json) as T;
 }
 
-export async function fetchPayment(reference: string): Promise<GeniusPayment | null> {
-  const res = await fetch(`${API_BASE}/payments/${encodeURIComponent(reference)}`, { headers: headers(), cache: 'no-store' });
-  if (!res.ok) return null;
-  const json = await res.json().catch(() => null);
-  return json?.success ? (json.data as GeniusPayment) : null;
+/* ─────────── Prix ─────────── */
+
+type MarriageForPrice = { plan?: string | null; premium_until?: string | null; tier?: string | null; guest_limit?: number | null };
+
+// Prix à payer pour un palier, recalculé ici (jamais repris du navigateur)
+export function priceFor(m: MarriageForPrice, target: TierId, code: AppliedCode | null) {
+  const t = tierById(target);
+  if (!t) return { error: 'Palier inconnu.' } as const;
+  const premium = isPremium(m);
+  if (premium && (m.guest_limit === null || m.guest_limit === undefined)) return { error: 'Votre formule est déjà illimitée.' } as const;
+  const current = premium ? tierById(m.tier) : undefined;
+  if (premium && !current) return { error: 'Votre formule actuelle ne se paie pas en ligne : contactez-nous.' } as const;
+  if (current && t.max <= current.max) return { error: 'Choisissez un palier supérieur au vôtre.' } as const;
+  const base = current ? upgradePrice(current.id, t.id) : t.price;
+  const launch = launchOfferActive() && isFirstPurchase(m);
+  const best = bestReduction(base, { launch, code: activeCode(code) });
+  const amount = base - (best?.discount ?? 0);
+  if (amount <= 0) return { error: 'Ce palier ne se paie pas en ligne : contactez-nous.' } as const;
+  return {
+    tier: t, base, amount,
+    launch: best?.kind === 'launch',
+    promoCode: best?.kind === 'code' ? best.code : null,
+    upgradeFrom: current?.id ?? null,
+  } as const;
 }
 
-// Signature des notifications : HMAC-SHA256(timestamp + "." + corps JSON, secret du webhook)
+/* ─────────── Page de paiement ─────────── */
+
+type CheckoutSession = { id: string; checkout_url: string; status: string };
+
+export async function createCheckout(input: {
+  amount: number; description: string; customerName: string; customerEmail: string; customerPhone?: string | null;
+  returnUrl: string; metadata: Record<string, string>;
+}) {
+  return saspay<CheckoutSession>('/checkout-sessions/', {
+    method: 'POST',
+    body: {
+      amount: input.amount.toFixed(2),
+      currency: 'XOF',
+      description: input.description,
+      customer_name: input.customerName,
+      customer_email: input.customerEmail,
+      ...(input.customerPhone ? { customer_phone: input.customerPhone } : {}),
+      return_url: input.returnUrl,
+      metadata: input.metadata,
+      // Frais à la charge de WeddingStudio : le couple paie le prix affiché
+      fee_charge_mode: 'DEDUCTED',
+      expires_at: new Date(Date.now() + 24 * 3600_000).toISOString(),
+    },
+  });
+}
+
+type SessionStatus = { id: string; status: string; transaction_id?: string | null; transaction_status?: string | null; transaction_reference?: string | null };
+type Transaction = {
+  id: string; status: string; requested_amount?: string; net_amount?: string; currency?: string;
+  client_fee?: string; gateway_fee?: string; platform_fee?: string; debited_amount?: string; fee_charge_mode?: string;
+};
+
+const sessionStatus = (id: string) => saspay<SessionStatus>(`/checkout-sessions/${encodeURIComponent(id)}/status/`);
+const verifyTransaction = (id: string) => saspay<Transaction>(`/payments/${encodeURIComponent(id)}/verify/`);
+
+// Signature des notifications : HMAC-SHA256 hexadécimal de « timestamp.corps brut », refusée au-delà de 5 minutes
 export function verifyWebhookSignature(rawBody: string, timestamp: string | null, signature: string | null) {
-  const secret = process.env.GENIUSPAY_WEBHOOK_SECRET;
+  const secret = process.env.SASPAY_WEBHOOK_SECRET;
   if (!secret || !timestamp || !signature) return false;
-  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false; // rejeu > 5 min refusé
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
   const expected = createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex');
   const a = Buffer.from(expected);
-  const b = Buffer.from(signature.replace(/^sha256=/, ''));
+  const b = Buffer.from(signature.trim().replace(/^sha256=/, '').toLowerCase());
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-// Active le Premium après avoir revérifié le paiement auprès de GeniusPay (idempotent)
-export async function confirmAndActivate(reference: string): Promise<'activated' | 'already' | 'pending' | 'failed'> {
-  const payment = await fetchPayment(reference);
-  if (!payment) return 'failed';
+/* ─────────── Activation ─────────── */
 
+type PaymentRow = { id: string; marriage_id: string; reference: string; status: string; amount: number; tier: string | null; promo_code: string | null; environment: string | null };
+
+// Vérifie une page de paiement auprès de SasPay et active le palier si elle est payée (sans effet si déjà fait)
+export async function confirmAndActivate(sessionId: string, hint?: { network?: string | null; transactionId?: string | null }): Promise<'activated' | 'already' | 'pending' | 'failed'> {
   const db = serviceSupabase();
-  const { data: row } = await db.from('payments').select('id, marriage_id, status, amount').eq('reference', reference).maybeSingle();
-  if (!row) return 'failed'; // paiement inconnu : il doit avoir été créé par notre route checkout
-
-  if (payment.status !== 'completed') {
-    if (['failed', 'cancelled', 'expired', 'refunded'].includes(payment.status)) {
-      await db.from('payments').update({ status: payment.status, raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
-      return 'failed';
-    }
-    return 'pending';
-  }
-
-  // Paiement de test (sandbox) : jamais sur le site en production ; ailleurs, seulement si explicitement autorisé
-  if (payment.environment === 'sandbox' && (isProductionSite() || process.env.GENIUSPAY_ALLOW_SANDBOX !== 'true')) {
-    await db.from('payments').update({ status: 'sandbox_rejected', raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
-    return 'failed';
-  }
-
-  // Contrôles : montant, devise et mariage identiques à ce que nous avons demandé
-  const marriageMatches = !payment.metadata?.marriage_id || payment.metadata.marriage_id === row.marriage_id;
-  if (Number(payment.amount) < row.amount || (payment.currency && payment.currency !== 'XOF') || !marriageMatches) {
-    await db.from('payments').update({ status: 'mismatch', raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
-    return 'failed';
-  }
-
+  const { data: row } = await db.from('payments')
+    .select('id, marriage_id, reference, status, amount, tier, promo_code, environment')
+    .eq('provider', 'saspay').eq('reference', sessionId).maybeSingle<PaymentRow>();
+  if (!row) return 'failed'; // inconnu : seules nos propres pages de paiement comptent
   if (row.status === 'completed') return 'already';
+  // Une page créée en mode test n'est jamais validée par le mode réel (et inversement)
+  if (row.environment && row.environment !== saspayEnvironment()) return 'failed';
 
-  const { data: marriage } = await db.from('marriages').select('wedding_date, plan, tier, guest_limit, premium_until').eq('id', row.marriage_id).single();
-  const base = marriage?.wedding_date ? new Date(marriage.wedding_date) : new Date();
-  const until = new Date(Math.max(base.getTime(), Date.now()));
-  until.setMonth(until.getMonth() + PREMIUM_ACCESS_MONTHS_AFTER_WEDDING);
-  // L'accès n'est jamais raccourci
-  const currentUntil = marriage?.premium_until ? new Date(marriage.premium_until) : null;
-  const premiumUntil = currentUntil && currentUntil > until ? currentUntil : until;
+  const session = await sessionStatus(sessionId);
+  const sStatus = String(session.status ?? '').toUpperCase();
+  if (sStatus === 'EXPIRED' || sStatus === 'CANCELLED') {
+    await db.from('payments').update({ status: sStatus.toLowerCase(), raw: session }).eq('id', row.id).neq('status', 'completed');
+    return 'failed';
+  }
+  if (sStatus !== 'PAID' || !session.transaction_id) return 'pending';
 
-  await db.from('payments').update({ status: 'completed', completed_at: new Date().toISOString(), environment: payment.environment ?? null, raw: payment as unknown as Record<string, unknown> }).eq('id', row.id);
-  // Palier payé : le plus grand palier dont le prix est couvert par le montant demandé (et vérifié ci-dessus).
-  // Jamais de rétrogradation : un couple déjà sur un palier supérieur (ou illimité, sur mesure) le garde.
-  const paid = tierForAmount(row.amount);
-  const stillActive = marriage?.plan === 'premium' && (!currentUntil || currentUntil > new Date());
-  const keepCurrent = stillActive && !paidIsHigher(marriage, paid);
-  const { error } = await db.from('marriages').update(keepCurrent
-    // Formule gardée ; un accès sans date de fin le reste
-    ? { premium_until: currentUntil ? premiumUntil.toISOString() : null }
-    : { plan: 'premium', tier: paid.id, guest_limit: paid.max, premium_until: premiumUntil.toISOString() },
-  ).eq('id', row.marriage_id);
-  if (error) throw new Error(`Activation du Premium impossible : ${error.message}`);
+  const tx = await verifyTransaction(session.transaction_id);
+  if (String(tx.status).toUpperCase() !== 'SUCCESS') return String(tx.status).toUpperCase() === 'FAILED' ? 'failed' : 'pending';
+  // Contrôles : montant demandé et devise identiques à ce que notre serveur a fixé
+  if (Number(tx.requested_amount) < row.amount || (tx.currency && tx.currency !== 'XOF')) {
+    await db.from('payments').update({ status: 'mismatch', raw: { session, tx } }).eq('id', row.id);
+    return 'failed';
+  }
+
+  const net = Number(tx.net_amount);
+  const fee = Number.isFinite(net) ? Math.max(0, Math.round(Number(tx.requested_amount) - net)) : null;
+  // Réservation du paiement : un seul appel (notification ou retour du couple) peut activer
+  const { data: claimed } = await db.from('payments').update({
+    status: 'completed', completed_at: new Date().toISOString(), fee,
+    method: hint?.network && hint.transactionId === session.transaction_id ? hint.network : null, raw: { session, tx },
+  }).eq('id', row.id).neq('status', 'completed').select('id');
+  if (!claimed?.length) return 'already';
+
+  await activateTier(db, row);
   return 'activated';
 }
 
-// Site en production (Vercel) : les paiements de test n'y sont jamais acceptés
-function isProductionSite() {
-  return process.env.VERCEL_ENV === 'production';
+async function activateTier(db: ReturnType<typeof serviceSupabase>, row: PaymentRow) {
+  const paid = tierById(row.tier) ?? [...TIERS].reverse().find((t) => row.amount >= t.price) ?? TIERS[0];
+  const { data: m } = await db.from('marriages')
+    .select('wedding_date, plan, tier, guest_limit, premium_until, applied_code, applied_code_used_at').eq('id', row.marriage_id).single();
+  const base = m?.wedding_date ? new Date(m.wedding_date) : new Date();
+  const until = new Date(Math.max(base.getTime(), Date.now()));
+  until.setMonth(until.getMonth() + PREMIUM_ACCESS_MONTHS_AFTER_WEDDING);
+  const currentUntil = m?.premium_until ? new Date(m.premium_until) : null;
+  const premiumUntil = currentUntil && currentUntil > until ? currentUntil : until; // l'accès n'est jamais raccourci
+  // Jamais de rétrogradation : une formule plus grande (ou illimitée) est gardée
+  const stillActive = m?.plan === 'premium' && (!currentUntil || currentUntil > new Date());
+  const currentMax = m?.guest_limit === null || m?.guest_limit === undefined ? Infinity : (tierById(m.tier)?.max ?? m.guest_limit);
+  const keep = stillActive && paid.max <= currentMax;
+  const codeUsed = row.promo_code && m?.applied_code === row.promo_code && !m?.applied_code_used_at;
+  const { error } = await db.from('marriages').update({
+    ...(keep ? { premium_until: currentUntil ? premiumUntil.toISOString() : null } : { plan: 'premium', tier: paid.id, guest_limit: paid.max, premium_until: premiumUntil.toISOString() }),
+    ...(codeUsed ? { applied_code_used_at: new Date().toISOString() } : {}),
+  }).eq('id', row.marriage_id);
+  if (error) throw new Error(`Activation du palier impossible : ${error.message}`);
+  await db.from('admin_actions').insert({
+    admin_email: 'saspay', marriage_id: row.marriage_id, action: 'paiement_en_ligne',
+    details: { tier: paid.id, amount: row.amount, reference: row.reference, code: row.promo_code, environment: row.environment },
+  }).then(() => undefined, () => undefined);
 }
 
-// Plus grand palier couvert par un montant (au moins le premier palier)
-function tierForAmount(amount: number) {
-  return [...TIERS].reverse().find((t) => amount >= t.price) ?? TIERS[0];
-}
-
-// Le palier payé dépasse-t-il la formule actuelle ? (une formule illimitée n'est jamais dépassée)
-function paidIsHigher(current: { tier?: string | null; guest_limit?: number | null }, paid: (typeof TIERS)[number]) {
-  if (current.guest_limit === null || current.guest_limit === undefined) return false; // illimité : rien ne le dépasse
-  const now = tierById(current.tier);
-  const currentMax = now?.max ?? current.guest_limit;
-  return paid.max > currentMax;
+// Notification SasPay : elle ne contient pas l'identifiant de notre page de paiement.
+// On revérifie donc nos pages en attente récentes (peu nombreuses) auprès de SasPay.
+export async function confirmPendingSessions(hint?: { network?: string | null; transactionId?: string | null }) {
+  const db = serviceSupabase();
+  const since = new Date(Date.now() - 48 * 3600_000).toISOString();
+  const { data: rows } = await db.from('payments').select('reference')
+    .eq('provider', 'saspay').eq('status', 'pending').gte('created_at', since)
+    .order('created_at', { ascending: false }).limit(25);
+  const results: string[] = [];
+  for (const r of rows ?? []) {
+    try { results.push(await confirmAndActivate(r.reference, hint)); } catch (e) { console.error('Vérification SasPay :', e); }
+  }
+  return results;
 }

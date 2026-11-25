@@ -1,10 +1,11 @@
 "use client";
 
 // Votre formule : version gratuite ou palier, et choix d'un palier selon le nombre d'invités.
-// Activation par appel ou WhatsApp (paiement en ligne désactivé, voir lib/plan.ts).
-import React, { useCallback, useEffect, useState } from 'react';
+// Paiement en ligne SasPay (palier activé automatiquement), ou activation par appel ou WhatsApp.
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Crown, Check, Loader2, ShieldCheck, Smartphone, MessageCircle, Phone, Sparkles, Infinity as InfinityIcon } from 'lucide-react';
+import { Crown, Check, Loader2, ShieldCheck, Smartphone, MessageCircle, Phone, Sparkles, CreditCard, Infinity as InfinityIcon } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import {
   PREMIUM_ACCESS_MONTHS_AFTER_WEDDING, PREMIUM_CONTACT, TIERS,
@@ -30,7 +31,16 @@ const INCLUDED = [
   'Album photos et livre d’or',
 ];
 
+// useSearchParams (retour de la page de paiement) demande une frontière Suspense
 export default function PremiumPage() {
+  return (
+    <Suspense fallback={<div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>}>
+      <PremiumContent />
+    </Suspense>
+  );
+}
+
+function PremiumContent() {
   const [marriage, setMarriage] = useState<Marriage | null>(null);
   const [guests, setGuests] = useState<{ guests_count: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +49,13 @@ export default function PremiumPage() {
   const [referrals, setReferrals] = useState<Referrals | null>(null);
   const [codesReady, setCodesReady] = useState(false);
   const launchActive = useLaunchOffer();
+  // Paiement en ligne (SasPay) : proposé seulement si le serveur est configuré (en mode test : administrateurs)
+  const [online, setOnline] = useState<{ enabled: boolean; test: boolean }>({ enabled: false, test: false });
+  const [paying, setPaying] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [payState, setPayState] = useState<'checking' | 'activated' | 'pending' | 'failed' | null>(null);
+  const searchParams = useSearchParams();
+  const returned = searchParams.get('paiement') === 'retour';
 
   const loadCodes = useCallback(async () => {
     const [code, refs] = await Promise.all([supabase.rpc('my_code'), supabase.rpc('my_referrals')]);
@@ -61,6 +78,44 @@ export default function PremiumPage() {
   }, [loadCodes]);
 
   useEffect(() => { Promise.resolve().then(load); }, [load]);
+
+  useEffect(() => {
+    fetch('/api/premium/checkout').then((r) => r.json()).then((d) => setOnline({ enabled: Boolean(d?.enabled), test: Boolean(d?.test) })).catch(() => {});
+  }, []);
+
+  // Retour de la page SasPay : vérification toutes les 4 s pendant 2 minutes, puis rechargement de la formule
+  useEffect(() => {
+    if (!returned) return;
+    let stop = false;
+    let tries = 0;
+    const check = async () => {
+      if (stop) return;
+      setPayState((s) => s ?? 'checking');
+      const res = await fetch('/api/premium/verify', { method: 'POST' }).then((r) => r.json()).catch(() => ({ status: 'pending' }));
+      if (stop) return;
+      if (res.status === 'activated' || res.status === 'already') { setPayState('activated'); load(); return; }
+      if (res.status === 'failed' || res.status === 'none') { setPayState('failed'); return; }
+      tries += 1;
+      if (tries >= 30) { setPayState('pending'); return; }
+      setTimeout(check, 4000);
+    };
+    check();
+    return () => { stop = true; };
+  }, [returned, load]);
+
+  const payOnline = async (tier: string) => {
+    setPaying(tier);
+    setPayError(null);
+    try {
+      const res = await fetch('/api/premium/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.url) throw new Error(json.error || 'Le paiement n’a pas pu être préparé.');
+      window.location.assign(json.url);
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : 'Le paiement n’a pas pu être préparé.');
+      setPaying(null);
+    }
+  };
 
   if (loading) return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-rose-500" /></div>;
 
@@ -93,6 +148,20 @@ export default function PremiumPage() {
           <p className="mt-2 max-w-2xl text-slate-500">Un paiement unique, selon la taille de votre mariage (accompagnants compris). Toutes les fonctionnalités sont incluses dans chaque palier.</p>
         </header>
 
+        {payState && (
+          <section role="status" className={`mb-6 rounded-[1.5rem] border p-5 ${payState === 'activated' ? 'border-emerald-200 bg-emerald-50' : payState === 'failed' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
+            <p className="font-display text-xl text-ink">
+              {payState === 'activated' ? 'Paiement reçu : votre palier est activé' : payState === 'failed' ? 'Paiement non abouti' : payState === 'pending' ? 'Paiement en attente de confirmation' : 'Vérification de votre paiement…'}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {payState === 'activated' ? 'Merci ! Vous pouvez dès maintenant inviter tous vos proches.'
+                : payState === 'failed' ? 'Aucun palier n’a été activé. Vous pouvez réessayer ci-dessous, ou nous contacter sur WhatsApp.'
+                : payState === 'pending' ? 'La confirmation prend plus de temps que prévu. Votre palier s’activera tout seul dès qu’elle arrive ; revenez sur cette page dans quelques minutes.'
+                : 'Si votre téléphone vous demande de valider le paiement, faites-le : cette page se met à jour toute seule.'}
+            </p>
+          </section>
+        )}
+
         {/* Formule actuelle */}
         <section className={`mb-8 rounded-[1.75rem] p-6 shadow-sm sm:p-8 ${quota.premium ? 'bg-ink text-white' : 'border border-slate-200/80 bg-white'}`}>
           <p className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${quota.premium ? 'text-amber-300' : 'text-amber-700'}`}>
@@ -122,6 +191,8 @@ export default function PremiumPage() {
         {/* Paliers */}
         {!unlimited && (
           <section aria-labelledby="tiers-title" className="mb-8">
+            {online.test && <p className="mb-3 rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">Paiement en ligne en mode test : visible seulement par les administrateurs. Utilisez les numéros de test SasPay (dernier chiffre 0 : réussite, 1 : échec).</p>}
+            {payError && <p role="alert" className="mb-3 rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{payError}</p>}
             <h2 id="tiers-title" className="mb-4 font-display text-2xl text-ink">{current ? 'Passer à un palier supérieur' : 'Choisissez votre palier'}</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {TIERS.map((t, i) => {
@@ -161,10 +232,23 @@ export default function PremiumPage() {
                         {isCurrent ? <><Check className="mr-1.5 h-4 w-4" /> Palier actuel</> : lower ? 'Palier inférieur' : `Votre liste dépasse ${t.max}`}
                       </span>
                     ) : (
-                      <a href={tierWhatsappLink(couple, marriage?.id, t.id, current?.id, persons, promo)} target="_blank" rel="noopener noreferrer"
-                        className={`mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl text-sm font-semibold ${isAdvised ? 'bg-ink text-white hover:bg-rose-700' : 'border border-slate-200 text-ink hover:border-ink'}`}>
-                        <MessageCircle className="h-4 w-4" /> {current ? 'Passer à ce palier' : 'Choisir ce palier'}
-                      </a>
+                      online.enabled ? (
+                        <>
+                          <button type="button" onClick={() => payOnline(t.id)} disabled={paying !== null}
+                            className={`mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl text-sm font-semibold disabled:opacity-60 ${isAdvised ? 'bg-ink text-white hover:bg-rose-700' : 'border border-slate-200 text-ink hover:border-ink'}`}>
+                            {paying === t.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} Payer maintenant
+                          </button>
+                          <a href={tierWhatsappLink(couple, marriage?.id, t.id, current?.id, persons, promo)} target="_blank" rel="noopener noreferrer"
+                            className="mt-2 text-center text-xs font-semibold text-slate-500 underline-offset-4 hover:text-ink hover:underline">
+                            ou payer via WhatsApp
+                          </a>
+                        </>
+                      ) : (
+                        <a href={tierWhatsappLink(couple, marriage?.id, t.id, current?.id, persons, promo)} target="_blank" rel="noopener noreferrer"
+                          className={`mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl text-sm font-semibold ${isAdvised ? 'bg-ink text-white hover:bg-rose-700' : 'border border-slate-200 text-ink hover:border-ink'}`}>
+                          <MessageCircle className="h-4 w-4" /> {current ? 'Passer à ce palier' : 'Choisir ce palier'}
+                        </a>
+                      )
                     )}
                   </article>
                 );
@@ -209,12 +293,12 @@ export default function PremiumPage() {
 
           <section className="rounded-[1.5rem] bg-ink p-6 text-white">
             <h2 className="text-sm font-semibold">Comment payer ?</h2>
-            <p className="mt-2 text-sm text-white/75">Choisissez votre palier ci-dessus ou contactez-nous : nous vous indiquons comment régler et activons votre palier dès réception. Pour monter de palier plus tard, vous ne payez que la différence.</p>
+            <p className="mt-2 text-sm text-white/75">{online.enabled ? 'Payez en ligne depuis votre palier : il s’active automatiquement dès que le paiement est confirmé. Vous préférez ? Contactez-nous et nous l’activons à réception.' : 'Choisissez votre palier ci-dessus ou contactez-nous : nous vous indiquons comment régler et activons votre palier dès réception.'} Pour monter de palier plus tard, vous ne payez que la différence.</p>
             <a href={`tel:${PREMIUM_CONTACT.phone}`} className="mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-white/25 text-sm font-semibold hover:bg-white/10">
               <Phone className="h-4 w-4" /> Appeler le {PREMIUM_CONTACT.display}
             </a>
             <div className="mt-4 space-y-2 text-xs text-white/70">
-              <p className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-amber-300" /> Wave, Orange Money, MTN MoMo ou Moov Money</p>
+              <p className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-amber-300" /> Wave, Orange Money, MTN MoMo, Moov Money{online.enabled ? ' ou carte bancaire' : ''}</p>
               {marriage?.id && <p className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-amber-300" /> Votre référence : <span className="font-mono text-white">{marriage.id.slice(0, 8)}</span></p>}
             </div>
             <p className="mt-4 text-[11px] leading-relaxed text-white/50">

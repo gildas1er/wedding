@@ -19,7 +19,7 @@ import AdminMfa from '../../components/admin/AdminMfa';
 import DemosPanel from '../../components/admin/DemosPanel';
 import AccountsPanel, { type AdminAccount } from '../../components/admin/AccountsPanel';
 
-type Payment = { id: string; created_at: string; completed_at: string | null; marriage_id: string; couple: string | null; amount: number; status: string; provider: string; note: string | null };
+type Payment = { id: string; created_at: string; completed_at: string | null; marriage_id: string; couple: string | null; amount: number; status: string; provider: string; note: string | null; fee?: number | null; method?: string | null; environment?: string | null };
 type Action = { id: string; created_at: string; admin_email: string; couple: string | null; action: string; details: Record<string, unknown> | null };
 type Data = { generatedAt: string; couples: AdminCouple[]; payments: Payment[]; actions: Action[]; journalReady: boolean; promos?: AdminPromo[]; referrals?: AdminReferral[]; promosReady?: boolean; accounts?: AdminAccount[]; strayProfiles?: string[]; accountsReady?: boolean };
 type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'demos' | 'journal';
@@ -27,7 +27,7 @@ type Tab = 'overview' | 'couples' | 'accounts' | 'promos' | 'payments' | 'demos'
 const ACTION_LABELS: Record<string, string> = {
   palier: 'Palier activé', gratuit: 'Retour au gratuit', prolongation: 'Prolongation', paiement: 'Paiement enregistré',
   desactivation: 'Compte désactivé', reactivation: 'Compte réactivé', suppression: 'Couple supprimé',
-  mot_de_passe: 'Mot de passe provisoire créé', paiement_supprime: 'Paiement supprimé',
+  mot_de_passe: 'Mot de passe provisoire créé', paiement_supprime: 'Paiement supprimé', paiement_en_ligne: 'Paiement en ligne (palier activé)',
   recompense: 'Récompense de parrainage versée', code_promo: 'Code promo enregistré', code_active: 'Code promo activé',
   code_desactive: 'Code promo désactivé', code_supprime: 'Code promo supprimé',
   purge: 'Suppression automatique (3 mois)',
@@ -377,7 +377,10 @@ function AdminContent() {
                     <button type="button" onClick={() => couples.some((c) => c.id === p.marriage_id) && setOpenId(p.marriage_id)} className="min-w-0 flex-1 truncate text-left font-semibold text-ink hover:underline">
                       {name}
                     </button>
-                    <span className="text-xs text-slate-500">{p.note ?? (p.provider === 'manuel' ? 'Manuel' : p.provider)}</span>
+                    <span className="text-xs text-slate-500">
+                      {[p.note ?? (p.provider === 'manuel' ? 'Manuel' : null), p.provider === 'saspay' ? `SasPay${p.method ? ` · ${methodLabel(p.method)}` : ''}${p.environment === 'sandbox' ? ' · test' : ''}` : null,
+                        p.fee ? `frais ${formatXof(p.fee)}` : null, p.status !== 'completed' ? PAY_STATUS[p.status] ?? p.status : null].filter(Boolean).join(' · ')}
+                    </span>
                     <span className={`w-28 shrink-0 text-right font-semibold tabular-nums ${p.status === 'completed' ? 'text-emerald-700' : 'text-slate-400'}`}>{formatXof(Number(p.amount) || 0)}</span>
                     <button type="button" onClick={() => deletePayment(p, name)} aria-label={`Supprimer le paiement de ${name}`} title="Supprimer ce paiement"
                       className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-400">
@@ -484,3 +487,11 @@ function AdminSkeleton() {
     </div>
   );
 }
+
+// Moyen de paiement SasPay : « wave_ci » -> « Wave CI »
+const METHOD_NAMES: Record<string, string> = { wave: 'Wave', orange: 'Orange Money', mtn: 'MTN MoMo', moov: 'Moov Money', card: 'Carte', airtel: 'Airtel Money', mpesa: 'M-Pesa' };
+function methodLabel(code: string) {
+  const [op, country] = code.toLowerCase().split('_');
+  return `${METHOD_NAMES[op] ?? op}${country ? ` ${country.toUpperCase()}` : ''}`;
+}
+const PAY_STATUS: Record<string, string> = { pending: 'en attente', expired: 'expiré', cancelled: 'annulé', failed: 'échoué', mismatch: 'montant incohérent' };
