@@ -1,11 +1,12 @@
 "use client";
 
 // Présentation des paliers : le palier conseillé selon la liste actuelle, le prix (ou la différence
-// à payer pour monter de palier) et l'activation par WhatsApp.
-import React from 'react';
+// à payer pour monter de palier). Paiement en ligne (SasPay) quand il est proposé, sinon activation par WhatsApp.
+import React, { useState } from 'react';
+import { useOnlinePayment } from './useOnlinePayment';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Check, Crown, MessageCircle, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, CreditCard, Crown, Loader2, MessageCircle, Sparkles, X } from 'lucide-react';
 import { LAUNCH_OFFER, launchDiscount } from '../../lib/launch-offer';
 import { useLaunchOffer } from '../promo/LaunchOffer';
 import {
@@ -33,6 +34,10 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
   // Palier conseillé : celui qui accueille la liste actuelle plus au moins une personne
   const need = reason === 'limit' ? persons + 1 : Math.max(persons, 1);
   const advised = recommendedTier(Math.max(need, (current?.max ?? 0) + 1));
+  // Paiement en ligne : la liste sert à choisir le palier, le bouton du bas ouvre la page de paiement
+  const online = useOnlinePayment();
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = tierById(picked) ?? advised;
 
   return (
     <motion.div
@@ -99,13 +104,14 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
             const extra = current ? t.max - current.max : 0;
             return (
               <li key={t.id}>
-                <a
+                <TierRow
+                  online={online.enabled}
+                  onPick={() => setPicked(t.id)}
                   href={disabled ? undefined : tierWhatsappLink(couple, marriageId, t.id, current?.id, persons, launchCut ? { discount: launchCut, launch: true } : null)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-disabled={disabled}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
-                    isAdvised ? 'border-amber-400 bg-amber-50/70 ring-2 ring-amber-200' : 'border-slate-200 bg-white'
+                  disabled={disabled}
+                  selected={online.enabled ? chosen?.id === t.id : false}
+                  className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors ${
+                    (online.enabled ? chosen?.id === t.id : isAdvised) ? 'border-amber-400 bg-amber-50/70 ring-2 ring-amber-200' : 'border-slate-200 bg-white'
                   } ${disabled ? 'pointer-events-none opacity-50' : 'hover:border-amber-400'}`}
                 >
                   <span className="min-w-0 flex-1">
@@ -127,7 +133,7 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
                     )}
                     {current && extra > 0 && <span className="block text-[11px] text-slate-500">{isAdvised ? 'soit ' : ''}{formatF(Math.round(price / extra))} par invité de plus</span>}
                   </span>
-                </a>
+                </TierRow>
               </li>
             );
           })}
@@ -154,7 +160,20 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
             : <>Paiement unique · toutes les fonctionnalités · accès jusqu&apos;à {PREMIUM_ACCESS_MONTHS_AFTER_WEDDING} mois après le mariage. Vous pourrez monter de palier plus tard en payant seulement la différence.</>}
         </p>
 
-        {advised && (
+        {online.enabled && chosen && (
+          <>
+            <button type="button" onClick={() => online.pay(chosen.id)} disabled={online.paying !== null}
+              className="mt-5 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-ink text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
+              {online.paying ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} {current ? `Passer à ${chosen.label} maintenant` : `Payer le palier ${chosen.label}`}
+            </button>
+            {online.error && <p role="alert" className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{online.error}</p>}
+            <a href={tierWhatsappLink(couple, marriageId, chosen.id, current?.id, persons)} target="_blank" rel="noopener noreferrer"
+              className="mt-2 flex min-h-[40px] items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-ink">
+              <MessageCircle size={14} /> ou payer via WhatsApp
+            </a>
+          </>
+        )}
+        {!online.enabled && advised && (
           <a
             href={tierWhatsappLink(couple, marriageId, advised.id, current?.id, persons)}
             target="_blank"
@@ -176,9 +195,19 @@ export default function PricingModal({ onClose, reason = 'discover', persons = 0
           J&apos;ai un code promo ou de parrainage
         </Link>
         <p className="mt-1 text-center text-xs text-slate-500">
-          {ONLINE_PAYMENT_ENABLED ? 'Wave, Orange Money, MTN, Moov ou carte bancaire' : `Activation par appel ou WhatsApp au ${PREMIUM_CONTACT.display}`}
+          {online.enabled || ONLINE_PAYMENT_ENABLED ? 'Wave, Orange Money, MTN, Moov ou carte bancaire · palier activé automatiquement' : `Activation par appel ou WhatsApp au ${PREMIUM_CONTACT.display}`}
         </p>
       </motion.div>
     </motion.div>
   );
+}
+
+// Ligne d'un palier : bouton de choix (paiement en ligne) ou lien WhatsApp
+function TierRow({ online, onPick, href, disabled, selected, className, children }: {
+  online: boolean; onPick: () => void; href?: string; disabled: boolean; selected: boolean; className: string; children: React.ReactNode;
+}) {
+  if (online) {
+    return <button type="button" onClick={onPick} disabled={disabled} aria-pressed={selected} className={className}>{children}</button>;
+  }
+  return <a href={href} target="_blank" rel="noopener noreferrer" aria-disabled={disabled} className={className}>{children}</a>;
 }
