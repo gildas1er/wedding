@@ -22,7 +22,7 @@ export const PREMIUM_ACCESS_MONTHS_AFTER_WEDDING = 1;
 // Textes publics (conditions, confidentialité, fenêtre des tarifs) : passer à true quand le paiement en ligne SasPay
 // est ouvert à tous (adresse réelle dans SASPAY_API_URL). Le bouton « Payer maintenant » dépend, lui, de la configuration
 // du serveur (voir app/api/premium/checkout) et reste réservé aux administrateurs en mode test.
-export const ONLINE_PAYMENT_ENABLED = false;
+export const ONLINE_PAYMENT_ENABLED = true;
 
 // Contact pour activer le Premium (appel ou WhatsApp)
 export const PREMIUM_CONTACT = { display: '01 01 54 06 87', phone: '+2250101540687' };
