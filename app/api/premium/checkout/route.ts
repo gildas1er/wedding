@@ -9,13 +9,16 @@ import { contactEmail, loginPhone } from '../../../../lib/phone-auth';
 import type { AppliedCode } from '../../../../lib/promo';
 
 // Paiement en ligne des paliers (SasPay).
-// En mode test (adresse « sandbox »), seuls les administrateurs voient et utilisent le paiement en ligne :
+// En mode test (adresse « sandbox »), seuls les administrateurs et les comptes de test listés dans
+// SASPAY_TEST_EMAILS (Vercel, adresses séparées par des virgules) voient et utilisent le paiement en ligne :
 // les faux numéros de test ne doivent pas permettre à un couple d'obtenir un palier gratuitement.
+const testEmails = () => (process.env.SASPAY_TEST_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 async function context() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const test = saspayEnvironment() === 'sandbox';
-  const enabled = paymentsConfigured() && Boolean(user) && (!test || hasAdminFlag(user));
+  const tester = hasAdminFlag(user) || (Boolean(user?.email) && testEmails().includes(user!.email!.toLowerCase()));
+  const enabled = paymentsConfigured() && Boolean(user) && (!test || tester);
   return { supabase, user, test, enabled };
 }
 

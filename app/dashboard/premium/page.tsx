@@ -191,7 +191,7 @@ function PremiumContent() {
         {/* Paliers */}
         {!unlimited && (
           <section aria-labelledby="tiers-title" className="mb-8">
-            {online.test && <p className="mb-3 rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">Paiement en ligne en mode test : visible seulement par les administrateurs. Utilisez les numéros de test SasPay (dernier chiffre 0 : réussite, 1 : échec).</p>}
+            {online.test && <p className="mb-3 rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">Paiement en ligne en mode test : visible seulement par les comptes de test. Utilisez les numéros de test SasPay (dernier chiffre 0 : réussite, 1 : échec).</p>}
             {payError && <p role="alert" className="mb-3 rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{payError}</p>}
             <h2 id="tiers-title" className="mb-4 font-display text-2xl text-ink">{current ? 'Passer à un palier supérieur' : 'Choisissez votre palier'}</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
