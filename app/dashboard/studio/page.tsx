@@ -595,7 +595,7 @@ export default function InvitationStudio() {
 
           {/* Identité & photo */}
           <div className="grid grid-cols-1 gap-6">
-            <Card icon={Palette} title="Couleurs de l'invitation" subtitle="Toute la page RSVP s'accorde à votre palette : fonds, boutons, filets et détails.">
+            <Card guide="studio-colors" icon={Palette} title="Couleurs de l'invitation" subtitle="Toute la page RSVP s'accorde à votre palette : fonds, boutons, filets et détails.">
               <PalettePicker
                 primary={config.primary_color}
                 accent={config.accent_color}
@@ -652,7 +652,7 @@ export default function InvitationStudio() {
           </div>
 
           {/* Programme */}
-          <Card icon={Clock} title="Le programme" subtitle="Activez uniquement les cérémonies prévues : les autres n'apparaîtront pas aux invités.">
+          <Card guide="studio-program" icon={Clock} title="Le programme" subtitle="Activez uniquement les cérémonies prévues : les autres n'apparaîtront pas aux invités.">
             {!extendedAvailable && <MigrationHint />}
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <CeremonyCard icon={Handshake} title="Cérémonie de dot" tone="emerald" enabled={config.show_dot} onToggle={(v) => set('show_dot', v)}>
@@ -686,7 +686,7 @@ export default function InvitationStudio() {
             </div>
           </Card>
 
-          <Card icon={Shirt} title="Familles et tenue" subtitle="Les familles qui invitent, la tenue demandée et le pagne de la cérémonie. Très utile pour la dot.">
+          <Card guide="studio-family" icon={Shirt} title="Familles et tenue" subtitle="Les familles qui invitent, la tenue demandée et le pagne de la cérémonie. Très utile pour la dot.">
             <FamilyDressEditor
               value={{ family_1: config.family_1, family_2: config.family_2, dress_code: config.dress_code, dress_colors: config.dress_colors, ceremony_pagne: config.ceremony_pagne }}
               onChange={(patch) => { setConfig((prev) => ({ ...prev, ...patch })); setPreviewTab('rsvp'); }}
@@ -699,7 +699,7 @@ export default function InvitationStudio() {
           </Card>
 
           {/* Message WhatsApp */}
-          <Card icon={Info} title="Infos pratiques" subtitle="Dress code, contact, hébergement… affichés sous le programme de l'invitation.">
+          <Card guide="studio-infos" icon={Info} title="Infos pratiques" subtitle="Dress code, contact, hébergement… affichés sous le programme de l'invitation.">
             {!infosAvailable && (
               <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-amber-200">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -709,7 +709,7 @@ export default function InvitationStudio() {
             <PracticalInfoEditor value={config.practical_info} onChange={(v) => set('practical_info', v)} />
           </Card>
 
-          <Card icon={Ticket} title="Billet d'entrée" subtitle="Chaque invité qui confirme reçoit un billet à son nom, avec un QR code scanné à l'accueil.">
+          <Card guide="studio-ticket" icon={Ticket} title="Billet d'entrée" subtitle="Chaque invité qui confirme reçoit un billet à son nom, avec un QR code scanné à l'accueil.">
             {!isPremium(marriage) ? (
               <p className="flex items-start gap-2 rounded-xl bg-ivory p-3 text-sm text-slate-600">
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -744,7 +744,7 @@ export default function InvitationStudio() {
             )}
           </Card>
 
-          <Card icon={Music} title="Musique d'ambiance" subtitle="Vos invités peuvent l'écouter en ouvrant l'invitation. Appuyez sur lecture pour l'essayer.">
+          <Card guide="studio-music" icon={Music} title="Musique d'ambiance" subtitle="Vos invités peuvent l'écouter en ouvrant l'invitation. Appuyez sur lecture pour l'essayer.">
             <MusicPicker
               value={config.music_url}
               busyLabel={musicStage}
@@ -753,7 +753,7 @@ export default function InvitationStudio() {
             />
           </Card>
 
-          <Card icon={MessageCircle} title="Message WhatsApp" subtitle="Le texte envoyé à chaque invité. Les repères sont remplacés automatiquement.">
+          <Card guide="studio-message" icon={MessageCircle} title="Message WhatsApp" subtitle="Le texte envoyé à chaque invité. Les repères sont remplacés automatiquement.">
             {!extendedAvailable && <MigrationHint />}
             <div className="flex flex-wrap items-center gap-2">
               {WHATSAPP_PLACEHOLDERS.map(({ token, label }) => (
@@ -926,9 +926,9 @@ function TemplateThumb({ id, color, accent }: { id: InvitationTemplate; color: s
 
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[15px] text-ink outline-none transition-colors placeholder:text-slate-400 focus:border-amber-400';
 
-function Card({ icon: Icon, title, subtitle, children }: { icon: LucideIcon; title: string; subtitle?: string; children: React.ReactNode }) {
+function Card({ icon: Icon, title, subtitle, guide, children }: { icon: LucideIcon; title: string; subtitle?: string; guide?: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-5 rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+    <section data-guide={guide} className="space-y-5 rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-amber-300 text-amber-700"><Icon className="h-[18px] w-[18px]" strokeWidth={1.6} /></span>
         <div>

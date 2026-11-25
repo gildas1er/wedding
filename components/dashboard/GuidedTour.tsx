@@ -27,19 +27,33 @@ type Step = {
 
 const STEPS: Step[] = [
   { id: 'nav-studio', target: 'nav-studio', go: '/dashboard/studio', cta: 'Y aller',
-    text: <>Étape 1 : choisissez <b>le modèle de votre invitation</b>.</> },
+    text: <>Étape 1 : composez <b>votre faire-part</b>. On passe en revue chaque rubrique ensemble.</> },
   { id: 'studio-templates', page: '/dashboard/studio', target: 'studio-templates', cta: 'Suivant',
-    text: <>Touchez un modèle : l&apos;aperçu montre <b>l&apos;invitation telle que vos invités la recevront</b>.</> },
+    text: <><b>Le modèle</b> : touchez-en un, l&apos;aperçu montre l&apos;invitation telle que vos invités la recevront. Le Pagne, le Kita, le Bogolan et le Village sont pensés pour la dot.</> },
+  { id: 'studio-colors', page: '/dashboard/studio', target: 'studio-colors', cta: 'Suivant',
+    text: <><b>Couleurs, police et titre</b> : choisissez vos couleurs, l&apos;écriture de vos prénoms et la phrase d&apos;accueil (« On se marie ! »…). Toute l&apos;invitation s&apos;y accorde.</> },
   { id: 'studio-cover', page: '/dashboard/studio', target: 'studio-cover', cta: 'Suivant',
-    text: <>Étape 2 : ajoutez <b>votre photo de couverture</b>, la première image que vos invités verront.</> },
+    text: <>Étape 2 : <b>votre photo de couverture</b>, la première image que vos invités verront. Une photo de vous deux, prise en hauteur, rend le mieux.</> },
+  { id: 'studio-program', page: '/dashboard/studio', target: 'studio-program', cta: 'Suivant',
+    text: <>Étape 3 : <b>le programme</b>. Activez seulement les cérémonies prévues (dot, mairie, église, réception) et indiquez la date, l&apos;heure et le lieu : vos invités auront un bouton pour l&apos;itinéraire.</> },
+  { id: 'studio-family', page: '/dashboard/studio', target: 'studio-family', cta: 'Suivant',
+    text: <><b>Familles et tenue</b> : les familles qui invitent (« Les familles Kouassi &amp; Yao… »), la tenue demandée et le pagne de la cérémonie, que vos invités commandent sur WhatsApp.</> },
+  { id: 'studio-infos', page: '/dashboard/studio', target: 'studio-infos', cta: 'Suivant',
+    text: <><b>Infos pratiques</b> : un contact à joindre, l&apos;hébergement, l&apos;accès, la liste de cadeaux… Elles s&apos;affichent sous le programme.</> },
+  { id: 'studio-ticket', page: '/dashboard/studio', target: 'studio-ticket', cta: 'Suivant',
+    text: <><b>Billet d&apos;entrée</b> : chaque invité qui confirme reçoit un billet à son nom avec un QR code, scanné à l&apos;entrée le jour J. Choisissez quand il le reçoit.</> },
+  { id: 'studio-music', page: '/dashboard/studio', target: 'studio-music', cta: 'Suivant',
+    text: <><b>La musique</b> qui accompagne l&apos;ouverture de l&apos;invitation. Appuyez sur lecture pour l&apos;écouter.</> },
+  { id: 'studio-message', page: '/dashboard/studio', target: 'studio-message', cta: 'Suivant',
+    text: <><b>Le message WhatsApp</b> envoyé avec chaque invitation. Le prénom de l&apos;invité et son lien personnel sont ajoutés tout seuls.</> },
   { id: 'studio-publish', page: '/dashboard/studio', target: 'studio-publish', cta: 'Suivant', nextOnClick: true,
-    text: <>Publiez : vos invités verront <b>ce modèle et cette photo</b>.</> },
+    text: <>Publiez : vos invités verront <b>tout ce que vous venez de régler</b>. Vous pourrez revenir le modifier à tout moment.</> },
   { id: 'nav-invite', target: 'nav-invite', go: '/dashboard/invite', cta: 'Y aller',
-    text: <>Étape 3 : ajoutez <b>vos invités</b>.</> },
+    text: <>Étape 4 : ajoutez <b>vos invités</b>.</> },
   { id: 'invite-add', page: '/dashboard/invite', target: 'invite-add', cta: null, passiveOnClick: true, waitGuests: true,
     text: <>Ajoutez un premier proche, un par un ou <b>depuis les contacts de votre téléphone</b>. Le guide continue dès qu&apos;il est enregistré.</> },
   { id: 'invite-whatsapp', page: '/dashboard/invite', target: 'invite-whatsapp', cta: 'Compris', passiveOnClick: true, nextOnClick: true,
-    text: <>Étape 4 : envoyez-lui <b>son invitation à son nom</b> sur WhatsApp.</> },
+    text: <>Étape 5 : envoyez-lui <b>son invitation à son nom</b> sur WhatsApp.</> },
 ];
 
 type Phase = 'off' | 'welcome' | 'step' | 'done';
@@ -140,8 +154,11 @@ export default function GuidedTour({ openDrawer, closeDrawer, disabled }: { open
   useEffect(() => {
     if (!step?.target || !onPage) { Promise.resolve().then(() => setRect(null)); return; }
     let raf = 0;
+    const since = Date.now();
     const tick = () => {
       const el = findTarget(step.target!);
+      // Rubrique absente de la page (selon la formule ou la base) : étape suivante
+      if (!el && !step.go && Date.now() - since > 2500) { goTo(index + 1); return; }
       if (el && scrolled.current !== step.id) {
         scrolled.current = step.id;
         el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -152,7 +169,7 @@ export default function GuidedTour({ openDrawer, closeDrawer, disabled }: { open
     };
     tick();
     return () => clearTimeout(raf);
-  }, [step, onPage]);
+  }, [step, onPage, index, goTo]);
 
   // Toucher sur la cible : le guide s'efface (fenêtre d'ajout) ou passe à la suite (Publier, WhatsApp)
   useEffect(() => {
@@ -209,7 +226,7 @@ export default function GuidedTour({ openDrawer, closeDrawer, disabled }: { open
           {phase === 'welcome' ? (
             <>
               <h2 id="guide-title" className="font-display text-2xl text-ink">Bienvenue{couple && !identity ? ` ${couple}` : ''} !</h2>
-              <p className="mt-1 text-sm text-slate-500">Votre mariage est prêt en 4 étapes. On vous guide.</p>
+              <p className="mt-1 text-sm text-slate-500">Votre mariage est prêt en 5 étapes. On vous guide.</p>
               {identity && (
                 <div className="mt-4 grid gap-2 text-left">
                   <div className="grid grid-cols-2 gap-2">
@@ -222,7 +239,7 @@ export default function GuidedTour({ openDrawer, closeDrawer, disabled }: { open
                 </div>
               )}
               <ol className="mt-4 grid gap-2 text-left text-sm text-ink">
-                {['Choisir votre invitation', 'Ajouter votre photo de couverture', 'Ajouter vos invités', 'Envoyer la première invitation'].map((t, i) => (
+                {['Choisir votre invitation', 'Ajouter votre photo de couverture', 'Compléter le programme, la tenue et les infos', 'Ajouter vos invités', 'Envoyer la première invitation'].map((t, i) => (
                   <li key={t} className="flex items-center gap-2.5"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-rose-50 text-xs font-bold text-rose-600">{i + 1}</span>{t}</li>
                 ))}
               </ol>
