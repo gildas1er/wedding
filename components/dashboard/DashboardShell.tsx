@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AlliancesMark from '../brand/AlliancesMark';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Wallet, LogOut, Settings, LayoutGrid,
-  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, LifeBuoy, CircleQuestionMark, ScanLine, HeartHandshake, type LucideIcon,
+  ListChecks, Armchair, Mail, CalendarClock, Crown, Menu, X, QrCode, Heart, Lock, Loader2, Images, LifeBuoy, CircleQuestionMark, ScanLine, HeartHandshake, Signpost, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../app/lib/supabase';
 import PricingModal from './PricingModal';
 import SouvenirModal from './SouvenirModal';
 import DeleteAccountModal from './DeleteAccountModal';
+import GuidedTour from './GuidedTour';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { FREE_GUEST_LIMIT, TIERS, countPersons, formatXof, isPremium, tierById, upgradePrice } from '../../lib/plan';
 import { FINAL_REMINDER_DAYS, SOON_DAYS, SOUVENIR_ALLOWED_PATHS, formatLongDate, spaceLifecycle } from '../../lib/lifecycle';
@@ -156,6 +157,7 @@ function SidebarContent({ pathname, couple, used, onUpgrade, onLogout, onNavigat
                     href={href}
                     aria-current={active ? 'page' : undefined}
                     onClick={onNavigate}
+                    data-guide={href === '/dashboard/studio' ? 'nav-studio' : href === '/dashboard/invite' ? 'nav-invite' : undefined}
                     className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] transition-all ${
                       active
                         ? 'bg-white text-ink font-semibold shadow-sm ring-1 ring-slate-200/80'
@@ -182,6 +184,13 @@ function SidebarContent({ pathname, couple, used, onUpgrade, onLogout, onNavigat
           <LifeBuoy size={18} strokeWidth={1.6} className="text-slate-400 group-hover:text-slate-600" />
           <span>Aide &amp; guide</span>
         </a>
+        {!souvenir && (
+          <button type="button" onClick={() => { onNavigate?.(); window.dispatchEvent(new Event('ws-guide-restart')); }}
+            className="group mt-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[14px] font-medium text-slate-600 transition-all hover:bg-white/60 hover:text-ink">
+            <Signpost size={18} strokeWidth={1.6} className="text-slate-400 group-hover:text-slate-600" />
+            <span>Revoir le guide pas à pas</span>
+          </button>
+        )}
 
         {/* Offre Premium / mode souvenir */}
         {souvenir ? (
@@ -292,6 +301,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   };
 
   const openPricing = () => { setDrawerOpen(false); setShowPricing(true); };
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const days = daysUntil(couple?.date ?? null);
 
   return (
@@ -377,6 +387,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <AnimatePresence>
         {deleteModal && <DeleteAccountModal onClose={() => setDeleteModal(false)} />}
       </AnimatePresence>
+
+      {/* Guide pas à pas de la première connexion */}
+      {couple && <GuidedTour openDrawer={openDrawer} disabled={souvenir} />}
 
       <div className="lg:pl-[17rem] min-w-0 print:pl-0">
         {/* Après le mariage : l'espace reste complet jusqu'à J+1 mois */}

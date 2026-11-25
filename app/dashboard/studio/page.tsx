@@ -559,7 +559,7 @@ export default function InvitationStudio() {
 
           {/* Modèle */}
           <Card icon={LayoutTemplate} title="Modèle de l'invitation" subtitle="La mise en scène que vos invités découvrent en ouvrant le lien. Le contenu reste le même.">
-            <div role="radiogroup" aria-label="Modèle de l'invitation" className="grid grid-cols-1 gap-2.5">
+            <div role="radiogroup" aria-label="Modèle de l'invitation" data-guide="studio-templates" className="grid grid-cols-1 gap-2.5">
               {INVITATION_TEMPLATES.map((t) => {
                 const active = config.invitation_template === t.id;
                 return (
@@ -635,7 +635,7 @@ export default function InvitationStudio() {
             </Card>
 
             <Card icon={ImageIcon} title="Photo de couverture">
-              <div className="max-w-sm">
+              <div className="max-w-sm" data-guide="studio-cover">
               <CoverPhotoEditor
                 url={config.bg_image_url}
                 position={config.bg_image_position}
@@ -796,7 +796,7 @@ export default function InvitationStudio() {
           </Card>
 
           {/* Publication */}
-          <div className="sticky bottom-4 z-30 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-lg backdrop-blur">
+          <div data-guide="studio-publish" className="sticky bottom-4 z-30 flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-lg backdrop-blur">
             <p className="flex-1 pl-2 text-sm text-slate-500">
               {isDirty ? <span className="font-medium text-amber-700">Modifications non publiées</span> : 'Tout est à jour'}
             </p>

@@ -6,9 +6,7 @@ import { supabase } from '../lib/supabase';
 import { taskState, type Task } from '../../lib/checklist';
 import { useRouter } from 'next/navigation';
 import PricingModal from '@/components/dashboard/PricingModal';
-import WelcomeFlow from '@/components/dashboard/WelcomeFlow';
 import JourneyCard, { type JourneyState } from '@/components/dashboard/JourneyCard';
-import { daysUntil } from '../../lib/planning';
 import { isFirstPurchase } from '../../lib/launch-offer';
 import { 
   Heart, Users, Banknote, Calendar, LogOut, 
@@ -18,7 +16,7 @@ import {
   TrendingUp, AlertCircle, MapPin, Sparkles,
   ArrowRight, Crown, ShieldCheck, Zap
 } from 'lucide-react';
-import { forgetMarriage, getSessionUser, loadMarriage } from '../../lib/current-marriage';
+import { getSessionUser, loadMarriage } from '../../lib/current-marriage';
 
 // --- NOUVEAU : MODALE DE CÉLÉBRATION (GAMIFICATION) ---
 function MilestoneCelebration({ title, message, onConfirm }: any) {
@@ -50,8 +48,6 @@ export default function WeddingDashboard() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [needsIdentity, setNeedsIdentity] = useState(false);
   const [journey, setJourney] = useState<JourneyState | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [showPricing, setShowPricing] = useState(false);
@@ -93,18 +89,7 @@ export default function WeddingDashboard() {
         }, { total: 0, confirmed: 0, pending: 0, declined: 0, totalPersons: 0 });
         setGuestStats(stats);
 
-        // Bienvenue : une seule fois (migration 26). Sans la colonne, ancienne règle : liste vide, mémorisée dans le navigateur
-        let welcomeDone = false;
-        try { welcomeDone = localStorage.getItem(`ws-welcome-${marriageData.id}-done`) === '1'; } catch { /* navigation privée */ }
-        const notYetWelcomed = 'onboarded_at' in marriageData ? !marriageData.onboarded_at : stats.total === 0;
-        const days = daysUntil(marriageData.wedding_date);
-        if (!welcomeDone && notYetWelcomed && (days === null || days >= 0)) {
-          // Inscription Google / Facebook : prénoms provisoires et pas de date choisie
-          const meta = user.user_metadata ?? {};
-          const placeholder = (v?: string | null) => !v?.trim() || /^partenaire [12]$/i.test(v.trim());
-          setNeedsIdentity(!meta.wedding_date || placeholder(marriageData.partner_1_name) || placeholder(marriageData.partner_2_name));
-          setShowWelcome(true);
-        }
+        // Première connexion : le guide pas à pas (components/dashboard/GuidedTour.tsx, dans le menu)
         setJourney({
           templateChosen: Boolean(marriageData.onboarded_at) || (marriageData.invitation_template ?? 'classique') !== 'classique',
           firstSent: (guests || []).some((g) => g.invitation_sent),
@@ -162,11 +147,6 @@ export default function WeddingDashboard() {
     if (!error) setMarriage({ ...marriage, wedding_date: newDate });
   };
 
-  const handleCloseWelcome = (changed: boolean) => {
-    setShowWelcome(false);
-    setJourney((j) => (j ? { ...j, templateChosen: true } : j));
-    if (changed) { forgetMarriage(); setReloadKey((k) => k + 1); }
-  };
 
   if (loading) return (<div className="h-screen flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin" /></div> );
 
@@ -179,9 +159,6 @@ export default function WeddingDashboard() {
       </AnimatePresence>
 
 
-      <AnimatePresence>
-        {showWelcome && marriage && <WelcomeFlow marriage={marriage} needsIdentity={needsIdentity} onFinish={handleCloseWelcome} />}
-      </AnimatePresence>
 
 
       <main className="relative mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
@@ -201,7 +178,7 @@ export default function WeddingDashboard() {
           </label>
         </header>
 
-        {journey && !showWelcome && <JourneyCard state={journey} />}
+        {journey && <JourneyCard state={journey} />}
 
         {/* HÉRO — COUPLE & COMPTE À REBOURS */}
         <section className="relative mb-8 overflow-hidden rounded-[1.75rem] bg-ink shadow-xl sm:mb-10">

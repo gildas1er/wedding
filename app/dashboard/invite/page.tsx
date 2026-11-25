@@ -736,7 +736,7 @@ export default function GuestPage() {
               <span>Contacts</span>
             </button>
             {/* Sur ordinateur : bouton classique ; sur mobile : bouton flottant en bas à droite */}
-            <button onClick={() => (canAdd ? openAdd() : setPricing('limit'))} aria-disabled={!canAdd}
+            <button data-guide="invite-add" onClick={() => (canAdd ? openAdd() : setPricing('limit'))} aria-disabled={!canAdd}
               className={`hidden min-h-[44px] items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-700 lg:inline-flex ${!canAdd ? 'cursor-not-allowed opacity-50' : ''}`}>
               <Plus size={16} /> Ajouter un proche
             </button>
@@ -885,7 +885,7 @@ export default function GuestPage() {
             <Users className="h-9 w-9 text-amber-500" strokeWidth={1.4} />
             <p className="font-display text-xl text-ink">Votre liste est encore vide</p>
             <p className="max-w-sm text-sm text-slate-500">Ajoutez vos proches un par un, ou importez un fichier CSV.</p>
-            <button onClick={openAdd} className="mt-1 inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700">
+            <button data-guide="invite-add" onClick={openAdd} className="mt-1 inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-ink px-5 text-sm font-semibold text-white hover:bg-rose-700">
               <Plus size={16} /> Ajouter un proche
             </button>
           </div>
@@ -949,7 +949,7 @@ export default function GuestPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-1.5">
-                            <IconAction label={guest.invitation_sent ? "Renvoyer l'invitation WhatsApp" : 'Inviter via WhatsApp'} onClick={() => sendWhatsAppInvitation(guest)} tone={guest.invitation_sent ? 'neutral' : 'whatsapp'}>
+                            <IconAction guide="invite-whatsapp" label={guest.invitation_sent ? "Renvoyer l'invitation WhatsApp" : 'Inviter via WhatsApp'} onClick={() => sendWhatsAppInvitation(guest)} tone={guest.invitation_sent ? 'neutral' : 'whatsapp'}>
                               <MessageCircle size={16} />
                             </IconAction>
                             <IconAction label="Modifier" onClick={() => openEdit(guest)}><Edit3 size={16} /></IconAction>
@@ -993,6 +993,7 @@ export default function GuestPage() {
 
       {/* Bouton d'ajout flottant (mobile et tablette) */}
       <button
+        data-guide="invite-add"
         onClick={openAdd}
         aria-label="Ajouter un proche"
         className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-rose-500 text-white shadow-xl shadow-rose-500/30 transition-transform active:scale-95 lg:hidden"
@@ -1051,14 +1052,14 @@ function SentBadge({ sent }: { sent: boolean }) {
     : <span className="inline-flex items-center gap-1 whitespace-nowrap text-amber-700"><Clock size={12} /> À inviter</span>;
 }
 
-function IconAction({ label, onClick, tone = 'neutral', children }: { label: string; onClick: () => void; tone?: 'neutral' | 'whatsapp' | 'danger'; children: React.ReactNode }) {
+function IconAction({ label, onClick, tone = 'neutral', guide, children }: { label: string; onClick: () => void; tone?: 'neutral' | 'whatsapp' | 'danger'; guide?: string; children: React.ReactNode }) {
   const tones = {
     neutral: 'border-slate-200 text-slate-600 hover:border-ink hover:text-ink',
     whatsapp: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white',
     danger: 'border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600',
   };
   return (
-    <button onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border bg-white transition-colors ${tones[tone]}`}>
+    <button data-guide={guide} onClick={onClick} aria-label={label} title={label} className={`grid h-10 w-10 place-items-center rounded-xl border bg-white transition-colors ${tones[tone]}`}>
       {children}
     </button>
   );
@@ -1109,6 +1110,7 @@ function GuestCard({ guest, dotEnabled = false, onInvite, onEdit, onDelete }: { 
 
       <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
         <button
+          data-guide="invite-whatsapp"
           onClick={onInvite}
           className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
             guest.invitation_sent ? 'border border-slate-200 bg-white text-slate-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'
